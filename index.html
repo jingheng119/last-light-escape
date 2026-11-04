@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#07121a" />
+  <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
+  <title>Last Light — The Hollow Ward</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="game.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"><span></span></div><div><strong>LAST LIGHT</strong><small>THE HOLLOW WARD</small></div></div>
+      <div class="top-links"><span class="edition">ORIGINAL BROWSER GAME · V1.0</span><button id="soundBtn" class="icon-btn" type="button" aria-label="Toggle sound" title="Toggle sound">♪ OFF</button></div>
+    </header>
+
+    <section class="intro"><div><div class="eyebrow"><i></i> THE LIGHT IS FADING</div><h1>Outrun the <em>Hollow.</em></h1><p>Find the power cores. Activate the relay. Reach the elevator. Every sound you make can draw something closer.</p></div>
+    <div class="mission-pill"><span>MISSION</span><strong id="missionLabel">THE FIRST DESCENT</strong><small id="missionLevel">FLOOR 01 / 03</small></div></section>
+
+    <section class="game-shell" aria-label="Game area">
+      <div class="statusbar"><div class="status-item"><span class="status-label">VITAL SIGNS</span><strong id="health" class="health">♥ ♥ ♥</strong></div><div class="status-item"><span class="status-label">POWER CORES</span><strong id="cores">0 / 2</strong></div><div class="status-item"><span class="status-label">RELAY</span><strong id="relay">OFFLINE</strong></div><div class="status-item"><span class="status-label">TIME</span><strong id="timer">00:00</strong></div><div class="status-item status-item-last"><span class="status-label">THREAT LEVEL</span><strong id="threat" class="threat-calm">LOW</strong></div></div>
+      <div id="gameWrapper" class="canvas-wrap"><canvas id="game" width="992" height="672" role="img" aria-label="Top-down maze escape game"></canvas>
+        <div id="overlay" class="overlay"><div class="overlay-panel" id="overlayPanel"><div class="overlay-kicker">SURVIVAL PROTOCOL / 001</div><div class="overlay-glyph" aria-hidden="true">◇</div><h2 id="overlayTitle">THE HOLLOW WARD</h2><p id="overlayText">The emergency elevator is offline. Restore its power and avoid the things lurking in the corridors.</p><div class="objectives"><span>◈ Collect power cores</span><span>⌁ Activate the relay</span><span>⇧ Reach the elevator</span></div><button id="primaryBtn" class="primary-btn">ENTER THE WARD <span>↗</span></button><div id="overlayHint" class="overlay-hint">WASD / ARROWS TO MOVE · SPACE TO DASH</div></div></div>
+        <div id="toast" class="toast" aria-live="polite"></div>
+        <div id="screenFlash" class="screen-flash"></div>
+      </div>
+      <div class="footerbar"><div class="footer-left"><span class="key">WASD</span> MOVE <span class="sep">·</span> <span class="key">SPACE</span> DASH <span class="sep">·</span> <span class="key">E</span> ACTIVATE <span class="sep">·</span> <span class="key">Q</span> DECOY <span class="sep">·</span> <span class="key">P</span> PAUSE</div><div class="footer-right"><span id="dashStatus">DASH READY</span><span class="sep">/</span><span id="decoys">DECOYS × 3</span></div></div>
+    </section>
+
+    <section class="bottom-row"><div class="tip-card"><div class="tip-icon">✦</div><div><strong>FIELD NOTES</strong><p id="fieldNote">Hollows can see along corridors. Break line of sight to escape a pursuit.</p></div></div><div class="mobile-controls" aria-label="Touch controls"><div class="dpad"><button data-dir="up" aria-label="Move up">▲</button><div><button data-dir="left" aria-label="Move left">◀</button><button data-dir="down" aria-label="Move down">▼</button><button data-dir="right" aria-label="Move right">▶</button></div></div><div class="mobile-actions"><button id="touchDash" type="button">DASH</button><button id="touchInteract" type="button">USE</button><button id="touchDecoy" type="button">DECOY</button><button id="touchPause" type="button">PAUSE</button></div></div></section>
+    <footer class="site-footer"><span>LAST LIGHT: THE HOLLOW WARD · AN ORIGINAL GAME</span><span>NO ACCOUNTS · NO TRACKING · SAVES BEST TIME LOCALLY</span></footer>
+  </main>
+</body>
+</html>
