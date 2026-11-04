@@ -716,3 +716,33 @@
   .game-shell .overlay-hint{margin-top:7px}
   .game-shell .primary-btn{padding:10px 15px}
 }
+
+
+/* v4.0: Stage II Outer Complex inherits each floor's world accent.
+   Stage I keeps its existing teal Ward presentation. */
+.game-shell.stage-two{
+  border-color:var(--stage-accent,#7ad8ef);
+  background:#101827;
+}
+.game-shell.stage-two .statusbar{
+  background:#142133;
+  border-bottom-color:var(--stage-accent,#7ad8ef);
+}
+.game-shell.stage-two .status-label{
+  color:#a4b4d0;
+}
+.game-shell.stage-two .footerbar{
+  background:#121f30;
+  border-top-color:#3f5067;
+}
+.game-shell.stage-two .overlay-panel{
+  border-color:var(--stage-accent,#7ad8ef);
+  background:linear-gradient(160deg,#1b293cfa,#101722f9);
+}
+.game-shell.stage-two .overlay-kicker,
+.game-shell.stage-two .role-choice-label{
+  color:var(--stage-accent,#7ad8ef);
+}
+.game-shell.stage-two .role-locked{
+  border-color:var(--stage-accent,#7ad8ef);
+}
