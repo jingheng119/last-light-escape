@@ -68,14 +68,14 @@
       if(grid[y][x]!==1)continue;
       const horizontal=grid[y][x-1]===0&&grid[y][x+1]===0;
       const vertical=grid[y-1][x]===0&&grid[y+1][x]===0;
-      if((horizontal||vertical)&&rand()<extraLoops)carve(x,y);
+      if((horizontal||vertical)&&rand()<extraLoops*.65)carve(x,y);
     }
     // Irregular chambers are carved into the maze without sealing any corridors.
     // Their floors are contiguous but sizes and placements vary by floor/seed.
-    const roomCount=5+Math.floor(rand()*3);
+    const roomCount=3+Math.floor(rand()*3);
     const rooms=[];
     for(let attempt=0;attempt<85&&rooms.length<roomCount;attempt++){
-      const w=3+Math.floor(rand()*4),h=3+Math.floor(rand()*3);
+      const w=3+Math.floor(rand()*2),h=3+Math.floor(rand()*2);
       const x=2+Math.floor(rand()*(COLS-w-4));
       const y=2+Math.floor(rand()*(ROWS-h-4));
       if(x<5&&y<5)continue;
@@ -91,7 +91,7 @@
       }
     }
     // Short side corridors and extra crossroads add navigational layers.
-    for(let i=0;i<26;i++){
+    for(let i=0;i<12;i++){
       const x=2+Math.floor(rand()*(COLS-4)),y=2+Math.floor(rand()*(ROWS-4));
       if(grid[y][x]!==1)continue;
       const open=dirs.filter(([dx,dy])=>grid[y+dy][x+dx]===0).length;
