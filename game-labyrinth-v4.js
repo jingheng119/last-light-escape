@@ -1140,7 +1140,7 @@
   const gamePanel=$('.game-shell');
   const syncFullscreenButton=()=>{
     const active=document.fullscreenElement===gamePanel;
-    fullscreenButton.textContent=active?'⛶ EXIT':'⛶ FULL';
+    fullscreenButton.textContent='⛶';
     fullscreenButton.setAttribute('aria-label',active?'Exit fullscreen':'Enter fullscreen');
     fullscreenButton.setAttribute('aria-pressed',String(active));
   };
