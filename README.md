@@ -41,6 +41,10 @@ Touchscreen users can use the on-screen directional pad and action buttons.
 
 No additional changes are necessary. All asset references are relative paths, so this also works as a project page in a subfolder.
 
+## Map generation improvements
+
+Rooms have coherent rectangular interiors and perimeter walls, with doorways into the surrounding maze. Disconnected passages are reconnected automatically, and isolated wall pillars are removed. These changes preserve reachable objectives across all three floors.
+
 ## Version 2.0 mechanics
 
 - **Scout:** Pulse briefly stuns Hollows within 5.5 tiles. Cooldown: 13 seconds.
@@ -52,7 +56,7 @@ No additional changes are necessary. All asset references are relative paths, so
 ## Technical design
 
 - **Canvas 2D** renderer with procedural, original geometric graphics, gradients, atmosphere and lighting mask.
-- **Seeded depth-first maze generation** with extra loops and open ward rooms to create alternate routes.
+- **Seeded depth-first maze generation** with corridor loops, rectangular ward rooms, intentional doorways, connected-floor repair, and isolated-wall cleanup.
 - **Breadth-first search pathfinding**, directional sight cones, sound investigation, and last-known-position searches for enemies.
 - **State machine** for menus, gameplay, pause, defeat, floor completion and victory.
 - **Collision detection** against the tile map, mobile controls and optional synthesized audio.
