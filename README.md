@@ -1,6 +1,6 @@
 # Last Light: The Hollow Ward
 
-An original three-floor, top-down survival and maze-escape game for the browser. **Version 1.1** adds open ward rooms, directional enemy sight, sound investigation, and last-known-position searches. Inspired by the broad genre of cooperative escape maps, **not** a remake of any Dota 2 or Warcraft game. No copyrighted characters, music, maps or assets are included.
+An original three-floor, top-down survival and maze-escape game for the browser. **Version 2.0** introduces Scout and Medic roles, class-specific abilities, and a survivor rescue-and-extraction objective. It also retains v1.1's procedural rooms, directional vision and sound investigation. This is an original game, not a remake of Dota 2 or Warcraft, and uses no assets from those games.
 
 ## Play
 
@@ -12,8 +12,9 @@ Open `index.html` in a modern browser, or serve the files using any static HTTP 
 | --- | --- |
 | WASD / arrow keys | Move |
 | Space | Dash (3.5-second cooldown) |
-| E | Activate nearby relay / interact with exit |
+| E | Rescue survivor / activate relay / interact with exit |
 | Q | Deploy sound decoy (3 per floor) |
+| F | Use class ability: Scout pulse (stuns nearby enemies, 13s cooldown) or Medic heal (restores one heart, 16s cooldown) |
 | P / Escape | Pause / resume |
 | R | Restart the current floor |
 | Enter | Start / resume / advance when a menu is open |
@@ -22,10 +23,12 @@ Touchscreen users can use the on-screen directional pad and action buttons.
 
 ## Objectives
 
-1. Find every **cyan power core** in the maze.
-2. Find and activate the **golden relay** by approaching it and pressing **E**.
-3. Reach the **elevator** and press **E** (or walk onto it) after all objectives are complete.
-4. Escape three increasingly dangerous floors. You have three health points per floor.
+1. Choose **Scout** or **Medic** on the title screen.
+2. Find every **cyan power core** in the maze.
+3. Find the trapped **survivor** and press **E** nearby to rescue them. They follow you through the maze.
+4. Find and activate the **golden relay** by approaching it and pressing **E**.
+5. Bring the survivor close to the **elevator**, then press **E** or walk onto it once all objectives are done.
+6. Escape three increasingly dangerous floors. You have three health points per floor.
 
 **Enemies:** The Hollows patrol the corridors, pursue players they can see, and investigate sound decoys. Breaking line of sight helps you lose pursuit. Dashing briefly protects you from their touch. The heading in the top-right of the game canvas points toward the next objective. The best complete-game time is stored only in your browser's `localStorage`.
 
@@ -37,6 +40,14 @@ Touchscreen users can use the on-screen directional pad and action buttons.
 4. The resulting URL will be `https://YOUR_USERNAME.github.io/last-light-escape/`.
 
 No additional changes are necessary. All asset references are relative paths, so this also works as a project page in a subfolder.
+
+## Version 2.0 mechanics
+
+- **Scout:** Pulse briefly stuns Hollows within 5.5 tiles. Cooldown: 13 seconds.
+- **Medic:** Heal one heart if you are injured. Cooldown: 16 seconds.
+- **Rescue mission:** Each floor contains one captive survivor. Interact to free them and escort them to within two tiles of the elevator.
+- **Escort AI:** The survivor follows the player using grid-based pathfinding. The enemy AI targets the player, not the survivor, in this prototype.
+- **Single-player:** Role selection is for one local player only; cooperative networking is not included.
 
 ## Technical design
 
