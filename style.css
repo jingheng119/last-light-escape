@@ -204,3 +204,81 @@
   .joystick-knob{width:58px;height:58px;margin-left:-29px;margin-top:-29px}
   .joystick-knob::after{inset:21px}
 }
+
+
+/* v3.0.2: right-side action cluster, matching the player's reference. */
+.mobile-controls .mobile-actions{
+  display:block;position:relative;flex:0 0 200px;
+  width:200px;height:240px;min-width:0;
+  grid-template-columns:none;grid-template-rows:none;
+}
+.mobile-controls .mobile-actions button{
+  position:absolute;display:flex;align-items:center;justify-content:center;
+  min-width:0;max-width:none;grid-column:auto;grid-row:auto;
+  touch-action:none;
+}
+.mobile-controls .mobile-actions .action-orb{
+  border-radius:50%;aspect-ratio:1;
+}
+.mobile-controls .mobile-actions #touchPause{
+  top:0;right:0;bottom:auto;left:auto;
+  width:74px;height:42px;aspect-ratio:auto;
+  border-radius:11px;font-size:10px;white-space:nowrap;
+}
+.mobile-controls .mobile-actions #touchDecoy{
+  top:71px;right:0;bottom:auto;left:auto;
+  width:69px;height:69px;
+}
+.mobile-controls .mobile-actions #touchAbility{
+  right:2px;bottom:0;top:auto;left:auto;
+  width:94px;height:94px;z-index:2;
+}
+.mobile-controls .mobile-actions #touchInteract{
+  left:34px;top:126px;right:auto;bottom:auto;
+  width:54px;height:54px;z-index:1;
+  background:#297666da;
+}
+.mobile-controls .mobile-actions #touchDash{
+  left:0;bottom:0;top:auto;right:auto;
+  width:70px;height:70px;
+}
+@media(max-width:550px){
+  .mobile-controls .mobile-actions{
+    width:170px;height:218px;flex-basis:170px;
+  }
+  .mobile-controls .mobile-actions #touchPause{
+    width:68px;height:37px;font-size:9px;
+  }
+  .mobile-controls .mobile-actions #touchDecoy{
+    top:62px;width:58px;height:58px;
+  }
+  .mobile-controls .mobile-actions #touchAbility{
+    right:2px;width:84px;height:84px;
+  }
+  .mobile-controls .mobile-actions #touchInteract{
+    top:105px;left:21px;width:48px;height:48px;
+  }
+  .mobile-controls .mobile-actions #touchDash{
+    width:60px;height:60px;
+  }
+}
+@media(max-height:450px) and (orientation:landscape){
+  .mobile-controls .mobile-actions{
+    width:174px;height:200px;flex-basis:174px;
+  }
+  .mobile-controls .mobile-actions #touchPause{
+    width:68px;height:36px;font-size:9px;
+  }
+  .mobile-controls .mobile-actions #touchDecoy{
+    top:54px;width:58px;height:58px;
+  }
+  .mobile-controls .mobile-actions #touchAbility{
+    width:80px;height:80px;
+  }
+  .mobile-controls .mobile-actions #touchInteract{
+    top:98px;left:23px;width:48px;height:48px;
+  }
+  .mobile-controls .mobile-actions #touchDash{
+    width:58px;height:58px;
+  }
+}
