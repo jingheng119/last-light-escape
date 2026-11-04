@@ -522,20 +522,8 @@
           continue;
         }
         h.dashCooldown-=dt;
-        if(h.dashCooldown<=0){
-          const options=[];
-          for(const [dx,dy] of [...dirs,[1,1],[1,-1],[-1,1],[-1,-1]]){
-            const len=Math.hypot(dx,dy),nx=dx/len,ny=dy/len;
-            // A dash must have sufficient room to finish without clipping a corner.
-            if(canStand(h.x+nx*.42,h.y+ny*.42,.13)&&
-               canStand(h.x+nx*1.05,h.y+ny*1.05,.13))options.push({x:nx,y:ny});
-          }
-          if(options.length&&dist(h,TILE_CENTER(Math.floor(h.x),Math.floor(h.y)))<.22){
-            h.dashDir=options[Math.floor(rand()*options.length)];h.dashTime=.24;
-            h.dashCooldown=2.5+rand()*3.3;
-            h.path=[];h.pathIndex=0;h.repath=0;
-          }else h.dashCooldown=.65;
-        }
+        // Start any burst only after the chase/patrol route is updated below,
+        // so the lunge follows the Hollow's actual movement direction.
       }
       const distance=dist(h,player);
       const lookX=Math.cos(h.angle),lookY=Math.sin(h.angle);
@@ -597,6 +585,28 @@
         if(target)h.path=pathTo(h,target);
         h.pathIndex=0;h.repath=h.mode==='chase'?.23:(h.mode==='lure'?.65:1.25);
       }else h.repath-=dt;
+      if(h.variant==='dasher'&&h.dashCooldown<=0){
+        // If the player is visible, dash right at them; otherwise lunge along
+        // the next path waypoint (including around corners rather than walls).
+        const canAimAtPlayer=h.mode==='chase'&&clearLine(h,player);
+        const dashTarget=canAimAtPlayer?player:h.path[h.pathIndex];
+        if(dashTarget){
+          const distanceToTarget=dist(h,dashTarget);
+          if(distanceToTarget>.28){
+            const nx=(dashTarget.x-h.x)/distanceToTarget;
+            const ny=(dashTarget.y-h.y)/distanceToTarget;
+            // Only dash while a full corridor is clear, including diagonals.
+            const clearance=Math.min(1.65,distanceToTarget);
+            const clear=[.35,.70,1].every(t=>canStand(h.x+nx*clearance*t,h.y+ny*clearance*t,.13));
+            if(clear){
+              h.dashDir={x:nx,y:ny};h.dashTime=Math.min(.24,clearance/8.2);
+              h.dashCooldown=2.5+rand()*3.3;
+              h.angle=Math.atan2(ny,nx);
+              // Keep the path until the dash completes; then recalculate it.
+            }else h.dashCooldown=.35;
+          }else h.dashCooldown=.35;
+        }else h.dashCooldown=.35;
+      }
       if(h.pathIndex<h.path.length){
         const p=h.path[h.pathIndex],delta=dist(h,p);
         if(delta<.07)h.pathIndex++;
