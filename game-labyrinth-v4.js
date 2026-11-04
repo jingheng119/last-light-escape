@@ -512,7 +512,11 @@
           const x=h.x,y=h.y;
           moveEntity(h,h.dashDir.x*step,h.dashDir.y*step,.13);
           h.angle=Math.atan2(h.dashDir.y,h.dashDir.x);
-          if(Math.hypot(h.x-x,h.y-y)<step*.35)h.dashTime=0;
+          if(Math.hypot(h.x-x,h.y-y)<step*.75)h.dashTime=0;
+          if(h.dashTime===0){
+            // Rebuild patrol/chase navigation from the new position.
+            h.path=[];h.pathIndex=0;h.repath=0;
+          }
           h.wobble+=dt*10;
           if(dist(h,player)<3)danger=Math.max(danger,1);
           continue;
@@ -522,13 +526,15 @@
           const options=[];
           for(const [dx,dy] of [...dirs,[1,1],[1,-1],[-1,1],[-1,-1]]){
             const len=Math.hypot(dx,dy),nx=dx/len,ny=dy/len;
-            if(canStand(h.x+nx*.5,h.y+ny*.5,.13))options.push({x:nx,y:ny});
+            // A dash must have sufficient room to finish without clipping a corner.
+            if(canStand(h.x+nx*.42,h.y+ny*.42,.13)&&
+               canStand(h.x+nx*1.05,h.y+ny*1.05,.13))options.push({x:nx,y:ny});
           }
-          if(options.length){
-            h.dashDir=options[Math.floor(rand()*options.length)];h.dashTime=.34;
+          if(options.length&&dist(h,TILE_CENTER(Math.floor(h.x),Math.floor(h.y)))<.22){
+            h.dashDir=options[Math.floor(rand()*options.length)];h.dashTime=.24;
             h.dashCooldown=2.5+rand()*3.3;
-            h.repath=0;
-          }else h.dashCooldown=.8;
+            h.path=[];h.pathIndex=0;h.repath=0;
+          }else h.dashCooldown=.65;
         }
       }
       const distance=dist(h,player);
@@ -598,7 +604,12 @@
           const speed=h.speed*(h.mode==='chase'?1.55:1)*(h.mode==='lure'?1.20:1);
           const step=Math.min(speed*dt,delta);
           h.angle=Math.atan2(p.y-h.y,p.x-h.x);
-          h.x+=Math.cos(h.angle)*step;h.y+=Math.sin(h.angle)*step;
+          if(h.variant==='dasher'){
+            const x=h.x,y=h.y;
+            moveEntity(h,Math.cos(h.angle)*step,Math.sin(h.angle)*step,.13,.25);
+            // Recover from a blocked waypoint instead of pushing into its wall.
+            if(Math.hypot(h.x-x,h.y-y)<.001){h.repath=0;h.path=[];h.pathIndex=0;}
+          }else{h.x+=Math.cos(h.angle)*step;h.y+=Math.sin(h.angle)*step;}
         }
       } else if(h.repath>.2&&h.mode==='patrol')h.repath=.2;
       h.wobble+=dt*5;
@@ -661,10 +672,10 @@
     const theme=CONFIGS[levelIndex].theme,kind=CONFIGS[levelIndex].architecture;
     const px=x*TILE,py=y*TILE,room=roomTiles.has(keyOf(x,y));
     const code=(x*13+y*23+levelIndex*17)%11;
-    ctx.fillStyle=room?theme.floor:theme.wall;
-    ctx.fillRect(px,py,TILE,TILE);
-    ctx.fillStyle=theme.floor;
-    ctx.globalAlpha=room?.48:.66;
+    // Walkable tiles are always the same visibly lighter surface. Room
+    // metadata adds only subtle markings, never another apparent wall type.
+    ctx.fillStyle=theme.floor;ctx.fillRect(px,py,TILE,TILE);
+    ctx.fillStyle=theme.glow;ctx.globalAlpha=room?.065:.025;
     ctx.fillRect(px+2,py+2,TILE-4,TILE-4);
     ctx.globalAlpha=1;
     ctx.strokeStyle=theme.line;ctx.globalAlpha=.12;ctx.lineWidth=.75;
@@ -701,11 +712,13 @@
   function drawOuterWall(x,y){
     const theme=CONFIGS[levelIndex].theme,kind=CONFIGS[levelIndex].architecture;
     const px=x*TILE,py=y*TILE,pattern=(x*7+y*11+levelIndex)%5;
+    // Solid walls have one continuous dark material; bright outlines only
+    // face corridors, avoiding false-looking wall blocks inside open rooms.
     ctx.fillStyle=theme.wall;ctx.fillRect(px,py,TILE,TILE);
-    ctx.fillStyle=theme.floor;ctx.globalAlpha=.14;
-    ctx.fillRect(px+3,py+3,26,26);ctx.globalAlpha=1;
-    ctx.strokeStyle=theme.trim;ctx.lineWidth=1;
-    ctx.globalAlpha=.28;
+    ctx.fillStyle='#000';ctx.globalAlpha=.12;ctx.fillRect(px+3,py+3,26,26);
+    ctx.globalAlpha=1;
+    ctx.strokeStyle=theme.trim;ctx.lineWidth=.7;
+    ctx.globalAlpha=.12;
     ctx.strokeRect(px+3.5,py+3.5,25,25);
     ctx.beginPath();
     if(kind==='circuit'||kind==='array'||kind==='network'){
@@ -789,7 +802,6 @@
       halo(x,y,62,technician.rescued?'#9ffe9538':'#ffd56a38');
       ctx.fillStyle=technician.rescued?'#a5fcb0':'#ffe182';ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
       ctx.fillStyle='#15372d';ctx.fillRect(x-6,y-2,12,4);ctx.fillRect(x-2,y-6,4,12);
-      ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#d7ffde';ctx.fillText(technician.rescued?'CD -30%':'TECH',x,y-20);
     }
     for(const d of decoys){const x=d.x*TILE,y=d.y*TILE,rad=(d.age*50)%80;ctx.strokeStyle=`rgba(244,191,101,${Math.min(.7,d.life/5)})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(x,y,Math.max(0,rad-24),0,Math.PI*2);ctx.stroke();diamond(x,y,7,'#ffd179');}
   }
@@ -806,7 +818,6 @@
     ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-8,6);ctx.lineTo(-12,11+Math.sin(h.wobble)*3);ctx.moveTo(8,6);ctx.lineTo(12,11-Math.sin(h.wobble)*3);ctx.stroke();
     if(red||hunter||dasher){ctx.strokeStyle=hunter?'#ff5caa':dasher?'#efad4c':'#ff546c';ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(0,0,hunter?17:15,0,Math.PI*2);ctx.stroke();}
-    if(hunter){ctx.fillStyle='#ffd0e5';ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText('HUNT',0,-22);}
     if(dasher&&h.dashTime>0){ctx.strokeStyle='#ffcf72';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-h.dashDir.x*18,-h.dashDir.y*18);ctx.lineTo(-h.dashDir.x*34,-h.dashDir.y*34);ctx.stroke();}
     ctx.restore();}}
   function drawPlayer(){for(const p of player.trail){ctx.fillStyle=`rgba(110,255,218,${p.life*.55})`;ctx.beginPath();ctx.arc(p.x*TILE,p.y*TILE,8,0,Math.PI*2);ctx.fill();}
