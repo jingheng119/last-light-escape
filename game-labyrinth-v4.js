@@ -23,7 +23,7 @@
   const darkCtx = darknessCanvas.getContext('2d');
   const ui = {
     health: $('#health'), cores: $('#cores'), relay: $('#relay'), timer: $('#timer'), threat: $('#threat'),
-    dash: $('#dashStatus'), decoys: $('#decoys'), label: $('#missionLabel'), level: $('#missionLevel'),
+    dash: $('#dashStatus'), decoys: $('#decoys'), skillCD: $('#skillCD'), dashCD: $('#dashCD'), decoyCD: $('#decoyCD'), label: $('#missionLabel'), level: $('#missionLevel'),
     note: $('#fieldNote'), overlay: $('#overlay'), title: $('#overlayTitle'), text: $('#overlayText'),
     classSelect: $('#classSelect'), classStatus: $('#classStatus'), survivorStatus: $('#survivorStatus'), abilityStatus: $('#abilityStatus'),
     button: $('#primaryBtn'), hint: $('#overlayHint'), toast: $('#toast'), flash: $('#screenFlash'), sound: $('#soundBtn')
@@ -162,7 +162,7 @@
     exit={...TILE_CENTER(exit.x,exit.y)};
     const survivorSpot=selectSpot(reserved,7,distances,false);reserved.push(survivorSpot);
     survivor={...TILE_CENTER(survivorSpot.x,survivorSpot.y),rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
-    player={...TILE_CENTER(1,1),hp:3,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,facing:{x:1,y:0},trail:[],abilityCooldown:0};
+    player={...TILE_CENTER(1,1),hp:3,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
     hollows=[];
     for(let i=0;i<cfg.enemies;i++) {
       const p=selectSpot(reserved,5,distances,false);reserved.push(p);
@@ -238,10 +238,11 @@
   }
   function pause(){if(state==='playing'){state='paused';setOverlay('BREATHING ROOM','The ward is silent. Your position is safe until you resume.','RESUME GAME');}else if(state==='paused'){state='playing';hideOverlay();}}
   function triggerDecoy(){
-    if(state!=='playing'||player.decoys<=0)return;
+    if(state!=='playing'||player.decoys<=0||player.decoyCooldown>0)return;
     player.decoys--;const p={x:player.x+player.facing.x*3.3,y:player.y+player.facing.y*3.3};
     const nearest=cells.filter(c=>dist({x:c.x+.5,y:c.y+.5},p)<4).sort((a,b)=>dist({x:a.x+.5,y:a.y+.5},p)-dist({x:b.x+.5,y:b.y+.5},p))[0];
     if(!nearest){player.decoys++;return;}
+    player.decoyCooldown=2;
     decoys.push({...TILE_CENTER(nearest.x,nearest.y),life:5,age:0});
     noiseEvents.push({x:nearest.x+.5,y:nearest.y+.5,radius:11,expires:clock+1.7});
     notify('Sound decoy deployed — they heard it!');beep(850,.22,'square',.016);
@@ -299,6 +300,7 @@
   function updatePlayer(dt){
     player.invincible=Math.max(0,player.invincible-dt);player.dashCooldown=Math.max(0,player.dashCooldown-dt);
     player.abilityCooldown=Math.max(0,player.abilityCooldown-dt);
+    player.decoyCooldown=Math.max(0,player.decoyCooldown-dt);
     let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0),vy=(moveHeld.down?1:0)-(moveHeld.up?1:0);
     if(vx||vy){const len=Math.hypot(vx,vy);vx/=len;vy/=len;player.facing={x:vx,y:vy};}
     if(player.dashTime>0){player.dashTime-=dt;moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.24);
@@ -380,6 +382,13 @@
     ui.survivorStatus.textContent=survivor.rescued?'FOLLOWING':'TRAPPED';
     ui.abilityStatus.textContent=player.abilityCooldown<=0?(classChoice==='medic'?'HEAL READY':'PULSE READY'):`ABILITY ${player.abilityCooldown.toFixed(1)}s`;
     ui.dash.textContent=player.dashCooldown<=0?'DASH READY':`DASH ${player.dashCooldown.toFixed(1)}s`;
+    // On-screen cooldowns reflect the exact timers used by keyboard actions.
+    ui.skillCD.textContent=player.abilityCooldown>0?`${player.abilityCooldown.toFixed(1)}s`:'READY';
+    ui.dashCD.textContent=player.dashCooldown>0?`${player.dashCooldown.toFixed(1)}s`:'READY';
+    ui.decoyCD.textContent=player.decoyCooldown>0?`${player.decoyCooldown.toFixed(1)}s`:`×${player.decoys}`;
+    $('#touchAbility').classList.toggle('on-cooldown',player.abilityCooldown>0);
+    $('#touchDash').classList.toggle('on-cooldown',player.dashCooldown>0);
+    $('#touchDecoy').classList.toggle('on-cooldown',player.decoyCooldown>0||player.decoys===0);
     ui.threat.textContent=['LOW','ALERT','PURSUIT'][alertLevel];ui.threat.className=['threat-calm','threat-alert','threat-danger'][alertLevel];
   }
   function update(dt){
@@ -550,8 +559,8 @@
   $('#touchDash').addEventListener('click',dash);$('#touchInteract').addEventListener('click',interact);$('#touchDecoy').addEventListener('click',triggerDecoy);$('#touchAbility').addEventListener('click',activateAbility);$('#touchPause').addEventListener('click',pause);
   for(const b of document.querySelectorAll('[data-dir]')){
     const d=b.dataset.dir;
-    b.addEventListener('pointerdown',e=>{e.preventDefault();moveHeld[d]=true;b.setPointerCapture(e.pointerId);});
-    for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,()=>{moveHeld[d]=false;});
+    b.addEventListener('pointerdown',e=>{e.preventDefault();moveHeld[d]=true;b.classList.add('is-held');b.setPointerCapture(e.pointerId);});
+    for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,()=>{moveHeld[d]=false;b.classList.remove('is-held');});
   }
   ui.sound.addEventListener('click',()=>{soundEnabled=!soundEnabled;ui.sound.textContent=soundEnabled?'♪ ON':'♪ OFF';if(soundEnabled){nextAmbientAt=clock+.5;nextWarningAt=clock;beep(650,.12);}else{previousThreat=0;}});
   // Build the first level behind the menu so the player sees the environment before starting.
