@@ -38,6 +38,7 @@
   const CAMERA_ZOOM = 1.65;
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
+  const joystickMove={x:0,y:0};
   let rand = () => Math.random();
   try { best = Number(localStorage.getItem('last-light-best') || 0) || 0; } catch (e) { /* storage optional */ }
   const TILE_CENTER = (x, y) => ({ x: x + .5, y: y + .5 });
@@ -249,7 +250,8 @@
     updateUI();
   }
   function dash(){if(state!=='playing'||player.dashCooldown>0)return;player.dashCooldown=3.5;player.dashTime=.24;
-    let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0),vy=(moveHeld.down?1:0)-(moveHeld.up?1:0);
+    const vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
+    const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     if(vx||vy){const len=Math.hypot(vx,vy);player.dashDir={x:vx/len,y:vy/len};}else player.dashDir={...player.facing};
     noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
     beep(220,.17,'sawtooth',.019);updateUI();
@@ -301,8 +303,11 @@
     player.invincible=Math.max(0,player.invincible-dt);player.dashCooldown=Math.max(0,player.dashCooldown-dt);
     player.abilityCooldown=Math.max(0,player.abilityCooldown-dt);
     player.decoyCooldown=Math.max(0,player.decoyCooldown-dt);
-    let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0),vy=(moveHeld.down?1:0)-(moveHeld.up?1:0);
-    if(vx||vy){const len=Math.hypot(vx,vy);vx/=len;vy/=len;player.facing={x:vx,y:vy};}
+    let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
+    let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
+    const magnitude=Math.hypot(vx,vy);
+    if(magnitude>1){vx/=magnitude;vy/=magnitude;}
+    if(magnitude>.08)player.facing={x:vx/magnitude,y:vy/magnitude};
     if(player.dashTime>0){player.dashTime-=dt;moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.24);
       if(Math.random()<.8)player.trail.push({x:player.x,y:player.y,life:.36});}
     else if(vx||vy)moveEntity(player,vx*3.5*dt,vy*3.5*dt);
@@ -557,11 +562,40 @@
   window.addEventListener('blur',()=>{moveHeld={up:false,down:false,left:false,right:false};if(state==='playing')pause();});
   $('#primaryBtn').addEventListener('click',advance);
   $('#touchDash').addEventListener('click',dash);$('#touchInteract').addEventListener('click',interact);$('#touchDecoy').addEventListener('click',triggerDecoy);$('#touchAbility').addEventListener('click',activateAbility);$('#touchPause').addEventListener('click',pause);
-  for(const b of document.querySelectorAll('[data-dir]')){
-    const d=b.dataset.dir;
-    b.addEventListener('pointerdown',e=>{e.preventDefault();moveHeld[d]=true;b.classList.add('is-held');b.setPointerCapture(e.pointerId);});
-    for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,()=>{moveHeld[d]=false;b.classList.remove('is-held');});
+  const joystick=$('#joystick'),stick=$('#joystickKnob');
+  let joystickPointer=null;
+  function resetJoystick(){
+    joystickPointer=null;joystickMove.x=0;joystickMove.y=0;
+    stick.style.transform='translate(0px,0px)';
+    joystick.classList.remove('is-active');
   }
+  function moveJoystick(e){
+    if(e.pointerId!==joystickPointer)return;
+    const bounds=joystick.getBoundingClientRect();
+    const maxRange=Math.max(1,(Math.min(bounds.width,bounds.height)-stick.offsetWidth)/2-5);
+    const dx=e.clientX-(bounds.left+bounds.width/2),dy=e.clientY-(bounds.top+bounds.height/2);
+    const length=Math.hypot(dx,dy);
+    const factor=length>maxRange?maxRange/length:1;
+    const x=dx*factor,y=dy*factor;
+    stick.style.transform=`translate(${x}px,${y}px)`;
+    const deadZone=.12;
+    const strength=Math.hypot(x,y)/maxRange;
+    const amount=strength<deadZone?0:(strength-deadZone)/(1-deadZone);
+    joystickMove.x=length?dx/length*amount:0;
+    joystickMove.y=length?dy/length*amount:0;
+  }
+  joystick.addEventListener('pointerdown',e=>{
+    if(joystickPointer!==null)return;
+    e.preventDefault();joystickPointer=e.pointerId;
+    joystick.classList.add('is-active');
+    joystick.setPointerCapture(e.pointerId);
+    moveJoystick(e);
+  });
+  joystick.addEventListener('pointermove',e=>{if(e.pointerId===joystickPointer){e.preventDefault();moveJoystick(e);}});
+  for(const eventName of ['pointerup','pointercancel','lostpointercapture']){
+    joystick.addEventListener(eventName,e=>{if(e.pointerId===joystickPointer)resetJoystick();});
+  }
+  window.addEventListener('blur',resetJoystick);
   const fullscreenButton=$('#touchFullscreen');
   const gamePanel=$('.game-shell');
   const syncFullscreenButton=()=>{
