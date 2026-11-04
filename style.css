@@ -98,3 +98,37 @@
   .statusbar{padding:7px 13px}
   .footerbar{padding:7px 10px}
 }
+
+
+/* v2.9: mobile fullscreen action and immersive, fitted game panel. */
+.mobile-actions .action-fullscreen{
+  grid-column:1;grid-row:2;aspect-ratio:auto;height:32px;
+  border-radius:9px;font-size:10px;white-space:nowrap;
+}
+.game-shell:fullscreen{
+  width:100%;height:100%;max-width:none;max-height:none;
+  margin:0;padding:0;background:#07131b;border:0;border-radius:0;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.game-shell:fullscreen .statusbar{
+  flex:0 0 auto;padding:8px 12px;gap:7px;
+}
+.game-shell:fullscreen .canvas-wrap{
+  width:100%;max-width:none;height:auto;min-height:0;
+  flex:1 1 auto;display:flex;align-items:center;justify-content:center;
+}
+.game-shell:fullscreen .canvas-wrap canvas{
+  display:block;width:100%;height:100%;min-height:0;
+  object-fit:contain;
+}
+.game-shell:fullscreen .footerbar{
+  flex:0 0 auto;padding:7px 10px;gap:5px;
+}
+.game-shell:fullscreen .mobile-controls{display:flex}
+.game-shell:fullscreen .overlay-panel{max-height:calc(100% - 16px);overflow-y:auto}
+@media(max-width:550px){
+  .mobile-actions .action-fullscreen{font-size:9px;height:28px}
+  .game-shell:fullscreen .statusbar{padding:6px 5px;gap:4px}
+  .game-shell:fullscreen .status-item strong{font-size:10px}
+  .game-shell:fullscreen .footerbar{font-size:8px;padding:5px}
+}
