@@ -199,33 +199,62 @@
     for(const dx of [-r,r])for(const dy of [-r,r])if(!floorAt(Math.floor(x+dx),Math.floor(y+dy)))return false;
     return true;
   }
-  function moveEntity(e,dx,dy,r=.26) {
-    // Substeps prevent a fast dash from skipping wall collisions. On contact,
-    // approach the wall up to the safe boundary, then slide on the free axis.
-    const steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/.10));
+  function moveEntity(e,dx,dy,r=.26,assist=0) {
+    // Sweep in small increments so dashes never tunnel through solid walls.
+    // Slide freely on whichever axis is open instead of sticking at corners.
+    const steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/.08));
     const sx=dx/steps,sy=dy/steps;
-    let blocked=false;
+    let stoppedSteps=0;
     for(let i=0;i<steps;i++){
-      for(const axis of ['x','y']){
-        const step=axis==='x'?sx:sy;
-        if(!step)continue;
-        const nx=e.x+(axis==='x'?step:0);
-        const ny=e.y+(axis==='y'?step:0);
-        if(canStand(nx,ny,r)){e[axis]+=step;continue;}
-        blocked=true;
-        // Find the nearest safe point, so a blocked dash does not leave the
-        // player short of a doorway or locked against a wall corner.
-        let lo=0,hi=1;
-        for(let k=0;k<10;k++){
-          const mid=(lo+hi)/2;
-          const x=e.x+(axis==='x'?step*mid:0);
-          const y=e.y+(axis==='y'?step*mid:0);
-          if(canStand(x,y,r))lo=mid;else hi=mid;
-        }
-        e[axis]+=step*lo;
+      const ox=e.x,oy=e.y;
+      // Try natural diagonal motion first; otherwise glide along the wall.
+      if(canStand(e.x+sx,e.y+sy,r)){
+        e.x+=sx;e.y+=sy;
+        continue;
       }
+      const axes=Math.abs(sx)>=Math.abs(sy)?['x','y']:['y','x'];
+      for(const axis of axes){
+        const delta=axis==='x'?sx:sy;
+        if(!delta)continue;
+        const nx=e.x+(axis==='x'?delta:0),ny=e.y+(axis==='y'?delta:0);
+        if(canStand(nx,ny,r)){e[axis]+=delta;continue;}
+        // Advance right up to the boundary, not a full step short of it.
+        let lo=0,hi=1;
+        for(let k=0;k<9;k++){
+          const mid=(lo+hi)/2;
+          if(canStand(e.x+(axis==='x'?delta*mid:0),
+                      e.y+(axis==='y'?delta*mid:0),r))lo=mid;
+          else hi=mid;
+        }
+        e[axis]+=delta*lo;
+      }
+      if(Math.hypot(e.x-ox,e.y-oy)<.002 && assist>0){
+        // A tiny auto-alignment helps enter a corridor when the character
+        // clips its doorway by a few pixels. Only nudge if both the shifted
+        // position AND the forward step are collision-free.
+        const alongX=Math.abs(sx)>=Math.abs(sy);
+        const forward=alongX?sx:sy;
+        const naturalSide=alongX?sy:sx;
+        let best=null;
+        for(const sign of [1,-1]){
+          for(const amount of [.035,.07,.11,.15,.19,.23]){
+            if(amount>assist)break;
+            const side=sign*amount;
+            if(naturalSide && Math.sign(side)!==Math.sign(naturalSide))continue;
+            const tx=alongX?e.x:e.x+side,ty=alongX?e.y+side:e.y;
+            const px=alongX?e.x+forward:e.x+side;
+            const py=alongX?e.y+side:e.y+forward;
+            if(canStand(tx,ty,r) && canStand(px,py,r)){
+              best={x:tx,y:ty};break;
+            }
+          }
+          if(best)break;
+        }
+        if(best){e.x=best.x;e.y=best.y;}
+      }
+      if(Math.hypot(e.x-ox,e.y-oy)<.002)stoppedSteps++;
     }
-    return blocked;
+    return stoppedSteps>=Math.max(1,Math.ceil(steps*.65));
   }
   function clearLine(a,b) {
     const len=dist(a,b), steps=Math.max(1,Math.ceil(len*7));
@@ -341,11 +370,11 @@
     if(magnitude>.08)player.facing={x:vx/magnitude,y:vy/magnitude};
     if(player.dashTime>0){
       player.dashTime=Math.max(0,player.dashTime-dt);
-      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.26);
+      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.23,.23);
       if(hitWall)player.dashTime=0; // Return joystick control immediately on collision.
       if(Math.random()<.8)player.trail.push({x:player.x,y:player.y,life:.36});
     }
-    else if(vx||vy)moveEntity(player,vx*3.5*dt,vy*3.5*dt);
+    else if(vx||vy)moveEntity(player,vx*3.5*dt,vy*3.5*dt,.23,.15);
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
