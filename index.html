@@ -26,7 +26,24 @@
       <div id="gameWrapper" class="canvas-wrap"><canvas id="game" width="992" height="672" role="img" aria-label="Top-down maze escape game"></canvas>
         <button id="touchFullscreen" class="mobile-fullscreen-toggle" type="button" aria-label="Enter fullscreen" aria-pressed="false">⛶ FULLSCREEN</button>
         <button id="touchPause" class="mobile-pause-toggle" type="button">Ⅱ PAUSE</button>
-        <div id="overlay" class="overlay"><div class="overlay-panel" id="overlayPanel"><div class="overlay-kicker">SURVIVAL PROTOCOL / 001</div><div class="overlay-glyph" aria-hidden="true">◇</div><h2 id="overlayTitle">THE HOLLOW WARD</h2><p id="overlayText">The emergency elevator is offline. Restore its power and avoid the things lurking in the corridors.</p><div class="objectives"><span>◈ Collect power cores</span><span>✚ Rescue the survivor</span><span>⌁ Activate the relay</span><span>⇧ Escape together</span></div><div class="class-picker"><label for="classSelect">YOUR ROLE</label><select id="classSelect"><option value="scout">Scout — F: stun nearby Hollows</option><option value="medic">Medic — F: heal one heart</option></select></div><button id="primaryBtn" class="primary-btn">ENTER THE WARD <span>↗</span></button><div id="overlayHint" class="overlay-hint">WASD / ARROWS TO MOVE · SPACE TO DASH</div></div></div>
+        <div id="overlay" class="overlay"><div class="overlay-panel" id="overlayPanel"><div class="overlay-kicker">SURVIVAL PROTOCOL / 001</div><div class="overlay-glyph" aria-hidden="true">◇</div><h2 id="overlayTitle">THE HOLLOW WARD</h2><p id="overlayText">The emergency elevator is offline. Restore its power and avoid the things lurking in the corridors.</p><div class="objectives"><span>◈ Collect power cores</span><span>✚ Rescue the survivor</span><span>⌁ Activate the relay</span><span>⇧ Escape together</span></div><div class="role-selection" id="roleSelection">
+          <div class="role-choice-label">CHOOSE YOUR ROLE <span>· LOCKED FOR THE RUN</span></div>
+          <div class="role-options" id="roleOptions" role="group" aria-label="Choose your character class">
+            <button class="role-option is-selected" data-role="scout" aria-pressed="true" type="button">
+              <span class="role-option-icon" aria-hidden="true">◎</span>
+              <span class="role-option-copy"><strong>SCOUT</strong><small>STUN NEARBY HOLLOWS</small><span class="role-option-key">F · Shockwave</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="role-option" data-role="medic" aria-pressed="false" type="button">
+              <span class="role-option-icon" aria-hidden="true">✚</span>
+              <span class="role-option-copy"><strong>MEDIC</strong><small>RESTORE ONE HEART</small><span class="role-option-key">F · Healing burst</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+          </div>
+          <div id="roleLocked" class="role-locked" hidden>
+            <span aria-hidden="true">◆</span><span id="lockedRoleText">SCOUT · STUN SHOCKWAVE</span><small>ROLE LOCKED THIS RUN</small>
+          </div>
+        </div><button id="primaryBtn" class="primary-btn">ENTER THE WARD <span>↗</span></button><div id="overlayHint" class="overlay-hint">WASD / ARROWS TO MOVE · SPACE TO DASH</div></div></div>
 <div class="mobile-controls" aria-label="On-screen game controls">
           <div id="joystick" class="virtual-joystick" role="group" aria-label="Drag to move in any direction">
             <div class="joystick-ring" aria-hidden="true"></div>
