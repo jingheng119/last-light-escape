@@ -34,6 +34,7 @@
   let classChoice = 'scout';
   let elapsed = 0, overallElapsed = 0, clock = 0, toastUntil = 0, hitFlash = 0, alertLevel = 0;
   let lastFrame = 0, audioCtx = null, soundEnabled = false, best = 0;
+  let nextAmbientAt = 0, nextWarningAt = 0, previousThreat = 0;
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
   let rand = () => Math.random();
   try { best = Number(localStorage.getItem('last-light-best') || 0) || 0; } catch (e) { /* storage optional */ }
@@ -154,6 +155,7 @@
         wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100});
     }
     decoys=[];noiseEvents=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
+    nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     ui.label.textContent=cfg.name;ui.level.textContent=`FLOOR ${String(index+1).padStart(2,'0')} / ${String(CONFIGS.length).padStart(2,'0')}`;ui.note.textContent=cfg.note;
     updateUI();
   }
@@ -188,6 +190,22 @@
   function beep(freq=440,duration=.12,type='sine',volume=.035) {
     if(!soundEnabled)return;
     try {audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const osc=audioCtx.createOscillator(),g=audioCtx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,audioCtx.currentTime);g.gain.setValueAtTime(volume,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+duration);osc.connect(g).connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+duration);}catch(e){}
+  }
+  function ambientAudio() {
+    // All audio is generated locally with Web Audio and remains off by default.
+    if(!soundEnabled||state!=='playing')return;
+    if(clock>=nextAmbientAt){
+      // Sparse low-frequency pulses create a distant industrial ambience.
+      beep(67+Math.random()*15,.7,'sine',.009);
+      nextAmbientAt=clock+5+Math.random()*4;
+    }
+    if(alertLevel>0&&clock>=nextWarningAt){
+      const severe=alertLevel===2;
+      beep(severe?105:165,severe?.17:.12,'triangle',severe?.035:.019);
+      nextWarningAt=clock+(severe?.75:1.9);
+    }
+    if(alertLevel===2&&previousThreat<2)beep(380,.12,'square',.017);
+    previousThreat=alertLevel;
   }
   function notify(msg,seconds=2.7) {ui.toast.textContent=msg;toastUntil=clock+seconds;ui.toast.classList.add('show');}
   function setOverlay(title,text,button,hint='WASD / ARROWS TO MOVE · SPACE TO DASH') {
@@ -352,7 +370,7 @@
     hitFlash=Math.max(0,hitFlash-dt);ui.flash.style.opacity=(hitFlash*.4).toFixed(2);
     if(state!=='playing')return;
     elapsed+=dt;overallElapsed+=dt;updatePlayer(dt);if(state!=='playing')return;
-    updateSurvivor(dt);updateHollows(dt);
+    updateSurvivor(dt);updateHollows(dt);ambientAudio();
     for(const d of decoys){d.life-=dt;d.age+=dt;}decoys=decoys.filter(d=>d.life>0);
     noiseEvents=noiseEvents.filter(n=>n.expires>clock);
     if(dist(player,exit)<.58&&relay.active&&cores.every(c=>c.collected)&&survivor.rescued&&dist(survivor,exit)<2.0)completeLevel();
@@ -451,11 +469,29 @@
     let message='';if(!survivor.rescued&&dist(player,survivor)<1.5)message='[ E ] RESCUE SURVIVOR';else if(dist(player,relay)<1.55&&!relay.active)message='[ E ] ACTIVATE RELAY';else if(dist(player,exit)<1.5)message=relay.active&&cores.every(c=>c.collected)&&survivor.rescued&&dist(survivor,exit)<2?'[ E ] ESCAPE':'ELEVATOR / ALLY NOT READY';
     if(message){roundedRect(W/2-111,H-54,222,30,7,'#071c23e8');ctx.strokeStyle='#43786e';ctx.strokeRect(W/2-111,H-54,222,30);ctx.fillStyle='#d4fff2';ctx.fillText(message,W/2,H-35);}
   }
+  function drawAtmosphere(){
+    // Deterministic dust specks drift gently across the existing labyrinth.
+    // They are visual only; movement and collision rules are untouched.
+    ctx.save();
+    for(let i=0;i<22;i++){
+      const x=((i*179+Math.sin(clock*.16+i*2.1)*17)%W+W)%W;
+      const y=((i*97+clock*(1.4+i%3))%H+H)%H;
+      const alpha=.045+.025*(1+Math.sin(clock*.6+i));
+      ctx.fillStyle='rgba(155,214,207,'+alpha.toFixed(3)+')';
+      ctx.fillRect(x,y,i%4===0?2:1,i%4===0?2:1);
+    }
+    if(state==='playing'&&alertLevel===2){
+      const pulse=.035+.025*(1+Math.sin(clock*8));
+      ctx.fillStyle='rgba(205,46,68,'+pulse.toFixed(3)+')';
+      ctx.fillRect(0,0,W,H);
+    }
+    ctx.restore();
+  }
   function draw(){
     ctx.clearRect(0,0,W,H);ctx.fillStyle='#07171d';ctx.fillRect(0,0,W,H);
     if(!grid){ctx.fillStyle='#13292e';for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++)if((x+y)%3===0)ctx.fillRect(x*TILE+2,y*TILE+2,27,27);return;}
     for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++)(grid[y][x]===1?drawWall:drawFloor)(x,y);
-    drawItems();drawHollows();drawPlayer();drawDarkness();drawDirectionalHUD();drawInteractPrompts();
+    drawItems();drawHollows();drawPlayer();drawDarkness();drawAtmosphere();drawDirectionalHUD();drawInteractPrompts();
     if(alertLevel>0&&state==='playing'){ctx.fillStyle=alertLevel===2?'#e44d6411':'#ffc17c07';ctx.fillRect(0,0,W,H);}
     // Deliberately subtle CRT-style scanlines, original and purely procedural.
     ctx.fillStyle='#0000000a';for(let y=0;y<H;y+=4)ctx.fillRect(0,y,W,1);
@@ -477,7 +513,7 @@
     b.addEventListener('pointerdown',e=>{e.preventDefault();moveHeld[d]=true;b.setPointerCapture(e.pointerId);});
     for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,()=>{moveHeld[d]=false;});
   }
-  ui.sound.addEventListener('click',()=>{soundEnabled=!soundEnabled;ui.sound.textContent=soundEnabled?'♪ ON':'♪ OFF';if(soundEnabled)beep(650,.12);});
+  ui.sound.addEventListener('click',()=>{soundEnabled=!soundEnabled;ui.sound.textContent=soundEnabled?'♪ ON':'♪ OFF';if(soundEnabled){nextAmbientAt=clock+.5;nextWarningAt=clock;beep(650,.12);}else{previousThreat=0;}});
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
   // Expose read-only diagnostics for smoke tests, not used by gameplay.
