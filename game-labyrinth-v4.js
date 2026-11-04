@@ -27,7 +27,7 @@
     note: $('#fieldNote'), overlay: $('#overlay'), title: $('#overlayTitle'), text: $('#overlayText'),
     classSelect: $('#classSelect'), classStatus: $('#classStatus'), survivorStatus: $('#survivorStatus'), abilityStatus: $('#abilityStatus'),
     button: $('#primaryBtn'), hint: $('#overlayHint'), toast: $('#toast'), flash: $('#screenFlash'), sound: $('#soundBtn'),
-    roleOptions: $('#roleOptions'), roleLocked: $('#roleLocked'), lockedRoleText: $('#lockedRoleText')
+    roleOptions: $('#roleOptions'), roleLocked: $('#roleLocked'), lockedRoleText: $('#lockedRoleText'), roleLabel: $('#roleChoiceLabel')
   };
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
   let roomTiles = new Set(), noiseEvents = [], survivor = null;
@@ -310,6 +310,7 @@
     const choosing=state==='menu'||state==='dead'||state==='victory';
     ui.roleOptions.hidden=!choosing;
     ui.roleLocked.hidden=choosing;
+    ui.roleLabel.firstChild.textContent=choosing?'CHOOSE YOUR ROLE ':'YOUR ROLE ';
     ui.lockedRoleText.textContent=classChoice==='medic'?'MEDIC · HEALING BURST':'SCOUT · STUN SHOCKWAVE';
     document.querySelectorAll('.role-option').forEach(card=>{
       const selected=card.dataset.role===classChoice;
