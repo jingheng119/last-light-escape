@@ -951,3 +951,38 @@
     text-align:center;
   }
 }
+
+
+/* v4.16: keep stage text inside the visible maze edge, beside (not under) Dash.
+   Skill and Dash use their radial rings only; Decoy retains its remaining count. */
+.mobile-controls .mobile-actions #skillCD,
+.mobile-controls .mobile-actions #dashCD{display:none}
+@media (max-width:980px), (hover:none) and (pointer:coarse){
+  .mobile-controls .mobile-stage-info{
+    right:clamp(192px,18vw,216px);
+    bottom:3px;
+    width:148px;
+    max-width:calc(100vw - 240px);
+    font-size:7px;
+    line-height:1.22;
+    letter-spacing:0;
+  }
+}
+@media (max-height:450px) and (orientation:landscape){
+  .mobile-controls .mobile-stage-info{
+    right:clamp(192px,18vw,216px);
+    bottom:3px;
+    width:148px;
+    max-width:calc(100vw - 240px);
+    font-size:7px;
+    line-height:1.22;
+  }
+}
+@media (orientation:portrait) and (max-width:650px){
+  .mobile-controls .mobile-stage-info{
+    right:9px;
+    bottom:calc(100% + 10px);
+    width:148px;
+    max-width:calc(100vw - 18px);
+  }
+}
