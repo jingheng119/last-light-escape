@@ -35,6 +35,8 @@
   let elapsed = 0, overallElapsed = 0, clock = 0, toastUntil = 0, hitFlash = 0, alertLevel = 0;
   let lastFrame = 0, audioCtx = null, soundEnabled = false, best = 0;
   let nextAmbientAt = 0, nextWarningAt = 0, previousThreat = 0;
+  const CAMERA_ZOOM = 1.65;
+  const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
   let rand = () => Math.random();
   try { best = Number(localStorage.getItem('last-light-best') || 0) || 0; } catch (e) { /* storage optional */ }
@@ -135,6 +137,20 @@
     const ordered=pool.slice().sort((a,b)=>distances[keyOf(b.x,b.y)]-distances[keyOf(a.x,a.y)]);
     return ordered[Math.floor(rand()*Math.max(1,Math.round(ordered.length*(bias?.28:1))))];
   }
+  function cameraTarget(){
+    const viewW=W/CAMERA_ZOOM,viewH=H/CAMERA_ZOOM;
+    return {
+      x:clamp(player.x*TILE-viewW/2,0,W-viewW),
+      y:clamp(player.y*TILE-viewH/2,0,H-viewH)
+    };
+  }
+  function updateCamera(dt, snap=false){
+    if(!player)return;
+    const target=cameraTarget();
+    const ease=snap?1:1-Math.exp(-9*dt);
+    camera.x+=(target.x-camera.x)*ease;
+    camera.y+=(target.y-camera.y)*ease;
+  }
   function buildLevel(index) {
     levelIndex=index;const cfg=CONFIGS[index];buildMaze(cfg.seed+runSeed,cfg.loops);
     const start={x:1,y:1}, distances=distanceMap(start), reserved=[start];
@@ -156,6 +172,7 @@
     }
     decoys=[];noiseEvents=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
+    updateCamera(0,true);
     ui.label.textContent=cfg.name;ui.level.textContent=`FLOOR ${String(index+1).padStart(2,'0')} / ${String(CONFIGS.length).padStart(2,'0')}`;ui.note.textContent=cfg.note;
     updateUI();
   }
@@ -489,14 +506,37 @@
   }
   function draw(){
     ctx.clearRect(0,0,W,H);ctx.fillStyle='#07171d';ctx.fillRect(0,0,W,H);
-    if(!grid){ctx.fillStyle='#13292e';for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++)if((x+y)%3===0)ctx.fillRect(x*TILE+2,y*TILE+2,27,27);return;}
-    for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++)(grid[y][x]===1?drawWall:drawFloor)(x,y);
-    drawItems();drawHollows();drawPlayer();drawDarkness();drawAtmosphere();drawDirectionalHUD();drawInteractPrompts();
-    if(alertLevel>0&&state==='playing'){ctx.fillStyle=alertLevel===2?'#e44d6411':'#ffc17c07';ctx.fillRect(0,0,W,H);}
-    // Deliberately subtle CRT-style scanlines, original and purely procedural.
-    ctx.fillStyle='#0000000a';for(let y=0;y<H;y+=4)ctx.fillRect(0,y,W,1);
+    if(!grid)return;
+    // Render the world through a smoothly moving, clamped follow camera.
+    // Controls, collisions and lighting remain in world coordinates.
+    ctx.save();
+    ctx.scale(CAMERA_ZOOM,CAMERA_ZOOM);
+    ctx.translate(-camera.x,-camera.y);
+    const x0=Math.max(0,Math.floor(camera.x/TILE)-1);
+    const y0=Math.max(0,Math.floor(camera.y/TILE)-1);
+    const x1=Math.min(COLS,Math.ceil((camera.x+W/CAMERA_ZOOM)/TILE)+1);
+    const y1=Math.min(ROWS,Math.ceil((camera.y+H/CAMERA_ZOOM)/TILE)+1);
+    for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
+      (grid[y][x]===1?drawWall:drawFloor)(x,y);
+    drawItems();drawHollows();drawPlayer();drawDarkness();drawAtmosphere();
+    ctx.restore();
+    // Fixed screen-space HUD must never drift with the camera.
+    drawDirectionalHUD();drawInteractPrompts();
+    if(alertLevel>0&&state==='playing'){
+      ctx.fillStyle=alertLevel===2?'#e44d6411':'#ffc17c07';
+      ctx.fillRect(0,0,W,H);
+    }
+    ctx.fillStyle='#0000000a';
+    for(let y=0;y<H;y+=4)ctx.fillRect(0,y,W,1);
   }
-  function tick(timestamp){const dt=Math.min(.045,Math.max(0,(timestamp-lastFrame)/1000||0));lastFrame=timestamp;frameIndex++;update(dt);draw();requestAnimationFrame(tick);}
+  function tick(timestamp){
+    const dt=Math.min(.045,Math.max(0,(timestamp-lastFrame)/1000||0));
+    lastFrame=timestamp;frameIndex++;
+    update(dt);
+    if(state==='playing')updateCamera(dt);
+    draw();
+    requestAnimationFrame(tick);
+  }
   const keyMap={w:'up',arrowup:'up',s:'down',arrowdown:'down',a:'left',arrowleft:'left',d:'right',arrowright:'right'};
   document.addEventListener('keydown', e => {
     const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r'].includes(k))e.preventDefault();
