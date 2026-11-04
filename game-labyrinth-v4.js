@@ -40,7 +40,7 @@
     note: $('#fieldNote'), overlay: $('#overlay'), title: $('#overlayTitle'), text: $('#overlayText'),
     classSelect: $('#classSelect'), classStatus: $('#classStatus'), survivorStatus: $('#survivorStatus'), abilityStatus: $('#abilityStatus'),
     allyLabel: $('#allyStatusLabel'), rescueObjective: $('#rescueObjective'),
-    button: $('#primaryBtn'), hint: $('#overlayHint'), toast: $('#toast'), flash: $('#screenFlash'), sound: $('#soundBtn'),
+    button: $('#primaryBtn'), hint: $('#overlayHint'), toast: $('#toast'), flash: $('#screenFlash'),
     roleOptions: $('#roleOptions'), roleLocked: $('#roleLocked'), lockedRoleText: $('#lockedRoleText'), roleLabel: $('#roleChoiceLabel')
   };
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
@@ -436,8 +436,17 @@
     ui.overlay.classList.remove('hidden');
   }
   function hideOverlay(){ui.overlay.classList.add('hidden');}
-  function startGame(){developerSkipped=false;runSeed=Math.floor(Math.random()*1000000);overallElapsed=0;buildLevel(0);state='playing';hideOverlay();notify('Rescue the survivor, collect cores, and reach the elevator.');beep(560,.16);}
+  function unlockGameAudio(){
+    // Only initiate audio on a player-initiated Start / Resume action.
+    // Browser autoplay policies require an actual user gesture.
+    soundEnabled=true;
+    if(!audioCtx){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){soundEnabled=false;return;}}
+    try{if(audioCtx.state==='suspended')audioCtx.resume();}catch(e){}
+    nextAmbientAt=clock+.5;nextWarningAt=clock;
+  }
+  function startGame(){unlockGameAudio();developerSkipped=false;runSeed=Math.floor(Math.random()*1000000);overallElapsed=0;buildLevel(0);state='playing';hideOverlay();notify('Rescue the survivor, collect cores, and reach the elevator.');beep(560,.16);}
   function advance() {
+    unlockGameAudio();
     if(state==='menu'||state==='victory'||state==='dead'){startGame();return;}
     if(state==='leveldone') {buildLevel(levelIndex+1);state='playing';hideOverlay();notify('New floor. Stay quiet.');return;}
     if(state==='paused') {state='playing';hideOverlay();return;}
@@ -457,7 +466,7 @@
     state='playing';hideOverlay();
     notify(fullStage?'DEV · Stage jump':'DEV · Floor skipped');
   }
-  function pause(){if(state==='playing'){state='paused';setOverlay('BREATHING ROOM','The ward is silent. Your position is safe until you resume.','RESUME GAME');}else if(state==='paused'){state='playing';hideOverlay();}}
+  function pause(){if(state==='playing'){state='paused';setOverlay('BREATHING ROOM','The ward is silent. Your position is safe until you resume.','RESUME GAME');}else if(state==='paused'){unlockGameAudio();state='playing';hideOverlay();}}
   function triggerDecoy(){
     if(state!=='playing'||player.decoys<=0||player.decoyCooldown>0)return;
     player.decoys--;const p={x:player.x+player.facing.x*3.3,y:player.y+player.facing.y*3.3};
@@ -1141,15 +1150,6 @@
     }
   });
   document.addEventListener('fullscreenchange',syncFullscreenButton);
-  ui.sound.addEventListener('click',()=>{
-    soundEnabled=!soundEnabled;
-    ui.sound.textContent=soundEnabled?'♪ ON':'♪ OFF';
-    if(soundEnabled){
-      nextAmbientAt=clock+.5;nextWarningAt=clock;
-      try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();audioCtx.resume?.();}catch(e){}
-      beep(650,.12);
-    }else{previousThreat=0;stopMusic();}
-  });
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
   // Expose read-only diagnostics for smoke tests, not used by gameplay.
