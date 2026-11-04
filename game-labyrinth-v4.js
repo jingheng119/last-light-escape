@@ -371,16 +371,16 @@
     const px=x*TILE,py=y*TILE;
     ctx.fillStyle='#142831';ctx.fillRect(px,py,TILE,TILE);
     ctx.save();ctx.beginPath();ctx.rect(px,py,TILE,TILE);ctx.clip();
-    ctx.strokeStyle='rgba(112,157,164,.23)';ctx.lineWidth=1;ctx.beginPath();
-    for(let row=Math.floor(py/12);row<=Math.floor((py+TILE)/12)+1;row++){
-      const yy=row*12+.5;
+    ctx.strokeStyle='rgba(112,157,164,.17)';ctx.lineWidth=.75;ctx.beginPath();
+    for(let row=Math.floor(py/8);row<=Math.floor((py+TILE)/8)+1;row++){
+      const yy=row*8+.5;
       if(yy>=py&&yy<=py+TILE){ctx.moveTo(px,yy);ctx.lineTo(px+TILE,yy);}
-      const offset=(row%2)*12;
-      for(let col=Math.floor((px-offset)/24)-1;col<=Math.ceil((px+TILE-offset)/24)+1;col++){
-        const xx=col*24+offset+.5;
+      const offset=(row%2)*8;
+      for(let col=Math.floor((px-offset)/16)-1;col<=Math.ceil((px+TILE-offset)/16)+1;col++){
+        const xx=col*16+offset+.5;
         if(xx>=px&&xx<=px+TILE){
-          ctx.moveTo(xx,Math.max(py,row*12));
-          ctx.lineTo(xx,Math.min(py+TILE,(row+1)*12));
+          ctx.moveTo(xx,Math.max(py,row*8));
+          ctx.lineTo(xx,Math.min(py+TILE,(row+1)*8));
         }
       }
     }
