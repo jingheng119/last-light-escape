@@ -173,7 +173,7 @@
       const p=selectSpot(reserved,5,distances,false);reserved.push(p);
       hollows.push({x:p.x+.5,y:p.y+.5,home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18),
         path:[],pathIndex:0,repath:0,mode:'patrol',chaseUntil:0,target:null,angle:rand()*6.28,
-        wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100});
+        wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100,stunned:0});
     }
     decoys=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
@@ -426,7 +426,7 @@
     // Hollows follow tile-centre paths; allow contact at their visible edge,
     // including when the player is stationary off-centre inside the same tile.
     // Require a clear path to avoid hitting through a wall.
-    if(hollows.some(h=>h.stunned<=0&&dist(player,h)<.80&&clearLine(player,h)))damage();
+    if(hollows.some(h=>!(h.stunned>0)&&dist(player,h)<.80&&clearLine(player,h)))damage();
   }
   function updateHollows(dt){
     let danger=0;
