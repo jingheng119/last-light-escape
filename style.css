@@ -367,3 +367,27 @@
     left:calc(var(--left-center) - 29px);
   }
 }
+
+
+/* v3.0.4: reference-aligned action positions.
+   Raise Pause above the cluster and bring Use closer to the Skill/Decoy
+   column without moving Dash or changing touch targets. */
+.mobile-controls .mobile-actions #touchPause{top:-18px}
+.mobile-controls .mobile-actions #touchInteract{
+  top:117px;
+  left:calc(var(--left-center) - 10px);
+}
+@media(max-width:550px){
+  .mobile-controls .mobile-actions #touchPause{top:-15px}
+  .mobile-controls .mobile-actions #touchInteract{
+    top:97px;
+    left:calc(var(--left-center) - 8px);
+  }
+}
+@media(max-height:450px) and (orientation:landscape){
+  .mobile-controls .mobile-actions #touchPause{top:-16px}
+  .mobile-controls .mobile-actions #touchInteract{
+    top:96px;
+    left:calc(var(--left-center) - 7px);
+  }
+}
