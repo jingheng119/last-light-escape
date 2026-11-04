@@ -677,3 +677,42 @@
   .role-option{min-height:53px;padding:6px 7px}
   .role-selection{margin-bottom:8px}
 }
+
+
+/* v3.15: tidy desktop overlay in F11 and in-game fullscreen.
+   Tighten vertical spacing so the pause/role panel fits; keep overflow
+   accessible in unusually short windows, but don't show a chunky scrollbar.
+   Touch/mobile behavior is unaffected. */
+@media (min-width:981px) and (pointer:fine){
+  .game-shell .overlay-panel{
+    box-sizing:border-box;
+    max-height:calc(100% - 20px);
+    overflow-y:auto;
+    scrollbar-width:none;
+    -ms-overflow-style:none;
+    padding:17px 22px 19px;
+  }
+  .game-shell .overlay-panel::-webkit-scrollbar{display:none}
+  .game-shell .overlay-glyph{font-size:45px;line-height:1.1;margin:4px 0 9px}
+  .game-shell .overlay h2{font-size:25px;margin-bottom:7px}
+  .game-shell .overlay p{margin-bottom:11px;line-height:1.5}
+  .game-shell .objectives{margin-bottom:12px;gap:6px}
+  .game-shell .objectives span{padding:5px 8px}
+  .game-shell .role-selection{margin-bottom:12px}
+  .game-shell .overlay-hint{margin-top:10px}
+  .game-shell:fullscreen .overlay-panel{
+    max-height:calc(100% - 20px);
+    overflow-y:auto;
+  }
+}
+@media (min-width:981px) and (pointer:fine) and (max-height:650px){
+  .game-shell .overlay-panel{padding:10px 18px 12px}
+  .game-shell .overlay-glyph{font-size:33px;margin:0 0 5px}
+  .game-shell .overlay h2{font-size:21px;margin-bottom:5px}
+  .game-shell .overlay p{font-size:11px;margin-bottom:7px}
+  .game-shell .objectives{margin-bottom:8px;gap:4px}
+  .game-shell .objectives span{padding:4px 7px;font-size:8px}
+  .game-shell .role-selection{margin-bottom:8px}
+  .game-shell .overlay-hint{margin-top:7px}
+  .game-shell .primary-btn{padding:10px 15px}
+}
