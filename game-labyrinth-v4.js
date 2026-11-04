@@ -200,61 +200,77 @@
     return true;
   }
   function moveEntity(e,dx,dy,r=.26,assist=0) {
-    // Sweep in small increments so dashes never tunnel through solid walls.
-    // Slide freely on whichever axis is open instead of sticking at corners.
-    const steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/.08));
+    // Continuous short steps preserve solid-wall collision even at dash speed.
+    // Sliding keeps the free axis moving; doorway assist smoothly centers the
+    // player into an open lane instead of requiring pixel-perfect steering.
+    const steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/.07));
     const sx=dx/steps,sy=dy/steps;
-    let stoppedSteps=0;
-    for(let i=0;i<steps;i++){
-      const ox=e.x,oy=e.y;
-      // Try natural diagonal motion first; otherwise glide along the wall.
-      if(canStand(e.x+sx,e.y+sy,r)){
-        e.x+=sx;e.y+=sy;
-        continue;
+    let stalled=0;
+    function moveAxis(axis,delta) {
+      if(!delta)return false;
+      if(canStand(e.x+(axis==='x'?delta:0),e.y+(axis==='y'?delta:0),r)){
+        e[axis]+=delta;return true;
       }
-      const axes=Math.abs(sx)>=Math.abs(sy)?['x','y']:['y','x'];
-      for(const axis of axes){
-        const delta=axis==='x'?sx:sy;
-        if(!delta)continue;
-        const nx=e.x+(axis==='x'?delta:0),ny=e.y+(axis==='y'?delta:0);
-        if(canStand(nx,ny,r)){e[axis]+=delta;continue;}
-        // Advance right up to the boundary, not a full step short of it.
-        let lo=0,hi=1;
-        for(let k=0;k<9;k++){
-          const mid=(lo+hi)/2;
-          if(canStand(e.x+(axis==='x'?delta*mid:0),
-                      e.y+(axis==='y'?delta*mid:0),r))lo=mid;
-          else hi=mid;
-        }
-        e[axis]+=delta*lo;
+      let lo=0,hi=1;
+      for(let k=0;k<9;k++){
+        const mid=(lo+hi)/2;
+        if(canStand(e.x+(axis==='x'?delta*mid:0),
+                    e.y+(axis==='y'?delta*mid:0),r))lo=mid;
+        else hi=mid;
       }
-      if(Math.hypot(e.x-ox,e.y-oy)<.002 && assist>0){
-        // A tiny auto-alignment helps enter a corridor when the character
-        // clips its doorway by a few pixels. Only nudge if both the shifted
-        // position AND the forward step are collision-free.
-        const alongX=Math.abs(sx)>=Math.abs(sy);
-        const forward=alongX?sx:sy;
-        const naturalSide=alongX?sy:sx;
-        let best=null;
-        for(const sign of [1,-1]){
-          for(const amount of [.035,.07,.11,.15,.19,.23]){
-            if(amount>assist)break;
-            const side=sign*amount;
-            if(naturalSide && Math.sign(side)!==Math.sign(naturalSide))continue;
-            const tx=alongX?e.x:e.x+side,ty=alongX?e.y+side:e.y;
-            const px=alongX?e.x+forward:e.x+side;
-            const py=alongX?e.y+side:e.y+forward;
-            if(canStand(tx,ty,r) && canStand(px,py,r)){
-              best={x:tx,y:ty};break;
-            }
-          }
-          if(best)break;
-        }
-        if(best){e.x=best.x;e.y=best.y;}
-      }
-      if(Math.hypot(e.x-ox,e.y-oy)<.002)stoppedSteps++;
+      if(lo>.001){e[axis]+=delta*lo;return true;}
+      return false;
     }
-    return stoppedSteps>=Math.max(1,Math.ceil(steps*.65));
+    function enterOpenLane() {
+      if(assist<=0)return false;
+      const alongX=Math.abs(sx)>=Math.abs(sy);
+      const forward=alongX?sx:sy;
+      if(!forward)return false;
+      const major=alongX?'x':'y',sideAxis=alongX?'y':'x';
+      // Only help when forward motion is blocked, and no strong steering
+      // toward a different corridor was requested.
+      const secondary=alongX?sy:sx;
+      if(Math.abs(secondary)>Math.abs(forward)*.70)return false;
+      const initial=e[sideAxis],ahead=Math.sign(forward)*.12;
+      let target=null;
+      for(let offset=.04;offset<=assist+.0001;offset+=.04){
+        for(const dir of [1,-1]){
+          if(secondary && Math.sign(secondary)!==dir)continue;
+          const candidate=initial+dir*offset;
+          // The side movement and the forward opening must both be clear.
+          let safe=true;
+          for(let d=.04;d<=offset+.00001;d+=.04){
+            const t=initial+dir*Math.min(d,offset);
+            if(!canStand(alongX?e.x:t,alongX?t:e.y,r)){safe=false;break;}
+          }
+          if(!safe)continue;
+          if(!canStand(alongX?e.x+ahead:candidate,
+                        alongX?candidate:e.y+ahead,r))continue;
+          target=candidate;break;
+        }
+        if(target!==null)break;
+      }
+      if(target===null)return false;
+      // Gradual nudge, capped per substep, avoids snapping through corners.
+      const delta=Math.sign(target-initial)*Math.min(Math.abs(target-initial),.065);
+      return moveAxis(sideAxis,delta);
+    }
+    for(let i=0;i<steps;i++){
+      const beforeX=e.x,beforeY=e.y;
+      if(canStand(e.x+sx,e.y+sy,r)){e.x+=sx;e.y+=sy;continue;}
+      const majorX=Math.abs(sx)>=Math.abs(sy);
+      const first=majorX?'x':'y',second=majorX?'y':'x';
+      const forward=majorX?sx:sy;
+      const advanced=moveAxis(first,forward);
+      moveAxis(second,majorX?sy:sx);
+      if(!advanced){
+        // When a doorway is slightly off-center, gently steer toward the
+        // nearest collision-free entrance while preserving the intended heading.
+        if(enterOpenLane())moveAxis(first,forward);
+      }
+      if(Math.hypot(e.x-beforeX,e.y-beforeY)<.001)stalled++;
+    }
+    return stalled>=Math.max(1,Math.ceil(steps*.70));
   }
   function clearLine(a,b) {
     const len=dist(a,b), steps=Math.max(1,Math.ceil(len*7));
@@ -370,11 +386,11 @@
     if(magnitude>.08)player.facing={x:vx/magnitude,y:vy/magnitude};
     if(player.dashTime>0){
       player.dashTime=Math.max(0,player.dashTime-dt);
-      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.23,.23);
+      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.19,.44);
       if(hitWall)player.dashTime=0; // Return joystick control immediately on collision.
       if(Math.random()<.8)player.trail.push({x:player.x,y:player.y,life:.36});
     }
-    else if(vx||vy)moveEntity(player,vx*3.5*dt,vy*3.5*dt,.23,.15);
+    else if(vx||vy)moveEntity(player,vx*3.5*dt,vy*3.5*dt,.19,.44);
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
