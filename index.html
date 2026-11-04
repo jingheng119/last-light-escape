@@ -7,20 +7,20 @@
   <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="style.css?v=mobile-stage-label-v412" />
-  <script src="game-labyrinth-v4.js?v=mobile-stage-label-v412" defer></script>
+  <link rel="stylesheet" href="style.css?v=mobile-stage-fix-v413" />
+  <script src="game-labyrinth-v4.js?v=mobile-stage-fix-v413" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
   <main class="shell">
     <header class="topbar">
       <div class="brand"><div class="brand-mark" aria-hidden="true"><span></span></div><div><strong>LAST LIGHT</strong><small>THE HOLLOW WARD</small></div></div>
-      <div class="top-links"><span class="edition" id="missionLevel">BROWSER GAME V4.12 · STAGE 01 · FLOOR 01 / 09</span></div>
+      <div class="top-links"><span class="edition" id="missionLevel">BROWSER GAME V4.13 · STAGE 01 · FLOOR 01 / 09</span></div>
     </header>
 
     <section class="intro"><div><div class="eyebrow"><i></i> THE LIGHT IS FADING</div><h1>Outrun the <em>Hollow.</em></h1><p>Choose your role. Find power cores, rescue trapped survivors, activate the relay, and escape together.</p></div>
       <div class="stage-info-card" aria-label="Current game stage and floor">
-        <span id="stageInfoCard">BROWSER GAME V4.12 · STAGE 01 · FLOOR 01 / 09</span>
+        <span id="stageInfoCard">BROWSER GAME V4.13 · STAGE 01 · FLOOR 01 / 09</span>
       </div>
     </section>
 
@@ -29,7 +29,7 @@
       <div id="gameWrapper" class="canvas-wrap"><canvas id="game" width="992" height="672" role="img" aria-label="Top-down maze escape game"></canvas>
         <button id="touchFullscreen" class="mobile-fullscreen-toggle" type="button" aria-label="Enter fullscreen" aria-pressed="false">⛶ FULLSCREEN</button>
         <button id="touchPause" class="mobile-pause-toggle" type="button">Ⅱ PAUSE</button>
-        <div id="mobileStageInfo" class="mobile-stage-info" aria-label="Current stage and floor">BROWSER GAME V4.12 · STAGE 01 · FLOOR 01 / 09</div>
+        
         <div id="overlay" class="overlay"><div class="overlay-panel" id="overlayPanel"><div class="overlay-kicker">SURVIVAL PROTOCOL / 001</div><div class="overlay-glyph" aria-hidden="true">◇</div><h2 id="overlayTitle">THE HOLLOW WARD</h2><p id="overlayText">The emergency elevator is offline. Restore its power and avoid the things lurking in the corridors.</p><div class="objectives"><span>◈ Collect power cores</span><span id="rescueObjective">✚ Rescue the survivor</span><span>⌁ Activate the relay</span><span>⇧ Escape together</span></div><div class="role-selection" id="roleSelection">
           <div class="role-choice-label" id="roleChoiceLabel">CHOOSE YOUR ROLE <span>· LOCKED FOR THE RUN</span></div>
           <div class="role-options" id="roleOptions" role="group" aria-label="Choose your character class">
@@ -61,6 +61,7 @@
             
             
           </div>
+          <div id="mobileStageInfo" class="mobile-stage-info" aria-label="Current stage and floor"><span>BROWSER GAME V4.13</span><span>STAGE 01 · FLOOR 01 / 09</span></div>
         </div>
         <div id="toast" class="toast" aria-live="polite"></div>
         <div id="screenFlash" class="screen-flash"></div>
