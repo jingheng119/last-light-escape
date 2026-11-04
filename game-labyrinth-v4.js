@@ -334,7 +334,7 @@
     if(magnitude>.08)player.facing={x:vx/magnitude,y:vy/magnitude};
     if(player.dashTime>0){
       player.dashTime=Math.max(0,player.dashTime-dt);
-      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.24);
+      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.26);
       if(hitWall)player.dashTime=0; // Return joystick control immediately on collision.
       if(Math.random()<.8)player.trail.push({x:player.x,y:player.y,life:.36});
     }
