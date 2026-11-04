@@ -51,6 +51,7 @@
   let classChoice = 'scout';
   let elapsed = 0, overallElapsed = 0, clock = 0, toastUntil = 0, hitFlash = 0, alertLevel = 0;
   let lastFrame = 0, audioCtx = null, soundEnabled = false, best = 0;
+  let musicBus=null,musicNextAt=0,musicStep=0,musicStage=0;
   let nextAmbientAt = 0, nextWarningAt = 0, previousThreat = 0;
   const CAMERA_ZOOM = 1.65;
   const SCOUT_STUN_RADIUS = 5.5;
@@ -326,6 +327,77 @@
   function beep(freq=440,duration=.12,type='sine',volume=.035) {
     if(!soundEnabled)return;
     try {audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const osc=audioCtx.createOscillator(),g=audioCtx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,audioCtx.currentTime);g.gain.setValueAtTime(volume,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+duration);osc.connect(g).connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+duration);}catch(e){}
+  }
+  // Original generative dark-ambient score. All notes are composed here and
+  // synthesized locally; no third-party recordings or background downloads.
+  // Stage I is restrained and ominous; Stage II adds brighter circuitry and
+  // a stronger electronic pulse. Sound starts only after a user click.
+  const MUSIC_SCALE={
+    1:{bass:[55.00,55.00,51.91,48.99],notes:[164.81,146.83,155.56,130.81],beat:.88},
+    2:{bass:[65.41,61.74,58.27,61.74],notes:[196.00,207.65,174.61,185.00],beat:.70}
+  };
+  function stopMusic(){
+    if(!musicBus)return;
+    try{
+      const t=audioCtx.currentTime;
+      musicBus.gain.cancelScheduledValues(t);
+      musicBus.gain.setTargetAtTime(0,t,.045);
+    }catch(e){}
+    musicBus=null;musicNextAt=0;
+  }
+  function musicTone(freq,at,duration,type,volume,filterFrequency=0){
+    if(!audioCtx||!musicBus)return;
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type=type;
+    o.frequency.setValueAtTime(freq,at);
+    g.gain.setValueAtTime(.0001,at);
+    g.gain.linearRampToValueAtTime(volume,at+Math.min(.18,duration*.22));
+    g.gain.exponentialRampToValueAtTime(.0001,at+duration);
+    if(filterFrequency){
+      const f=audioCtx.createBiquadFilter();
+      f.type='lowpass';f.frequency.value=filterFrequency;
+      o.connect(f);f.connect(g);
+    }else o.connect(g);
+    g.connect(musicBus);
+    o.start(at);o.stop(at+duration+.03);
+  }
+  function updateMusic(){
+    if(!soundEnabled||state!=='playing'||!player){
+      stopMusic();return;
+    }
+    try{
+      audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();
+      if(audioCtx.state==='suspended')return;
+      const stage=CONFIGS[levelIndex].stage===2?2:1;
+      if(!musicBus||musicStage!==stage){
+        stopMusic();
+        musicBus=audioCtx.createGain();
+        musicBus.gain.value=.52;
+        musicBus.connect(audioCtx.destination);
+        musicStage=stage;musicStep=0;musicNextAt=audioCtx.currentTime+.07;
+      }
+      const score=MUSIC_SCALE[stage];
+      // Schedule only a short look-ahead. No accumulating timers or intervals.
+      let scheduled=0;
+      while(musicNextAt<audioCtx.currentTime+.12&&scheduled++<3){
+        const beat=score.beat,step=musicStep++,t=musicNextAt;
+        const group=Math.floor(step/8)%score.bass.length;
+        if(step%8===0){
+          musicTone(score.bass[group],t,beat*7.9,'sine',.026,420);
+          musicTone(score.bass[group]*2,t+.04,beat*6.6,'triangle',.009,360);
+        }
+        // Soft pulsing rhythm that becomes more urgent when Hollows pursue.
+        const pulse=alertLevel===2?.016:alertLevel===1?.011:.007;
+        musicTone(stage===1?73.42:98,t,beat*.36,'sine',pulse,300);
+        if(step%4===2){
+          const note=score.notes[(Math.floor(step/4)+group)%score.notes.length];
+          musicTone(note,t,beat*3.3,stage===1?'sine':'triangle',stage===1?.011:.013,880);
+          musicTone(note*.5,t+.12,beat*3.1,'sine',.006,440);
+        }
+        musicNextAt+=beat*(alertLevel===2?.88:1);
+      }
+      if(musicNextAt<audioCtx.currentTime-.5)musicNextAt=audioCtx.currentTime+.05;
+    }catch(e){stopMusic();}
   }
   function ambientAudio() {
     // All audio is generated locally with Web Audio and remains off by default.
@@ -958,6 +1030,7 @@
     const dt=Math.min(.045,Math.max(0,(timestamp-lastFrame)/1000||0));
     lastFrame=timestamp;frameIndex++;
     update(dt);
+    updateMusic();
     if(state==='playing')updateCamera(dt);
     draw();
     requestAnimationFrame(tick);
@@ -1068,7 +1141,15 @@
     }
   });
   document.addEventListener('fullscreenchange',syncFullscreenButton);
-  ui.sound.addEventListener('click',()=>{soundEnabled=!soundEnabled;ui.sound.textContent=soundEnabled?'♪ ON':'♪ OFF';if(soundEnabled){nextAmbientAt=clock+.5;nextWarningAt=clock;beep(650,.12);}else{previousThreat=0;}});
+  ui.sound.addEventListener('click',()=>{
+    soundEnabled=!soundEnabled;
+    ui.sound.textContent=soundEnabled?'♪ ON':'♪ OFF';
+    if(soundEnabled){
+      nextAmbientAt=clock+.5;nextWarningAt=clock;
+      try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();audioCtx.resume?.();}catch(e){}
+      beep(650,.12);
+    }else{previousThreat=0;stopMusic();}
+  });
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
   // Expose read-only diagnostics for smoke tests, not used by gameplay.
