@@ -294,7 +294,7 @@
     if(classChoice==='medic'){
       if(player.hp>=3){notify('Already at full health.');return;}
       player.hp=Math.min(3,player.hp+1);player.abilityCooldown=SKILL_COOLDOWN.medic;
-      skillWaves.push({x:player.x,y:player.y,radius:2.2,age:0,duration:.65,color:'medic'});
+      skillWaves.push({x:player.x,y:player.y,radius:0,age:0,duration:.7,color:'medic'});
       notify('MEDIC — one health restored!');beep(880,.25);
     }else{
       const stunned=hollows.filter(h=>dist(h,player)<SCOUT_STUN_RADIUS);
@@ -558,10 +558,38 @@
     // Render in world space after darkness so the full skill radius is visible.
     for(const wave of skillWaves){
       const t=Math.min(1,wave.age/wave.duration);
+      const x=wave.x*TILE,y=wave.y*TILE;
+      if(wave.color==='medic'){
+        // Medic: a bright central healing cross with six drifting plus signs.
+        // No circular radius effect; healing is self-targeted.
+        ctx.save();
+        const ease=1-Math.pow(1-t,2);
+        const opacity=Math.pow(1-t,1.1);
+        const cross=(px,py,size,alpha)=>{
+          ctx.save();
+          ctx.globalAlpha=alpha;
+          ctx.shadowColor='#8fffd0';ctx.shadowBlur=size*.9;
+          ctx.fillStyle='#a5ffda';
+          const thick=Math.max(2,size*.34);
+          ctx.fillRect(px-thick/2,py-size/2,thick,size);
+          ctx.fillRect(px-size/2,py-thick/2,size,thick);
+          ctx.restore();
+        };
+        const centerSize=(25+13*Math.sin(Math.min(1,t*2)*Math.PI/2))*(1-.18*t);
+        cross(x,y-7*t,centerSize,opacity);
+        for(let i=0;i<6;i++){
+          const angle=i*Math.PI/3-Math.PI/2;
+          const distance=(18+i%2*8)+ease*(38+i%3*10);
+          const px=x+Math.cos(angle)*distance;
+          const py=y+Math.sin(angle)*distance-14*ease;
+          cross(px,py,9+(i%2)*3,opacity*(.74-.17*(i%3)/2));
+        }
+        ctx.restore();
+        continue;
+      }
       const radius=wave.radius*TILE*(.035+.965*(1-Math.pow(1-t,2)));
       const alpha=Math.pow(1-t,.8);
-      const x=wave.x*TILE,y=wave.y*TILE;
-      const rgb=wave.color==='medic'?'143,243,178':'110,255,223';
+      const rgb='110,255,223';
       ctx.save();
       ctx.globalAlpha=alpha;
       ctx.fillStyle=`rgba(${rgb},.075)`;
