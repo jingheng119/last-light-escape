@@ -734,13 +734,13 @@
     const skillTotal=SKILL_COOLDOWN[classChoice]*cooldownFactor();
     const skillCharge=Math.max(0,Math.min(1,1-player.abilityCooldown/skillTotal));
     $('#touchAbility').style.setProperty('--skill-charge',`${skillCharge.toFixed(3)}turn`);
-    ui.skillCD.textContent=player.abilityCooldown>0?'CHARGING':'READY';
+    ui.skillCD.textContent='';
     $('#touchAbility').setAttribute('aria-label',player.abilityCooldown>0?'Skill recharging':'Use skill');
     const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
     const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/(2*cooldownFactor())));
     $('#touchDash').style.setProperty('--skill-charge',`${dashCharge.toFixed(3)}turn`);
     $('#touchDecoy').style.setProperty('--skill-charge',`${decoyCharge.toFixed(3)}turn`);
-    ui.dashCD.textContent=player.dashCooldown>0?'CHARGING':'READY';
+    ui.dashCD.textContent='';
     ui.decoyCD.textContent=`×${player.decoys}`;
     $('#touchDash').setAttribute('aria-label',player.dashCooldown>0?'Dash recharging':'Dash ready');
     $('#touchDecoy').setAttribute('aria-label',player.decoyCooldown>0?'Decoy recharging':`Decoy, ${player.decoys} remaining`);
@@ -916,7 +916,7 @@
     ctx.fillStyle=red||hunter||dasher?'#fff2dd':'#ffc4bd';ctx.fillRect(-5,-4,3,3);ctx.fillRect(3,-4,3,3);
     ctx.strokeStyle=hunter?'#ff8fc1':dasher?'#ffce70':red?'#f66f78':'#92535b';
     ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-8,6);ctx.lineTo(-12,11+Math.sin(h.wobble)*3);ctx.moveTo(8,6);ctx.lineTo(12,11-Math.sin(h.wobble)*3);ctx.stroke();
-    if(red&&!dasher||hunter){ctx.strokeStyle=hunter?'#ff5caa':'#ff546c';ctx.lineWidth=2;
+    if(red||hunter){ctx.strokeStyle=hunter?'#ff5caa':dasher?'#efad4c':'#ff546c';ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(0,0,hunter?17:15,0,Math.PI*2);ctx.stroke();}
     ctx.restore();}}
   function drawPlayer(){for(const p of player.trail){ctx.fillStyle=`rgba(110,255,218,${p.life*.55})`;ctx.beginPath();ctx.arc(p.x*TILE,p.y*TILE,8,0,Math.PI*2);ctx.fill();}
