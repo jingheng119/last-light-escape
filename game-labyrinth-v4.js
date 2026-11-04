@@ -212,9 +212,9 @@
     decoys=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
-    ui.level.textContent=`BROWSER GAME V4.17 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
+    ui.level.textContent=`BROWSER GAME V4.18 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.stageCard.textContent=ui.level.textContent;
-    ui.mobileStage.children[0].textContent='BROWSER GAME V4.17';
+    ui.mobileStage.children[0].textContent='BROWSER GAME V4.18';
     ui.mobileStage.children[1].textContent=`STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.note.textContent=cfg.note;
     ui.allyLabel.textContent=cfg.stage===2?'ALLIES':'SURVIVOR';
@@ -931,7 +931,9 @@
   function drawDarkness(){
     const c=darkCtx;
     c.clearRect(0,0,W,H);
-    const darkness=levelIndex<3?.63:levelIndex<6?.76:levelIndex<9?.90:.82;
+    // Apply the same three-tier darkness curve independently in both stages.
+    const floorWithinStage=levelIndex%STAGE_ONE_FLOORS;
+    const darkness=floorWithinStage<3?.63:floorWithinStage<6?.76:.90;
     c.fillStyle=`rgba(0,8,13,${darkness})`;c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
     const lights=[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1},...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...(technician?[{x:technician.x*TILE,y:technician.y*TILE,r:68,alpha:.42}]:[]),...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
