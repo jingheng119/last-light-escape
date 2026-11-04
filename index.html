@@ -24,6 +24,7 @@
     <section class="game-shell" aria-label="Game area">
       <div class="statusbar"><div class="status-item"><span class="status-label">ROLE</span><strong id="classStatus">SCOUT</strong></div><div class="status-item"><span class="status-label">SURVIVOR</span><strong id="survivorStatus">TRAPPED</strong></div><div class="status-item"><span class="status-label">VITAL SIGNS</span><strong id="health" class="health">♥ ♥ ♥</strong></div><div class="status-item"><span class="status-label">POWER CORES</span><strong id="cores">0 / 2</strong></div><div class="status-item"><span class="status-label">RELAY</span><strong id="relay">OFFLINE</strong></div><div class="status-item"><span class="status-label">TIME</span><strong id="timer">00:00</strong></div><div class="status-item status-item-last"><span class="status-label">THREAT LEVEL</span><strong id="threat" class="threat-calm">LOW</strong></div></div>
       <div id="gameWrapper" class="canvas-wrap"><canvas id="game" width="992" height="672" role="img" aria-label="Top-down maze escape game"></canvas>
+        <button id="touchFullscreen" class="mobile-fullscreen-toggle" type="button" aria-label="Enter fullscreen" aria-pressed="false">⛶ FULLSCREEN</button>
         <div id="overlay" class="overlay"><div class="overlay-panel" id="overlayPanel"><div class="overlay-kicker">SURVIVAL PROTOCOL / 001</div><div class="overlay-glyph" aria-hidden="true">◇</div><h2 id="overlayTitle">THE HOLLOW WARD</h2><p id="overlayText">The emergency elevator is offline. Restore its power and avoid the things lurking in the corridors.</p><div class="objectives"><span>◈ Collect power cores</span><span>✚ Rescue the survivor</span><span>⌁ Activate the relay</span><span>⇧ Escape together</span></div><div class="class-picker"><label for="classSelect">YOUR ROLE</label><select id="classSelect"><option value="scout">Scout — F: stun nearby Hollows</option><option value="medic">Medic — F: heal one heart</option></select></div><button id="primaryBtn" class="primary-btn">ENTER THE WARD <span>↗</span></button><div id="overlayHint" class="overlay-hint">WASD / ARROWS TO MOVE · SPACE TO DASH</div></div></div>
 <div class="mobile-controls" aria-label="On-screen game controls">
           <div class="dpad" role="group" aria-label="Movement">
@@ -38,7 +39,7 @@
             <button id="touchDecoy" class="action-orb" type="button"><span class="action-name">DECOY</span><span id="decoyCD" class="action-cd">×3</span></button>
             <button id="touchInteract" class="action-orb action-use" type="button">USE</button>
             <button id="touchPause" class="action-pause" type="button">Ⅱ PAUSE</button>
-            <button id="touchFullscreen" class="action-fullscreen" type="button" aria-label="Enter fullscreen" aria-pressed="false">⛶ FULL</button>
+            
           </div>
         </div>
         <div id="toast" class="toast" aria-live="polite"></div>
