@@ -43,7 +43,7 @@
     roleOptions: $('#roleOptions'), roleLocked: $('#roleLocked'), lockedRoleText: $('#lockedRoleText'), roleLabel: $('#roleChoiceLabel')
   };
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
-  let roomTiles = new Set(), noiseEvents = [], survivor = null;
+  let roomTiles = new Set(), noiseEvents = [], survivor = null, technician = null;
   let runSeed=0;
   // Temporary developer shortcut. Skipped runs never enter the best-time record.
   let developerSkipped=false;
@@ -54,6 +54,9 @@
   const CAMERA_ZOOM = 1.65;
   const SCOUT_STUN_RADIUS = 5.5;
   const SKILL_COOLDOWN = {scout:13,medic:16};
+  const TECHNICIAN_COOLDOWN_FACTOR=.70;
+  const cooldownFactor=()=>technician?.rescued?TECHNICIAN_COOLDOWN_FACTOR:1;
+  const alliesReady=()=>survivor.rescued&&dist(survivor,exit)<2.0&&(!technician||(technician.rescued&&dist(technician,exit)<2.0));
   let skillWaves = [];
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
@@ -189,13 +192,20 @@
     exit={...TILE_CENTER(exit.x,exit.y)};
     const survivorSpot=selectSpot(reserved,cfg.stage===2?13:7,distances,false);reserved.push(survivorSpot);
     survivor={...TILE_CENTER(survivorSpot.x,survivorSpot.y),variant:cfg.allyVariant||'survivor',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
+    technician=null;
+    if(cfg.stage===2){
+      const techSpot=selectSpot(reserved,13,distances,false);reserved.push(techSpot);
+      technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
+    }
     player={...TILE_CENTER(1,1),hp:carriedHealth,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
     hollows=[];
     for(let i=0;i<cfg.enemies;i++) {
       const p=selectSpot(reserved,cfg.stage===2?8:5,distances,false);reserved.push(p);
-      hollows.push({x:p.x+.5,y:p.y+.5,variant:cfg.enemyVariant||'standard',home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18),
+      const variant=cfg.stage===2?(i===0?'hunter':i<=5?'dasher':'standard'):(cfg.enemyVariant||'standard');
+      hollows.push({x:p.x+.5,y:p.y+.5,variant,home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18)*(variant==='hunter'?1.27:1),
         path:[],pathIndex:0,repath:0,mode:'patrol',chaseUntil:0,target:null,angle:rand()*6.28,
-        wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100,stunned:0});
+        wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100,stunned:0,
+        dashCooldown:variant==='dasher'?2+rand()*3:0,dashTime:0,dashDir:{x:0,y:0}});
     }
     decoys=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
@@ -378,13 +388,13 @@
     player.decoys--;const p={x:player.x+player.facing.x*3.3,y:player.y+player.facing.y*3.3};
     const nearest=cells.filter(c=>dist({x:c.x+.5,y:c.y+.5},p)<4).sort((a,b)=>dist({x:a.x+.5,y:a.y+.5},p)-dist({x:b.x+.5,y:b.y+.5},p))[0];
     if(!nearest){player.decoys++;return;}
-    player.decoyCooldown=2;
+    player.decoyCooldown=2*cooldownFactor();
     decoys.push({...TILE_CENTER(nearest.x,nearest.y),life:5,age:0});
     noiseEvents.push({x:nearest.x+.5,y:nearest.y+.5,radius:11,expires:clock+1.7});
     notify('Sound decoy deployed — they heard it!');beep(850,.22,'square',.016);
     updateUI();
   }
-  function dash(){if(state!=='playing'||player.dashCooldown>0)return;player.dashCooldown=3.5;player.dashTime=.24;
+  function dash(){if(state!=='playing'||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
     const vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     if(vx||vy){const len=Math.hypot(vx,vy);player.dashDir={x:vx/len,y:vy/len};}else player.dashDir={...player.facing};
@@ -393,37 +403,50 @@
   }
   function interact(){if(state!=='playing')return;
     if(!survivor.rescued&&dist(player,survivor)<1.5){survivor.rescued=true;survivor.repath=0;notify('SURVIVOR RESCUED — guide them to the elevator!');beep(730,.22);updateUI();return;}
+    if(technician&&!technician.rescued&&dist(player,technician)<1.5){
+      technician.rescued=true;technician.repath=0;
+      // Existing timers shrink immediately; future uses get 30% shorter cooldowns.
+      player.dashCooldown*=TECHNICIAN_COOLDOWN_FACTOR;
+      player.abilityCooldown*=TECHNICIAN_COOLDOWN_FACTOR;
+      player.decoyCooldown*=TECHNICIAN_COOLDOWN_FACTOR;
+      notify('TECHNICIAN RESCUED — ALL COOLDOWNS 30% FASTER!',2.3);
+      beep(970,.24);updateUI();return;
+    }
     if(dist(player,relay)<1.55){if(!relay.active){relay.active=true;notify('Relay activated! Emergency elevator online if all cores are found.');beep(740,.21);beep(920,.23);}else notify('Relay already active.');updateUI();return;}
-    if(dist(player,exit)<1.45){if(cores.every(c=>c.collected)&&relay.active&&survivor.rescued&&dist(survivor,exit)<2.0)completeLevel();else notify(!survivor.rescued?'RESCUE THE SURVIVOR FIRST':survivor.rescued&&dist(survivor,exit)>=2?'WAIT FOR YOUR SURVIVOR':'ELEVATOR LOCKED — collect cores and activate the relay.');return;}
-    notify('Get closer to the survivor, relay, or elevator.');
+    if(dist(player,exit)<1.45){
+      if(cores.every(c=>c.collected)&&relay.active&&alliesReady())completeLevel();
+      else notify(!survivor.rescued?'RESCUE THE SURVIVOR FIRST':technician&&!technician.rescued?'RESCUE THE TECHNICIAN FIRST':!alliesReady()?'WAIT FOR BOTH ALLIES':'ELEVATOR LOCKED — collect cores and activate the relay.');
+      return;
+    }
+    notify('Get closer to an ally, relay, or elevator.');
   }
   function activateAbility(){
     if(state!=='playing'||player.abilityCooldown>0)return;
     if(classChoice==='medic'){
       if(player.hp>=3){notify('Already at full health.');return;}
-      player.hp=Math.min(3,player.hp+1);player.abilityCooldown=SKILL_COOLDOWN.medic;
+      player.hp=Math.min(3,player.hp+1);player.abilityCooldown=SKILL_COOLDOWN.medic*cooldownFactor();
       skillWaves.push({x:player.x,y:player.y,radius:0,age:0,duration:.7,color:'medic'});
       notify('MEDIC — one health restored!');beep(880,.25);
     }else{
       const stunned=hollows.filter(h=>dist(h,player)<SCOUT_STUN_RADIUS);
       for(const h of stunned){h.stunned=2.5;h.mode='search';h.target=null;h.path=[];h.repath=0;h.chaseUntil=clock+3;}
-      player.abilityCooldown=SKILL_COOLDOWN.scout;
+      player.abilityCooldown=SKILL_COOLDOWN.scout*cooldownFactor();
       skillWaves.push({x:player.x,y:player.y,radius:SCOUT_STUN_RADIUS,age:0,duration:.62,color:'scout'});
       notify('SCOUT — '+stunned.length+' Hollows stunned!');beep(1160,.23);
     }
     updateUI();
   }
-  function updateSurvivor(dt){
-    if(!survivor||!survivor.rescued||survivor.extracted)return;
-    if(dist(survivor,player)<1.05)return;
-    survivor.repath-=dt;
-    if(survivor.repath<=0){survivor.followPath=pathTo(survivor,player);survivor.followIndex=0;survivor.repath=.32;}
-    if(survivor.followIndex<survivor.followPath.length){
-      const stepTo=survivor.followPath[survivor.followIndex],d=dist(survivor,stepTo);
-      if(d<.08)survivor.followIndex++;
-      else{const speed=Math.min(3.1*dt,d);moveEntity(survivor,(stepTo.x-survivor.x)/d*speed,(stepTo.y-survivor.y)/d*speed,.22);}
+  function followAlly(ally,dt){
+    if(!ally||!ally.rescued||ally.extracted||dist(ally,player)<1.05)return;
+    ally.repath-=dt;
+    if(ally.repath<=0){ally.followPath=pathTo(ally,player);ally.followIndex=0;ally.repath=.32;}
+    if(ally.followIndex<ally.followPath.length){
+      const stepTo=ally.followPath[ally.followIndex],d=dist(ally,stepTo);
+      if(d<.08)ally.followIndex++;
+      else{const speed=Math.min(3.1*dt,d);moveEntity(ally,(stepTo.x-ally.x)/d*speed,(stepTo.y-ally.y)/d*speed,.22);}
     }
   }
+  function updateSurvivor(dt){followAlly(survivor,dt);followAlly(technician,dt);}
   function completeLevel(){
     beep(950,.4,'sine',.06);beep(1180,.48,'sine',.03);
     if(levelIndex===CONFIGS.length-1){state='victory';if(!developerSkipped&&(best===0||overallElapsed<best)){best=overallElapsed;try{localStorage.setItem('last-light-best',String(best));}catch(e){}}setOverlay('YOU FOUND THE LIGHT',`All ${CONFIGS.length} floors escaped in ${formatTime(overallElapsed)}. The elevator doors close behind you. Best escape: ${formatTime(best)}.`,'PLAY AGAIN','THE WARD WILL BE WAITING');}
@@ -560,17 +583,19 @@
     ui.relay.textContent=relay.active?'ACTIVE':'OFFLINE';ui.relay.style.color=relay.active?'#78e8bc':'#d6f4ee';
     ui.decoys.textContent=`DECOYS × ${player.decoys}`;ui.timer.textContent=formatTime(elapsed);
     ui.classStatus.textContent=classChoice==='medic'?'MEDIC':'SCOUT';
-    ui.survivorStatus.textContent=survivor.rescued?'FOLLOWING':'TRAPPED';
+    ui.survivorStatus.textContent=technician
+      ?`${Number(survivor.rescued)+Number(technician.rescued)} / 2 ALLIES`
+      :(survivor.rescued?'FOLLOWING':'TRAPPED');
     ui.abilityStatus.textContent=player.abilityCooldown<=0?(classChoice==='medic'?'HEAL READY':'PULSE READY'):'ABILITY RECHARGING';
     ui.dash.textContent=player.dashCooldown<=0?'DASH READY':`DASH ${player.dashCooldown.toFixed(1)}s`;
     // On-screen cooldowns reflect the exact timers used by keyboard actions.
-    const skillTotal=SKILL_COOLDOWN[classChoice];
+    const skillTotal=SKILL_COOLDOWN[classChoice]*cooldownFactor();
     const skillCharge=Math.max(0,Math.min(1,1-player.abilityCooldown/skillTotal));
     $('#touchAbility').style.setProperty('--skill-charge',`${skillCharge.toFixed(3)}turn`);
     ui.skillCD.textContent=player.abilityCooldown>0?'CHARGING':'READY';
     $('#touchAbility').setAttribute('aria-label',player.abilityCooldown>0?'Skill recharging':'Use skill');
-    const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/3.5));
-    const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/2));
+    const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
+    const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/(2*cooldownFactor())));
     $('#touchDash').style.setProperty('--skill-charge',`${dashCharge.toFixed(3)}turn`);
     $('#touchDecoy').style.setProperty('--skill-charge',`${decoyCharge.toFixed(3)}turn`);
     ui.dashCD.textContent=player.dashCooldown>0?'CHARGING':'READY';
@@ -596,7 +621,7 @@
     ambientAudio();
     for(const d of decoys){d.life-=dt;d.age+=dt;}decoys=decoys.filter(d=>d.life>0);
     noiseEvents=noiseEvents.filter(n=>n.expires>clock);
-    if(dist(player,exit)<.58&&relay.active&&cores.every(c=>c.collected)&&survivor.rescued&&dist(survivor,exit)<2.0)completeLevel();
+    if(dist(player,exit)<.58&&relay.active&&cores.every(c=>c.collected)&&alliesReady())completeLevel();
     if(frameIndex%8===0)updateUI();
   }
   function roundedRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
@@ -729,6 +754,12 @@
     {const x=relay.x*TILE,y=relay.y*TILE;halo(x,y,47,relay.active?'#54f2c32c':'#eabc5320');roundedRect(x-11,y-11,22,22,5,'#07171d');ctx.strokeStyle=relay.active?'#74f5c2':'#e9b864';ctx.lineWidth=2;ctx.strokeRect(x-10,y-10,20,20);ctx.fillStyle=relay.active?'#63e6b7':'#d5a14b';ctx.fillRect(x-4,y-5,8,10);ctx.fillStyle='#d0e7df';ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText(relay.active?'ON':'E',x,y-16);}
     cores.forEach((c,i)=>{if(c.collected)return;const x=c.x*TILE,y=c.y*TILE+Math.sin(t*2+i)*3;halo(x,y,60,'#56f2dd3b');ctx.save();ctx.translate(x,y);ctx.rotate(t*.7);diamond(0,0,10,'#67f7df');diamond(0,0,5,'#d9fff5');ctx.restore();});
     if(survivor){const x=survivor.x*TILE,y=survivor.y*TILE;halo(x,y,54,survivor.rescued?'#5ac9ff28':'#ffc86d30');ctx.fillStyle=survivor.rescued?'#79ccff':'#ffc66a';ctx.beginPath();ctx.arc(x,y,9,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#172b38';ctx.lineWidth=2;ctx.strokeRect(x-4,y-3,8,5);ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#e8fbff';ctx.fillText(survivor.rescued?'ALLY':'HELP',x,y-18);}
+    if(technician){const x=technician.x*TILE,y=technician.y*TILE;
+      halo(x,y,62,technician.rescued?'#9ffe9538':'#ffd56a38');
+      ctx.fillStyle=technician.rescued?'#a5fcb0':'#ffe182';ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#15372d';ctx.fillRect(x-6,y-2,12,4);ctx.fillRect(x-2,y-6,4,12);
+      ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillStyle='#d7ffde';ctx.fillText(technician.rescued?'CD -30%':'TECH',x,y-20);
+    }
     for(const d of decoys){const x=d.x*TILE,y=d.y*TILE,rad=(d.age*50)%80;ctx.strokeStyle=`rgba(244,191,101,${Math.min(.7,d.life/5)})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(x,y,Math.max(0,rad-24),0,Math.PI*2);ctx.stroke();diamond(x,y,7,'#ffd179');}
   }
   function drawHollows(){for(const h of hollows){let x=h.x*TILE,y=h.y*TILE,red=h.mode==='chase'&&!(h.stunned>0);
@@ -753,22 +784,22 @@
     const darkness=levelIndex<3?.63:levelIndex<6?.76:levelIndex<9?.90:.82;
     c.fillStyle=`rgba(0,8,13,${darkness})`;c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
-    const lights=[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1},...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
+    const lights=[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1},...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...(technician?[{x:technician.x*TILE,y:technician.y*TILE,r:68,alpha:.42}]:[]),...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
     for(const l of lights){const lx=l.x-camera.x,ly=l.y-camera.y;
       const g=c.createRadialGradient(lx,ly,0,lx,ly,l.r);g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(lx-l.r,ly-l.r,l.r*2,l.r*2);}
     c.globalCompositeOperation='source-over';
     ctx.drawImage(darknessCanvas,camera.x,camera.y);
   }
   function drawMarker(x,y,clr,label){const a=clock*2;ctx.save();ctx.translate(x,y);ctx.strokeStyle=clr;ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,12+Math.sin(a)*2,0,Math.PI*2);ctx.stroke();ctx.fillStyle=clr;ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText(label,0,-19);ctx.restore();}
-  function objectiveDirection(){return cores.find(c=>!c.collected)||(!survivor.rescued?survivor:!relay.active?relay:exit);}
+  function objectiveDirection(){return cores.find(c=>!c.collected)||(!survivor.rescued?survivor:technician&&!technician.rescued?technician:!relay.active?relay:exit);}
   function drawDirectionalHUD(){if(!player)return;const target=objectiveDirection(),angle=Math.atan2(target.y-player.y,target.x-player.x),x=W-52,y=53;
     roundedRect(W-168,12,156,73,11,'#07191fd9');ctx.strokeStyle='#2e5f61';ctx.lineWidth=1;ctx.strokeRect(W-168+.5,12.5,155,72);
-    ctx.fillStyle='#81deca';ctx.font='bold 10px monospace';ctx.textAlign='left';ctx.fillText(cores.some(c=>!c.collected)?'FIND THE CORES':!survivor.rescued?'RESCUE THE ALLY':!relay.active?'ACTIVATE RELAY':'REACH THE EXIT',W-158,33);
+    ctx.fillStyle='#81deca';ctx.font='bold 10px monospace';ctx.textAlign='left';ctx.fillText(cores.some(c=>!c.collected)?'FIND THE CORES':!survivor.rescued?'RESCUE THE ALLY':technician&&!technician.rescued?'FIND TECHNICIAN':!relay.active?'ACTIVATE RELAY':'REACH THE EXIT',W-158,33);
     ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.fillStyle='#a5ffe3';ctx.beginPath();ctx.moveTo(19,0);ctx.lineTo(-7,-8);ctx.lineTo(-2,0);ctx.lineTo(-7,8);ctx.closePath();ctx.fill();ctx.restore();
     ctx.fillStyle='#7aadb0';ctx.font='10px monospace';ctx.textAlign='left';ctx.fillText(`${Math.round(dist(player,target))}m away`,W-158,60);
   }
   function drawInteractPrompts(){ctx.font='bold 11px monospace';ctx.textAlign='center';
-    let message='';if(!survivor.rescued&&dist(player,survivor)<1.5)message='[ E ] RESCUE SURVIVOR';else if(dist(player,relay)<1.55&&!relay.active)message='[ E ] ACTIVATE RELAY';else if(dist(player,exit)<1.5)message=relay.active&&cores.every(c=>c.collected)&&survivor.rescued&&dist(survivor,exit)<2?'[ E ] ESCAPE':'ELEVATOR / ALLY NOT READY';
+    let message='';if(!survivor.rescued&&dist(player,survivor)<1.5)message='[ E ] RESCUE SURVIVOR';else if(technician&&!technician.rescued&&dist(player,technician)<1.5)message='[ E ] RESCUE TECHNICIAN';else if(dist(player,relay)<1.55&&!relay.active)message='[ E ] ACTIVATE RELAY';else if(dist(player,exit)<1.5)message=relay.active&&cores.every(c=>c.collected)&&alliesReady()?'[ E ] ESCAPE':'ELEVATOR / ALLIES NOT READY';
     if(message){roundedRect(W/2-111,H-54,222,30,7,'#071c23e8');ctx.strokeStyle='#43786e';ctx.strokeRect(W/2-111,H-54,222,30);ctx.fillStyle='#d4fff2';ctx.fillText(message,W/2,H-35);}
   }
   function drawSkillWaves(){
