@@ -491,3 +491,73 @@
   .mobile-controls .mobile-actions #touchDecoy{width:55px;height:55px}
   .mobile-controls .mobile-actions #touchInteract{width:50px;height:50px}
 }
+
+
+/* v3.3: desktop actions use the same compact formation as mobile.
+   Pause stays at the game area's top-right; the joystick stays mobile-only. */
+@media (min-width:981px) and (pointer:fine) {
+  .mobile-pause-toggle{
+    display:block;top:12px;right:14px;
+  }
+  .mobile-controls{
+    display:flex;position:absolute;inset:auto 14px 14px auto;
+    width:210px;height:252px;padding:0;
+    align-items:stretch;justify-content:flex-end;
+    pointer-events:none;
+  }
+  .mobile-controls .virtual-joystick{display:none}
+  .mobile-controls .mobile-actions{
+    --cluster-w:210px;--cluster-h:252px;
+    --right-center:160px;--left-center:64px;
+    display:block;position:relative;flex:0 0 210px;
+    width:210px;height:252px;min-width:0;
+    gap:0;
+  }
+  .mobile-controls .mobile-actions button{
+    position:absolute;display:flex;
+    top:auto;bottom:auto;left:auto;right:auto;
+    transform:none;margin:0;padding:4px;
+    aspect-ratio:1;border-radius:50%;
+  }
+  .mobile-controls .mobile-actions #touchDecoy{
+    position:absolute;top:65px;bottom:auto;
+    left:125px;right:auto;
+    width:70px;height:70px;
+  }
+  .mobile-controls .mobile-actions #touchAbility{
+    position:absolute;top:auto;bottom:0;
+    left:110px;right:auto;
+    width:100px;height:100px;
+  }
+  .mobile-controls .mobile-actions #touchInteract{
+    position:absolute;top:117px;bottom:auto;
+    left:66px;right:auto;
+    width:56px;height:56px;
+  }
+  .mobile-controls .mobile-actions #touchDash{
+    position:absolute;top:auto;bottom:0;
+    left:28px;right:auto;
+    width:72px;height:72px;
+  }
+}
+@media (min-width:981px) and (pointer:fine) and (max-height:650px){
+  .mobile-controls{height:204px;width:172px;inset:auto 10px 10px auto}
+  .mobile-controls .mobile-actions{
+    --cluster-w:172px;--cluster-h:204px;
+    --right-center:130px;--left-center:52px;
+    width:172px;height:204px;flex-basis:172px;
+  }
+  .mobile-controls .mobile-actions #touchDecoy{
+    top:54px;left:101px;width:58px;height:58px;
+  }
+  .mobile-controls .mobile-actions #touchAbility{
+    left:89px;bottom:0;width:82px;height:82px;
+  }
+  .mobile-controls .mobile-actions #touchInteract{
+    top:96px;left:57px;width:46px;height:46px;
+  }
+  .mobile-controls .mobile-actions #touchDash{
+    left:23px;bottom:0;width:58px;height:58px;
+  }
+  .mobile-pause-toggle{top:10px;right:10px}
+}
