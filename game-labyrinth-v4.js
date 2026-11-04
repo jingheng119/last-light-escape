@@ -201,6 +201,9 @@
     ui.label.textContent=cfg.name;
     ui.level.textContent=`STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.note.textContent=cfg.note;
+    const gameShell=$('.game-shell');
+    gameShell.classList.toggle('stage-two',cfg.stage===2);
+    gameShell.style.setProperty('--stage-accent',cfg.theme?.glow||'#7ae3c5');
     updateUI();
   }
   function pathTo(from,to) {
@@ -580,7 +583,84 @@
     if(frameIndex%8===0)updateUI();
   }
   function roundedRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
+  function drawOuterFloor(x,y){
+    // Stage II: colored technical panels, not the brickwork of the Ward.
+    const theme=CONFIGS[levelIndex].theme,kind=CONFIGS[levelIndex].architecture;
+    const px=x*TILE,py=y*TILE,room=roomTiles.has(keyOf(x,y));
+    const code=(x*13+y*23+levelIndex*17)%11;
+    ctx.fillStyle=room?theme.floor:theme.wall;
+    ctx.fillRect(px,py,TILE,TILE);
+    ctx.fillStyle=theme.floor;
+    ctx.globalAlpha=room?.48:.66;
+    ctx.fillRect(px+2,py+2,TILE-4,TILE-4);
+    ctx.globalAlpha=1;
+    ctx.strokeStyle=theme.line;ctx.globalAlpha=.12;ctx.lineWidth=.75;
+    ctx.strokeRect(px+2.5,py+2.5,TILE-5,TILE-5);
+    ctx.globalAlpha=.30;ctx.strokeStyle=theme.trim;ctx.lineWidth=.9;
+    ctx.beginPath();
+    if(kind==='circuit'||kind==='network'){
+      ctx.moveTo(px+4,py+16);ctx.lineTo(px+17,py+16);ctx.lineTo(px+17,py+5);
+      ctx.moveTo(px+22,py+27);ctx.lineTo(px+22,py+18);ctx.lineTo(px+29,py+18);
+    }else if(kind==='vault'||kind==='sanctum'){
+      ctx.moveTo(px+5,py+5);ctx.lineTo(px+27,py+5);
+      ctx.moveTo(px+5,py+27);ctx.lineTo(px+27,py+27);
+      if(code%3===0){ctx.moveTo(px+16,py+9);ctx.lineTo(px+16,py+23);}
+    }else if(kind==='reactor'||kind==='engine'){
+      ctx.moveTo(px+3,py+9);ctx.lineTo(px+29,py+9);
+      ctx.moveTo(px+3,py+24);ctx.lineTo(px+29,py+24);
+      if(code%2===0){ctx.moveTo(px+12,py+9);ctx.lineTo(px+12,py+24);}
+    }else if(kind==='array'||kind==='prism'){
+      ctx.moveTo(px+16,py+5);ctx.lineTo(px+27,py+16);ctx.lineTo(px+16,py+27);ctx.lineTo(px+5,py+16);ctx.closePath();
+    }else if(kind==='foundry'){
+      ctx.moveTo(px+6,py+8);ctx.lineTo(px+26,py+8);
+      ctx.moveTo(px+6,py+16);ctx.lineTo(px+26,py+16);
+      ctx.moveTo(px+6,py+24);ctx.lineTo(px+26,py+24);
+    }else{
+      ctx.moveTo(px+4,py+4);ctx.lineTo(px+28,py+28);
+      ctx.moveTo(px+28,py+4);ctx.lineTo(px+4,py+28);
+    }
+    ctx.stroke();ctx.globalAlpha=1;
+    if(code===1||code===8){
+      ctx.fillStyle=theme.glow;ctx.globalAlpha=.39;
+      ctx.fillRect(px+14,py+14,4,4);ctx.globalAlpha=1;
+    }
+  }
+  function drawOuterWall(x,y){
+    const theme=CONFIGS[levelIndex].theme,kind=CONFIGS[levelIndex].architecture;
+    const px=x*TILE,py=y*TILE,pattern=(x*7+y*11+levelIndex)%5;
+    ctx.fillStyle=theme.wall;ctx.fillRect(px,py,TILE,TILE);
+    ctx.fillStyle=theme.floor;ctx.globalAlpha=.14;
+    ctx.fillRect(px+3,py+3,26,26);ctx.globalAlpha=1;
+    ctx.strokeStyle=theme.trim;ctx.lineWidth=1;
+    ctx.globalAlpha=.28;
+    ctx.strokeRect(px+3.5,py+3.5,25,25);
+    ctx.beginPath();
+    if(kind==='circuit'||kind==='array'||kind==='network'){
+      ctx.moveTo(px+16,py+3);ctx.lineTo(px+16,py+29);
+      if(pattern%2===0){ctx.moveTo(px+3,py+16);ctx.lineTo(px+29,py+16);}
+    }else if(kind==='reactor'||kind==='foundry'||kind==='engine'){
+      const yy=py+(pattern%2?11:20);
+      ctx.moveTo(px+3,yy);ctx.lineTo(px+29,yy);
+      ctx.moveTo(px+8,py+3);ctx.lineTo(px+8,py+29);
+    }else if(kind==='prism'){
+      ctx.moveTo(px+3,py+3);ctx.lineTo(px+29,py+29);
+      ctx.moveTo(px+29,py+3);ctx.lineTo(px+3,py+29);
+    }else{
+      ctx.moveTo(px+4,py+16);ctx.lineTo(px+28,py+16);
+      ctx.moveTo(px+16,py+4);ctx.lineTo(px+16,py+28);
+    }
+    ctx.stroke();ctx.globalAlpha=1;
+    // Brighter edges make collision boundaries readable in every palette.
+    ctx.strokeStyle=theme.line;ctx.lineWidth=2;
+    ctx.beginPath();
+    if(floorAt(x,y-1)){ctx.moveTo(px,py+1);ctx.lineTo(px+TILE,py+1);}
+    if(floorAt(x,y+1)){ctx.moveTo(px,py+TILE-1);ctx.lineTo(px+TILE,py+TILE-1);}
+    if(floorAt(x-1,y)){ctx.moveTo(px+1,py);ctx.lineTo(px+1,py+TILE);}
+    if(floorAt(x+1,y)){ctx.moveTo(px+TILE-1,py);ctx.lineTo(px+TILE-1,py+TILE);}
+    ctx.stroke();
+  }
   function drawFloor(x,y){
+    if(CONFIGS[levelIndex].stage===2){drawOuterFloor(x,y);return;}
     const px=x*TILE,py=y*TILE;
     const isRoom=roomTiles.has(keyOf(x,y));
     // Walkable areas are clearly brighter than solid walls.
@@ -595,6 +675,7 @@
     }
   }
   function drawWall(x,y){
+    if(CONFIGS[levelIndex].stage===2){drawOuterWall(x,y);return;}
     const px=x*TILE,py=y*TILE;
     ctx.fillStyle='#142831';ctx.fillRect(px,py,TILE,TILE);
     ctx.save();ctx.beginPath();ctx.rect(px,py,TILE,TILE);ctx.clip();
@@ -741,7 +822,7 @@
     ctx.restore();
   }
   function draw(){
-    ctx.clearRect(0,0,W,H);ctx.fillStyle='#07171d';ctx.fillRect(0,0,W,H);
+    ctx.clearRect(0,0,W,H);ctx.fillStyle=CONFIGS[levelIndex]?.stage===2?'#101928':'#07171d';ctx.fillRect(0,0,W,H);
     if(!grid)return;
     // Render the world through a smoothly moving, clamped follow camera.
     // Controls, collisions and lighting remain in world coordinates.
