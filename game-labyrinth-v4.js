@@ -36,6 +36,9 @@
   let lastFrame = 0, audioCtx = null, soundEnabled = false, best = 0;
   let nextAmbientAt = 0, nextWarningAt = 0, previousThreat = 0;
   const CAMERA_ZOOM = 1.65;
+  const SCOUT_STUN_RADIUS = 5.5;
+  const SKILL_COOLDOWN = {scout:13,medic:16};
+  let skillWaves = [];
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
   const joystickMove={x:0,y:0};
@@ -171,7 +174,7 @@
         path:[],pathIndex:0,repath:0,mode:'patrol',chaseUntil:0,target:null,angle:rand()*6.28,
         wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100});
     }
-    decoys=[];noiseEvents=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
+    decoys=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
     ui.label.textContent=cfg.name;ui.level.textContent=`FLOOR ${String(index+1).padStart(2,'0')} / ${String(CONFIGS.length).padStart(2,'0')}`;ui.note.textContent=cfg.note;
@@ -290,11 +293,15 @@
     if(state!=='playing'||player.abilityCooldown>0)return;
     if(classChoice==='medic'){
       if(player.hp>=3){notify('Already at full health.');return;}
-      player.hp=Math.min(3,player.hp+1);player.abilityCooldown=16;notify('MEDIC — one health restored!');beep(880,.25);
+      player.hp=Math.min(3,player.hp+1);player.abilityCooldown=SKILL_COOLDOWN.medic;
+      skillWaves.push({x:player.x,y:player.y,radius:2.2,age:0,duration:.65,color:'medic'});
+      notify('MEDIC — one health restored!');beep(880,.25);
     }else{
-      const stunned=hollows.filter(h=>dist(h,player)<5.5);
+      const stunned=hollows.filter(h=>dist(h,player)<SCOUT_STUN_RADIUS);
       for(const h of stunned){h.stunned=2.5;h.mode='search';h.target=null;h.path=[];h.repath=0;h.chaseUntil=clock+3;}
-      player.abilityCooldown=13;notify('SCOUT — '+stunned.length+' Hollows stunned!');beep(1160,.23);
+      player.abilityCooldown=SKILL_COOLDOWN.scout;
+      skillWaves.push({x:player.x,y:player.y,radius:SCOUT_STUN_RADIUS,age:0,duration:.62,color:'scout'});
+      notify('SCOUT — '+stunned.length+' Hollows stunned!');beep(1160,.23);
     }
     updateUI();
   }
@@ -416,10 +423,14 @@
     ui.decoys.textContent=`DECOYS × ${player.decoys}`;ui.timer.textContent=formatTime(elapsed);
     ui.classStatus.textContent=classChoice==='medic'?'MEDIC':'SCOUT';
     ui.survivorStatus.textContent=survivor.rescued?'FOLLOWING':'TRAPPED';
-    ui.abilityStatus.textContent=player.abilityCooldown<=0?(classChoice==='medic'?'HEAL READY':'PULSE READY'):`ABILITY ${player.abilityCooldown.toFixed(1)}s`;
+    ui.abilityStatus.textContent=player.abilityCooldown<=0?(classChoice==='medic'?'HEAL READY':'PULSE READY'):'ABILITY RECHARGING';
     ui.dash.textContent=player.dashCooldown<=0?'DASH READY':`DASH ${player.dashCooldown.toFixed(1)}s`;
     // On-screen cooldowns reflect the exact timers used by keyboard actions.
-    ui.skillCD.textContent=player.abilityCooldown>0?`${player.abilityCooldown.toFixed(1)}s`:'READY';
+    const skillTotal=SKILL_COOLDOWN[classChoice];
+    const skillCharge=Math.max(0,Math.min(1,1-player.abilityCooldown/skillTotal));
+    $('#touchAbility').style.setProperty('--skill-charge',`${skillCharge.toFixed(3)}turn`);
+    ui.skillCD.textContent=player.abilityCooldown>0?'CHARGING':'READY';
+    $('#touchAbility').setAttribute('aria-label',player.abilityCooldown>0?'Skill recharging':'Use skill');
     ui.dashCD.textContent=player.dashCooldown>0?`${player.dashCooldown.toFixed(1)}s`:'READY';
     ui.decoyCD.textContent=player.decoyCooldown>0?`${player.decoyCooldown.toFixed(1)}s`:`×${player.decoys}`;
     $('#touchAbility').classList.toggle('on-cooldown',player.abilityCooldown>0);
@@ -433,6 +444,8 @@
     if(state!=='playing')return;
     elapsed+=dt;overallElapsed+=dt;updatePlayer(dt);if(state!=='playing')return;
     updateSurvivor(dt);updateHollows(dt);
+    for(const wave of skillWaves)wave.age+=dt;
+    skillWaves=skillWaves.filter(wave=>wave.age<wave.duration);
     // Check AFTER ghosts move, including when the player is stationary.
     checkGhostContact();
     if(state!=='playing')return;
@@ -535,6 +548,27 @@
     let message='';if(!survivor.rescued&&dist(player,survivor)<1.5)message='[ E ] RESCUE SURVIVOR';else if(dist(player,relay)<1.55&&!relay.active)message='[ E ] ACTIVATE RELAY';else if(dist(player,exit)<1.5)message=relay.active&&cores.every(c=>c.collected)&&survivor.rescued&&dist(survivor,exit)<2?'[ E ] ESCAPE':'ELEVATOR / ALLY NOT READY';
     if(message){roundedRect(W/2-111,H-54,222,30,7,'#071c23e8');ctx.strokeStyle='#43786e';ctx.strokeRect(W/2-111,H-54,222,30);ctx.fillStyle='#d4fff2';ctx.fillText(message,W/2,H-35);}
   }
+  function drawSkillWaves(){
+    // Render in world space after darkness so the full skill radius is visible.
+    for(const wave of skillWaves){
+      const t=Math.min(1,wave.age/wave.duration);
+      const radius=wave.radius*TILE*(.035+.965*(1-Math.pow(1-t,2)));
+      const alpha=Math.pow(1-t,.8);
+      const x=wave.x*TILE,y=wave.y*TILE;
+      const rgb=wave.color==='medic'?'143,243,178':'110,255,223';
+      ctx.save();
+      ctx.globalAlpha=alpha;
+      ctx.fillStyle=`rgba(${rgb},.075)`;
+      ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=`rgba(${rgb},.93)`;
+      ctx.lineWidth=3.5-t*2;
+      ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.stroke();
+      ctx.strokeStyle=`rgba(${rgb},.25)`;
+      ctx.lineWidth=10-t*6;
+      ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.stroke();
+      ctx.restore();
+    }
+  }
   function drawAtmosphere(){
     // Deterministic dust specks drift gently across the existing labyrinth.
     // They are visual only; movement and collision rules are untouched.
@@ -567,7 +601,7 @@
     const y1=Math.min(ROWS,Math.ceil((camera.y+H/CAMERA_ZOOM)/TILE)+1);
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
-    drawItems();drawHollows();drawPlayer();drawDarkness();drawAtmosphere();
+    drawItems();drawHollows();drawPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();
     ctx.restore();
     // Fixed screen-space HUD must never drift with the camera.
     drawDirectionalHUD();drawInteractPrompts();
