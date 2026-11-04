@@ -1,6 +1,6 @@
 # Last Light: The Hollow Ward
 
-An original three-floor, top-down survival and maze-escape game for the browser. Inspired by the broad genre of cooperative escape maps, **not** a remake of any Dota 2 or Warcraft game. No copyrighted characters, music, maps or assets are included.
+An original three-floor, top-down survival and maze-escape game for the browser. **Version 1.1** adds open ward rooms, directional enemy sight, sound investigation, and last-known-position searches. Inspired by the broad genre of cooperative escape maps, **not** a remake of any Dota 2 or Warcraft game. No copyrighted characters, music, maps or assets are included.
 
 ## Play
 
@@ -41,8 +41,8 @@ No additional changes are necessary. All asset references are relative paths, so
 ## Technical design
 
 - **Canvas 2D** renderer with procedural, original geometric graphics, gradients, atmosphere and lighting mask.
-- **Seeded depth-first maze generation** with extra loops to create alternate routes.
-- **Breadth-first search pathfinding** and line-of-sight tests for enemies.
+- **Seeded depth-first maze generation** with extra loops and open ward rooms to create alternate routes.
+- **Breadth-first search pathfinding**, directional sight cones, sound investigation, and last-known-position searches for enemies.
 - **State machine** for menus, gameplay, pause, defeat, floor completion and victory.
 - **Collision detection** against the tile map, mobile controls and optional synthesized audio.
 - **Zero third-party dependencies, no ads, no analytics, no network requests.**
