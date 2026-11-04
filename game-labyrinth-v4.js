@@ -369,13 +369,23 @@
   }
   function drawWall(x,y){
     const px=x*TILE,py=y*TILE;
-    // A single solid fill joins neighboring wall tiles without inset squares.
-    ctx.fillStyle='#10252f';
-    ctx.fillRect(px,py,TILE,TILE);
-    // Accentuate only boundaries between a wall and walkable space.
-    ctx.strokeStyle='rgba(107,189,195,.55)';
-    ctx.lineWidth=2;
-    ctx.beginPath();
+    ctx.fillStyle='#142831';ctx.fillRect(px,py,TILE,TILE);
+    ctx.save();ctx.beginPath();ctx.rect(px,py,TILE,TILE);ctx.clip();
+    ctx.strokeStyle='rgba(112,157,164,.23)';ctx.lineWidth=1;ctx.beginPath();
+    for(let row=Math.floor(py/12);row<=Math.floor((py+TILE)/12)+1;row++){
+      const yy=row*12+.5;
+      if(yy>=py&&yy<=py+TILE){ctx.moveTo(px,yy);ctx.lineTo(px+TILE,yy);}
+      const offset=(row%2)*12;
+      for(let col=Math.floor((px-offset)/24)-1;col<=Math.ceil((px+TILE-offset)/24)+1;col++){
+        const xx=col*24+offset+.5;
+        if(xx>=px&&xx<=px+TILE){
+          ctx.moveTo(xx,Math.max(py,row*12));
+          ctx.lineTo(xx,Math.min(py+TILE,(row+1)*12));
+        }
+      }
+    }
+    ctx.stroke();ctx.restore();
+    ctx.strokeStyle='rgba(109,184,187,.46)';ctx.lineWidth=2;ctx.beginPath();
     if(floorAt(x,y-1)){ctx.moveTo(px,py+1);ctx.lineTo(px+TILE,py+1);}
     if(floorAt(x,y+1)){ctx.moveTo(px,py+TILE-1);ctx.lineTo(px+TILE,py+TILE-1);}
     if(floorAt(x-1,y)){ctx.moveTo(px+1,py);ctx.lineTo(px+1,py+TILE);}
