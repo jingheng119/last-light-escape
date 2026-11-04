@@ -746,3 +746,19 @@
 .game-shell.stage-two .role-locked{
   border-color:var(--stage-accent,#7ad8ef);
 }
+
+
+/* v4.11 — compact stage status in the former Mission card position. */
+.stage-info-card{
+  display:flex;align-items:center;justify-content:center;
+  flex:0 0 auto;max-width:390px;padding:15px 17px;
+  background:#0d1c26;border:1px solid #2a434c;
+  border-radius:12px;text-align:center;
+}
+.stage-info-card span{
+  display:block;font-size:11px;line-height:1.6;letter-spacing:.11em;
+  font-weight:800;color:#a4c6d1;
+}
+@media(max-width:980px){
+  .stage-info-card{display:none}
+}
