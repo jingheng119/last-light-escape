@@ -826,9 +826,8 @@
     ctx.fillStyle=red||hunter||dasher?'#fff2dd':'#ffc4bd';ctx.fillRect(-5,-4,3,3);ctx.fillRect(3,-4,3,3);
     ctx.strokeStyle=hunter?'#ff8fc1':dasher?'#ffce70':red?'#f66f78':'#92535b';
     ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-8,6);ctx.lineTo(-12,11+Math.sin(h.wobble)*3);ctx.moveTo(8,6);ctx.lineTo(12,11-Math.sin(h.wobble)*3);ctx.stroke();
-    if(red||hunter||dasher){ctx.strokeStyle=hunter?'#ff5caa':dasher?'#efad4c':'#ff546c';ctx.lineWidth=2;
+    if(red&&!dasher||hunter){ctx.strokeStyle=hunter?'#ff5caa':'#ff546c';ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(0,0,hunter?17:15,0,Math.PI*2);ctx.stroke();}
-    if(dasher&&h.dashTime>0){ctx.strokeStyle='#ffcf72';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-h.dashDir.x*18,-h.dashDir.y*18);ctx.lineTo(-h.dashDir.x*34,-h.dashDir.y*34);ctx.stroke();}
     ctx.restore();}}
   function drawPlayer(){for(const p of player.trail){ctx.fillStyle=`rgba(110,255,218,${p.life*.55})`;ctx.beginPath();ctx.arc(p.x*TILE,p.y*TILE,8,0,Math.PI*2);ctx.fill();}
     const x=player.x*TILE,y=player.y*TILE,flicker=player.invincible>0&&Math.sin(clock*31)>0;
