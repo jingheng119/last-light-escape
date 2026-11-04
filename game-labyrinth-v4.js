@@ -4,7 +4,10 @@
  */
 (() => {
   'use strict';
-  const COLS = 31, ROWS = 21, TILE = 32, W = COLS * TILE, H = ROWS * TILE;
+  // Fixed render viewport, variable world dimensions by stage.
+  const TILE=32,W=992,H=672;
+  let COLS=31,ROWS=21;
+  const STAGE_ONE_FLOORS=9,STAGE_TWO_SIZE={cols:61,rows:41};
   const CONFIGS = [
     { name: 'THE FIRST DESCENT', seed: 1709, cores: 2, enemies: 3, loops: 0.16, speed: 1.12, note: 'Hollows can see along corridors. Break line of sight to escape a pursuit.' },
     { name: 'THE DARK CIRCUIT', seed: 2911, cores: 3, enemies: 4, loops: 0.19, speed: 1.23, note: 'Tap Q to throw a sound decoy. Nearby Hollows will investigate the noise.' },
@@ -14,7 +17,17 @@
     { name: 'THE SHADOW ENGINE', seed: 7313, cores: 4, enemies: 6, loops: 0.20, speed: 1.43, note: 'Darkness deepens. Do not dash blindly into corridors.' },
     { name: 'THE BLACK ARCHIVE', seed: 8269, cores: 3, enemies: 6, loops: 0.18, speed: 1.43, note: 'Emergency lighting at 10%. Watch for enemies at close range.' },
     { name: 'THE LOST DEPTHS', seed: 9539, cores: 4, enemies: 7, loops: 0.20, speed: 1.46, note: 'Only your immediate surroundings are visible. Protect the survivor.' },
-    { name: 'THE FINAL ASCENT', seed: 10867, cores: 4, enemies: 7, loops: 0.22, speed: 1.49, note: 'Find the last elevator and bring everyone into the light.' }
+    { name: 'THE FINAL ASCENT', seed: 10867, cores: 4, enemies: 7, loops: 0.22, speed: 1.49, note: 'Find the last elevator and bring everyone into the light.' },
+    // Stage II is ready for future Hollow and ally variants via metadata.
+    { name:'THE AZURE GATE',seed:12419,cores:5,enemies:8,loops:0.24,speed:1.50,stage:2,architecture:'circuit',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#243c55',wall:'#101f34',trim:'#5aaadd',line:'#77c6ee',glow:'#7ad8ef'},note:'STAGE II · Blue conduits lead into the outer complex.' },
+    { name:'THE VIOLET VAULT',seed:13773,cores:5,enemies:8,loops:0.25,speed:1.52,stage:2,architecture:'vault',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#392e56',wall:'#211c39',trim:'#a98bea',line:'#bc9ef6',glow:'#e0adff'},note:'STAGE II · Violet chambers conceal branching passages.' },
+    { name:'THE AMBER REACTOR',seed:15131,cores:5,enemies:9,loops:0.26,speed:1.54,stage:2,architecture:'reactor',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#4a382d',wall:'#2c211e',trim:'#f0ae68',line:'#eecc8b',glow:'#ffdb8e'},note:'STAGE II · Explore the immense machinery of the reactor.' },
+    { name:'THE EMERALD ARRAY',seed:16807,cores:5,enemies:9,loops:0.27,speed:1.56,stage:2,architecture:'array',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#23483e',wall:'#152d2b',trim:'#68d8ac',line:'#84f1bf',glow:'#8bffe1'},note:'STAGE II · Green signal grids illuminate ruined corridors.' },
+    { name:'THE CARMINE FOUNDRY',seed:18061,cores:6,enemies:10,loops:0.23,speed:1.58,stage:2,architecture:'foundry',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#4a303b',wall:'#2b1c29',trim:'#f0809e',line:'#e9a0ac',glow:'#ff9cb0'},note:'STAGE II · Red furnace halls lead deeper underground.' },
+    { name:'THE FROST NETWORK',seed:19937,cores:6,enemies:10,loops:0.26,speed:1.60,stage:2,architecture:'network',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#304d5a',wall:'#1b303d',trim:'#9bd9e8',line:'#c1f1fa',glow:'#cbfbff'},note:'STAGE II · Frozen nodes divide the complex into sectors.' },
+    { name:'THE INDIGO SANCTUM',seed:21401,cores:6,enemies:11,loops:0.25,speed:1.61,stage:2,architecture:'sanctum',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#302f59',wall:'#1b1c39',trim:'#8e95f1',line:'#bbc4ff',glow:'#aeb1ff'},note:'STAGE II · Old data sanctums conceal long routes.' },
+    { name:'THE COPPER ENGINE',seed:23549,cores:6,enemies:11,loops:0.29,speed:1.63,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#493a34',wall:'#2e2324',trim:'#d9986c',line:'#f1c39a',glow:'#ffd1a1'},note:'STAGE II · Copper machinery runs beneath the entire ward.' },
+    { name:'THE PRISMATIC CORE',seed:25717,cores:7,enemies:12,loops:0.28,speed:1.65,stage:2,architecture:'prism',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#374353',wall:'#1b2638',trim:'#a0ccdf',line:'#c1b5f2',glow:'#d2f9ff'},note:'STAGE II · Find the final elevator in the vast prismatic core.' }
   ];
   const $ = s => document.querySelector(s);
   const canvas = $('#game'), ctx = canvas.getContext('2d');
@@ -86,10 +99,11 @@
     }
     // Irregular chambers are carved into the maze without sealing any corridors.
     // Their floors are contiguous but sizes and placements vary by floor/seed.
-    const roomCount=3+Math.floor(rand()*3);
+    const roomCount=levelIndex<STAGE_ONE_FLOORS?3+Math.floor(rand()*3):12+Math.floor(rand()*5);
     const rooms=[];
-    for(let attempt=0;attempt<85&&rooms.length<roomCount;attempt++){
-      const w=3+Math.floor(rand()*2),h=3+Math.floor(rand()*2);
+    for(let attempt=0;attempt<(levelIndex<STAGE_ONE_FLOORS?85:300)&&rooms.length<roomCount;attempt++){
+      const w=levelIndex<STAGE_ONE_FLOORS?3+Math.floor(rand()*2):4+Math.floor(rand()*4);
+      const h=levelIndex<STAGE_ONE_FLOORS?3+Math.floor(rand()*2):4+Math.floor(rand()*3);
       const x=2+Math.floor(rand()*(COLS-w-4));
       const y=2+Math.floor(rand()*(ROWS-h-4));
       if(x<5&&y<5)continue;
@@ -105,7 +119,7 @@
       }
     }
     // Short side corridors and extra crossroads add navigational layers.
-    for(let i=0;i<12;i++){
+    for(let i=0;i<(levelIndex<STAGE_ONE_FLOORS?12:42);i++){
       const x=2+Math.floor(rand()*(COLS-4)),y=2+Math.floor(rand()*(ROWS-4));
       if(grid[y][x]!==1)continue;
       const open=dirs.filter(([dx,dy])=>grid[y+dy][x+dx]===0).length;
@@ -145,8 +159,8 @@
   function cameraTarget(){
     const viewW=W/CAMERA_ZOOM,viewH=H/CAMERA_ZOOM;
     return {
-      x:clamp(player.x*TILE-viewW/2,0,W-viewW),
-      y:clamp(player.y*TILE-viewH/2,0,H-viewH)
+      x:clamp(player.x*TILE-viewW/2,0,Math.max(0,COLS*TILE-viewW)),
+      y:clamp(player.y*TILE-viewH/2,0,Math.max(0,ROWS*TILE-viewH))
     };
   }
   function updateCamera(dt, snap=false){
@@ -160,20 +174,23 @@
     // Hearts carry across floors in the same run. A fresh run (floor 1)
     // always starts with three hearts. Only the Medic skill restores health.
     const carriedHealth=index>0&&player?Math.max(1,Math.min(3,player.hp)):3;
-    levelIndex=index;const cfg=CONFIGS[index];buildMaze(cfg.seed+runSeed,cfg.loops);
+    levelIndex=index;const cfg=CONFIGS[index];
+    COLS=cfg.stage===2?STAGE_TWO_SIZE.cols:31;
+    ROWS=cfg.stage===2?STAGE_TWO_SIZE.rows:21;
+    buildMaze(cfg.seed+runSeed,cfg.loops);
     const start={x:1,y:1}, distances=distanceMap(start), reserved=[start];
-    exit=selectSpot(reserved,18,distances);reserved.push(exit);
+    exit=selectSpot(reserved,cfg.stage===2?35:18,distances);reserved.push(exit);
     cores=[];
-    for(let i=0;i<cfg.cores;i++) {const p=selectSpot(reserved,8,distances,i===0);reserved.push(p);cores.push({...TILE_CENTER(p.x,p.y),collected:false});}
-    const switchSpot=selectSpot(reserved,7,distances,false);reserved.push(switchSpot);
+    for(let i=0;i<cfg.cores;i++) {const p=selectSpot(reserved,cfg.stage===2?13:8,distances,i===0);reserved.push(p);cores.push({...TILE_CENTER(p.x,p.y),collected:false});}
+    const switchSpot=selectSpot(reserved,cfg.stage===2?13:7,distances,false);reserved.push(switchSpot);
     relay={...TILE_CENTER(switchSpot.x,switchSpot.y),active:false};
     exit={...TILE_CENTER(exit.x,exit.y)};
-    const survivorSpot=selectSpot(reserved,7,distances,false);reserved.push(survivorSpot);
+    const survivorSpot=selectSpot(reserved,cfg.stage===2?13:7,distances,false);reserved.push(survivorSpot);
     survivor={...TILE_CENTER(survivorSpot.x,survivorSpot.y),rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     player={...TILE_CENTER(1,1),hp:carriedHealth,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
     hollows=[];
     for(let i=0;i<cfg.enemies;i++) {
-      const p=selectSpot(reserved,5,distances,false);reserved.push(p);
+      const p=selectSpot(reserved,cfg.stage===2?8:5,distances,false);reserved.push(p);
       hollows.push({x:p.x+.5,y:p.y+.5,home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18),
         path:[],pathIndex:0,repath:0,mode:'patrol',chaseUntil:0,target:null,angle:rand()*6.28,
         wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100,stunned:0});
@@ -181,7 +198,9 @@
     decoys=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
-    ui.label.textContent=cfg.name;ui.level.textContent=`FLOOR ${String(index+1).padStart(2,'0')} / ${String(CONFIGS.length).padStart(2,'0')}`;ui.note.textContent=cfg.note;
+    ui.label.textContent=cfg.name;
+    ui.level.textContent=`STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
+    ui.note.textContent=cfg.note;
     updateUI();
   }
   function pathTo(from,to) {
@@ -388,7 +407,11 @@
   function completeLevel(){
     beep(950,.4,'sine',.06);beep(1180,.48,'sine',.03);
     if(levelIndex===CONFIGS.length-1){state='victory';if(best===0||overallElapsed<best){best=overallElapsed;try{localStorage.setItem('last-light-best',String(best));}catch(e){}}setOverlay('YOU FOUND THE LIGHT',`All ${CONFIGS.length} floors escaped in ${formatTime(overallElapsed)}. The elevator doors close behind you. Best escape: ${formatTime(best)}.`,'PLAY AGAIN','THE WARD WILL BE WAITING');}
-    else {state='leveldone';setOverlay('FLOOR CLEARED',`You restored the relay, collected every core, and escaped ${CONFIGS[levelIndex].name.toLowerCase()} in ${formatTime(elapsed)}.`,'DESCEND DEEPER','THE NEXT FLOOR IS MORE DANGEROUS');}
+    else {state='leveldone';
+      if(levelIndex===STAGE_ONE_FLOORS-1){
+        setOverlay('STAGE ONE COMPLETE',`You survived all nine floors of the Hollow Ward. Your ${player.hp} remaining ${player.hp===1?'heart carries':'hearts carry'} into a much larger outer complex.`,'ENTER STAGE TWO','NINE EXPANDED FLOORS AWAIT');
+      }else setOverlay('FLOOR CLEARED',`You restored the relay, collected every core, and escaped ${CONFIGS[levelIndex].name.toLowerCase()} in ${formatTime(elapsed)}.`,'DESCEND DEEPER','THE NEXT FLOOR IS MORE DANGEROUS');
+    }
   }
   function damage(){if(player.invincible>0||player.dashTime>0||state!=='playing')return;
     player.hp--;player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
@@ -629,13 +652,14 @@
   function drawDarkness(){
     const c=darkCtx;
     c.clearRect(0,0,W,H);
-    const darkness=levelIndex<3?.63:levelIndex<6?.76:.90;
+    const darkness=levelIndex<3?.63:levelIndex<6?.76:levelIndex<9?.90:.82;
     c.fillStyle=`rgba(0,8,13,${darkness})`;c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
     const lights=[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1},...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
-    for(const l of lights){const g=c.createRadialGradient(l.x,l.y,0,l.x,l.y,l.r);g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(l.x-l.r,l.y-l.r,l.r*2,l.r*2);}
+    for(const l of lights){const lx=l.x-camera.x,ly=l.y-camera.y;
+      const g=c.createRadialGradient(lx,ly,0,lx,ly,l.r);g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(lx-l.r,ly-l.r,l.r*2,l.r*2);}
     c.globalCompositeOperation='source-over';
-    ctx.drawImage(darknessCanvas,0,0);
+    ctx.drawImage(darknessCanvas,camera.x,camera.y);
   }
   function drawMarker(x,y,clr,label){const a=clock*2;ctx.save();ctx.translate(x,y);ctx.strokeStyle=clr;ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,12+Math.sin(a)*2,0,Math.PI*2);ctx.stroke();ctx.fillStyle=clr;ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText(label,0,-19);ctx.restore();}
   function objectiveDirection(){return cores.find(c=>!c.collected)||(!survivor.rescued?survivor:!relay.active?relay:exit);}
