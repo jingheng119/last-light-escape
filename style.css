@@ -561,3 +561,34 @@
   }
   .mobile-pause-toggle{top:10px;right:10px}
 }
+
+
+/* v3.4: desktop Pause is hidden; mobile keeps the Pause button.
+   Dash and Decoy share Skill's radial recharge indicator. */
+.mobile-controls .mobile-actions #touchDash,
+.mobile-controls .mobile-actions #touchDecoy{
+  --skill-charge:1turn;
+  isolation:isolate;
+}
+.mobile-controls .mobile-actions #touchDash::before,
+.mobile-controls .mobile-actions #touchDecoy::before{
+  content:'';position:absolute;inset:-4px;
+  border-radius:50%;pointer-events:none;
+  background:conic-gradient(from -90deg,
+    #8af5d2 0turn var(--skill-charge),
+    rgba(93,145,151,.30) var(--skill-charge) 1turn);
+  -webkit-mask:radial-gradient(farthest-side,
+    transparent calc(100% - 6px),#000 calc(100% - 5px));
+  mask:radial-gradient(farthest-side,
+    transparent calc(100% - 6px),#000 calc(100% - 5px));
+}
+.mobile-controls .mobile-actions #touchDash .action-name,
+.mobile-controls .mobile-actions #touchDash .action-cd,
+.mobile-controls .mobile-actions #touchDecoy .action-name,
+.mobile-controls .mobile-actions #touchDecoy .action-cd{
+  position:relative;z-index:1;
+}
+@media (min-width:981px) and (pointer:fine){
+  .mobile-pause-toggle,
+  .game-shell:fullscreen .mobile-pause-toggle{display:none}
+}
