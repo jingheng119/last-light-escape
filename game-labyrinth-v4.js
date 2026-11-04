@@ -26,7 +26,8 @@
     dash: $('#dashStatus'), decoys: $('#decoys'), skillCD: $('#skillCD'), dashCD: $('#dashCD'), decoyCD: $('#decoyCD'), label: $('#missionLabel'), level: $('#missionLevel'),
     note: $('#fieldNote'), overlay: $('#overlay'), title: $('#overlayTitle'), text: $('#overlayText'),
     classSelect: $('#classSelect'), classStatus: $('#classStatus'), survivorStatus: $('#survivorStatus'), abilityStatus: $('#abilityStatus'),
-    button: $('#primaryBtn'), hint: $('#overlayHint'), toast: $('#toast'), flash: $('#screenFlash'), sound: $('#soundBtn')
+    button: $('#primaryBtn'), hint: $('#overlayHint'), toast: $('#toast'), flash: $('#screenFlash'), sound: $('#soundBtn'),
+    roleOptions: $('#roleOptions'), roleLocked: $('#roleLocked'), lockedRoleText: $('#lockedRoleText')
   };
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
   let roomTiles = new Set(), noiseEvents = [], survivor = null;
@@ -303,12 +304,26 @@
     previousThreat=alertLevel;
   }
   function notify(msg,seconds=2.7) {ui.toast.textContent=msg;toastUntil=clock+seconds;ui.toast.classList.add('show');}
+  function refreshRoleSelection(){
+    // Only the initial/new-run menu permits choosing a class. Paused and
+    // cleared floors display the locked role instead of editable choices.
+    const choosing=state==='menu'||state==='dead'||state==='victory';
+    ui.roleOptions.hidden=!choosing;
+    ui.roleLocked.hidden=choosing;
+    ui.lockedRoleText.textContent=classChoice==='medic'?'MEDIC · HEALING BURST':'SCOUT · STUN SHOCKWAVE';
+    document.querySelectorAll('.role-option').forEach(card=>{
+      const selected=card.dataset.role===classChoice;
+      card.classList.toggle('is-selected',selected);
+      card.setAttribute('aria-pressed',String(selected));
+    });
+  }
   function setOverlay(title,text,button,hint='WASD / ARROWS TO MOVE · SPACE TO DASH') {
+    refreshRoleSelection();
     ui.title.textContent=title;ui.text.textContent=text;ui.button.firstChild.textContent=button+' ';ui.hint.textContent=hint;
     ui.overlay.classList.remove('hidden');
   }
   function hideOverlay(){ui.overlay.classList.add('hidden');}
-  function startGame(){classChoice=ui.classSelect.value==='medic'?'medic':'scout';runSeed=Math.floor(Math.random()*1000000);overallElapsed=0;buildLevel(0);state='playing';hideOverlay();notify('Rescue the survivor, collect cores, and reach the elevator.');beep(560,.16);}
+  function startGame(){runSeed=Math.floor(Math.random()*1000000);overallElapsed=0;buildLevel(0);state='playing';hideOverlay();notify('Rescue the survivor, collect cores, and reach the elevator.');beep(560,.16);}
   function advance() {
     if(state==='menu'||state==='victory'||state==='dead'){startGame();return;}
     if(state==='leveldone') {buildLevel(levelIndex+1);state='playing';hideOverlay();notify('New floor. Stay quiet.');return;}
@@ -392,7 +407,7 @@
     if(player.dashTime>0){
       player.dashTime=Math.max(0,player.dashTime-dt);
       const touchDash=Math.hypot(joystickMove.x,joystickMove.y)>.08;
-      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,touchDash?.195:.21,.32);
+      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,touchDash?.18:.21,.32);
       if(hitWall)player.dashTime=0; // Return joystick control immediately on collision.
       if(Math.random()<.8)player.trail.push({x:player.x,y:player.y,life:.36});
     }
@@ -400,7 +415,7 @@
       // A slightly smaller mobile hitbox eases narrow passages. The verified
       // v3.11 keyboard/desktop wall-slide parameters are preserved.
       const touchSteering=Math.hypot(joystickMove.x,joystickMove.y)>.08;
-      moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.195:.21,.30);
+      moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.18:.21,.30);
     }
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
@@ -424,8 +439,15 @@
       const heard=noiseEvents.filter(n=>n.expires>clock&&dist(h,n)<n.radius)
         .sort((a,b)=>dist(h,a)-dist(h,b))[0];
       if(visible){
+        // Repath when the player changes tile, not every animation frame:
+        // resetting pathIndex every frame leaves chasing ghosts circling.
+        const prior=h.target;
+        const tileChanged=!prior||Math.floor(prior.x)!==Math.floor(player.x)||
+          Math.floor(prior.y)!==Math.floor(player.y);
         h.mode='chase';h.target={x:player.x,y:player.y};
-        h.chaseUntil=clock+2.8;h.repath=0;h.searchPoints=0;
+        h.chaseUntil=clock+2.8;
+        if(tileChanged)h.repath=0;
+        h.searchPoints=0;
       } else if(h.mode==='chase'&&clock>h.chaseUntil){
         // Investigate the last seen location rather than knowing where the player moved.
         h.mode='search';h.chaseUntil=clock+4.5;h.searchPoints=0;h.repath=0;
@@ -448,6 +470,16 @@
       }
       if(h.mode==='chase')danger=Math.max(danger,distance<3.5?2:1);
       if(h.mode==='lure'&&distance<5)danger=Math.max(danger,1);
+      if(h.mode==='chase'&&distance<1.5&&clearLine(h,player)){
+        // When a Hollow reaches the player's tile, navigate to the player,
+        // not just the tile centre. This also works when the player is still.
+        const speed=h.speed*1.55;
+        h.angle=Math.atan2(player.y-h.y,player.x-h.x);
+        const step=Math.min(speed*dt,Math.max(0,distance-.13));
+        moveEntity(h,Math.cos(h.angle)*step,Math.sin(h.angle)*step,.13);
+        h.wobble+=dt*5;
+        continue;
+      }
       if(h.repath<=0){
         let target=h.mode==='patrol'?null:h.target;
         if(!target){
@@ -723,6 +755,14 @@
   document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir)moveHeld[dir]=false;});
   window.addEventListener('blur',()=>{moveHeld={up:false,down:false,left:false,right:false};if(state==='playing')pause();});
   $('#primaryBtn').addEventListener('click',advance);
+  document.querySelectorAll('.role-option').forEach(card=>{
+    card.addEventListener('click',()=>{
+      if(state!=='menu'&&state!=='dead'&&state!=='victory')return;
+      classChoice=card.dataset.role==='medic'?'medic':'scout';
+      refreshRoleSelection();
+    });
+  });
+  refreshRoleSelection();
   // Touch games need independent pointerdown actions: mobile browsers may
   // suppress click on a second finger while the joystick finger remains held.
   // Never require isPrimary here, since action taps are usually secondary touches.
@@ -768,8 +808,8 @@
     let ux=length?dx/length:0,uy=length?dy/length:0;
     // Small off-axis thumb movements should not steer the player into a wall.
     // Preserve deliberate diagonal movement and the joystick's analog speed.
-    if(Math.abs(ux)<.20){ux=0;uy=Math.sign(uy);}
-    else if(Math.abs(uy)<.20){uy=0;ux=Math.sign(ux);}
+    if(Math.abs(ux)<.30){ux=0;uy=Math.sign(uy);}
+    else if(Math.abs(uy)<.30){uy=0;ux=Math.sign(ux);}
     joystickMove.x=ux*amount;
     joystickMove.y=uy*amount;
   }
