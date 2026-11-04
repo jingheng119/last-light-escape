@@ -41,9 +41,9 @@ Touchscreen users can use the on-screen directional pad and action buttons.
 
 No additional changes are necessary. All asset references are relative paths, so this also works as a project page in a subfolder.
 
-## Map generation improvements
+## Map generation (v2.2)
 
-Rooms have coherent rectangular interiors and perimeter walls, with doorways into the surrounding maze. Disconnected passages are reconnected automatically, and isolated wall pillars are removed. These changes preserve reachable objectives across all three floors.
+The game now uses a randomized, fully connected depth-first labyrinth, with twisting corridors, optional shortcuts, irregular carved chambers, and alternate routes. A fresh map seed is selected when beginning a new run; restarting the current floor retains the same layout. Walkable areas and objectives are validated by the game logic. The wall renderer uses seamless solid tiles rather than inset square blocks.
 
 ## Version 2.0 mechanics
 
@@ -66,7 +66,7 @@ Rooms have coherent rectangular interiors and perimeter walls, with doorways int
 
 - `index.html` — structure, accessible labels and HUD.
 - `style.css` — responsive interface.
-- `game.js` — gameplay, generation, enemy AI and original Canvas artwork.
+- `game-labyrinth-v4.js` — active gameplay, randomized map generation, enemy AI and original Canvas artwork (`game.js` is retained as an older source version).
 - `favicon.svg` — original vector emblem.
 
 ## Known limitations
