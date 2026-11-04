@@ -562,6 +562,31 @@
     b.addEventListener('pointerdown',e=>{e.preventDefault();moveHeld[d]=true;b.classList.add('is-held');b.setPointerCapture(e.pointerId);});
     for(const ev of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(ev,()=>{moveHeld[d]=false;b.classList.remove('is-held');});
   }
+  const fullscreenButton=$('#touchFullscreen');
+  const gamePanel=$('.game-shell');
+  const syncFullscreenButton=()=>{
+    const active=document.fullscreenElement===gamePanel;
+    fullscreenButton.textContent=active?'⛶ EXIT':'⛶ FULL';
+    fullscreenButton.setAttribute('aria-label',active?'Exit fullscreen':'Enter fullscreen');
+    fullscreenButton.setAttribute('aria-pressed',String(active));
+  };
+  fullscreenButton.addEventListener('click',()=>{
+    if(document.fullscreenElement===gamePanel){
+      if(document.exitFullscreen)document.exitFullscreen().catch(()=>notify('Could not exit fullscreen.'));
+      return;
+    }
+    if(!gamePanel.requestFullscreen){
+      notify('This browser does not support in-game fullscreen. Try Add to Home Screen.');
+      return;
+    }
+    try{
+      const result=gamePanel.requestFullscreen();
+      if(result&&typeof result.catch==='function')result.catch(()=>notify('Fullscreen unavailable here. Try Add to Home Screen.'));
+    }catch(e){
+      notify('Fullscreen unavailable here. Try Add to Home Screen.');
+    }
+  });
+  document.addEventListener('fullscreenchange',syncFullscreenButton);
   ui.sound.addEventListener('click',()=>{soundEnabled=!soundEnabled;ui.sound.textContent=soundEnabled?'♪ ON':'♪ OFF';if(soundEnabled){nextAmbientAt=clock+.5;nextWarningAt=clock;beep(650,.12);}else{previousThreat=0;}});
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
