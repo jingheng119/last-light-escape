@@ -818,3 +818,73 @@
     font-size:8px;
   }
 }
+
+
+/* v4.13 — mobile stage indicator lives in the touch-control overlay, not
+   inside the differently-sized canvas. Fixed dimensions prevent text escape. */
+@media (max-width:980px), (hover:none) and (pointer:coarse){
+  .mobile-controls .mobile-stage-info{
+    position:absolute;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    box-sizing:border-box;
+    right:clamp(188px,19vw,215px);
+    bottom:6px;
+    left:auto;
+    top:auto;
+    width:196px;
+    min-width:0;
+    max-width:calc(100vw - 240px);
+    height:39px;
+    margin:0;
+    padding:5px 7px;
+    background:rgba(7,25,33,.88);
+    border:1px solid rgba(112,216,196,.4);
+    border-radius:8px;
+    color:#a9eadb;
+    font-size:9px;
+    font-weight:800;
+    line-height:1.4;
+    text-align:center;
+    letter-spacing:.02em;
+    white-space:nowrap;
+    overflow:hidden;
+    pointer-events:none;
+    user-select:none;
+    z-index:3;
+  }
+  .mobile-controls .mobile-stage-info span{
+    display:block;
+    width:100%;
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:clip;
+  }
+  .game-shell.stage-two .mobile-controls .mobile-stage-info{
+    border-color:var(--stage-accent,#7ad8ef);
+    color:#d3ebf9;
+  }
+}
+@media (max-height:450px) and (orientation:landscape){
+  .mobile-controls .mobile-stage-info{
+    right:clamp(177px,18vw,204px);
+    bottom:7px;
+    width:190px;
+    max-width:calc(100vw - 211px);
+    height:34px;
+    font-size:8px;
+    padding:4px 5px;
+  }
+}
+@media (orientation:portrait) and (max-width:650px){
+  .mobile-controls .mobile-stage-info{
+    right:9px;
+    left:auto;
+    top:auto;
+    bottom:calc(100% + 10px);
+    width:190px;
+    max-width:calc(100vw - 18px);
+  }
+}
