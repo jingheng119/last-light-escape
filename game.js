@@ -43,33 +43,116 @@
   const neighbors = (x,y) => dirs.map(([dx,dy])=>({x:x+dx,y:y+dy})).filter(p=>floorAt(p.x,p.y));
 
   function buildMaze(seed, extraLoops) {
-    rand = rng(seed);
-    grid = Array.from({length:ROWS}, () => Array(COLS).fill(1));
-    const stack = [[1,1]]; grid[1][1] = 0;
-    while (stack.length) {
-      const [x,y] = stack[stack.length-1];
-      const poss = shuffle(dirs.map(([dx,dy]) => ({x:x+dx*2,y:y+dy*2,mx:x+dx,my:y+dy})))
+    rand=rng(seed);
+    grid=Array.from({length:ROWS},()=>Array(COLS).fill(1));
+    const stack=[[1,1]];grid[1][1]=0;
+    while(stack.length){
+      const [x,y]=stack[stack.length-1];
+      const poss=shuffle(dirs.map(([dx,dy])=>({x:x+dx*2,y:y+dy*2,mx:x+dx,my:y+dy})))
         .filter(p=>p.x>0&&p.y>0&&p.x<COLS-1&&p.y<ROWS-1&&grid[p.y][p.x]===1);
-      if (!poss.length) {stack.pop();continue;}
-      const n=poss[0]; grid[n.my][n.mx]=0;grid[n.y][n.x]=0;stack.push([n.x,n.y]);
+      if(!poss.length){stack.pop();continue;}
+      const n=poss[0];grid[n.my][n.mx]=0;grid[n.y][n.x]=0;stack.push([n.x,n.y]);
     }
-    // Open several small wards within the maze. Each includes odd-coordinate carved maze cells,
-    // so rooms remain connected while offering open spaces and multiple escape routes.
-    roomTiles = new Set();
-    const roomCount = seed === 1709 ? 3 : seed === 2911 ? 4 : 5;
-    for (let i=0;i<roomCount;i++) {
-      const rw = 4 + Math.floor(rand()*4), rh = 3 + Math.floor(rand()*3);
-      const rx = 2 + Math.floor(rand()*(COLS-rw-4)), ry = 2 + Math.floor(rand()*(ROWS-rh-4));
-      for(let y=ry;y<ry+rh;y++)for(let x=rx;x<rx+rw;x++) {
-        grid[y][x]=0;roomTiles.add(keyOf(x,y));
+    // Add loops before placing rooms so corridor structure is predictable.
+    for(let y=2;y<ROWS-2;y++)for(let x=2;x<COLS-2;x++){
+      if(grid[y][x]!==1||rand()>extraLoops)continue;
+      if((floorAt(x-1,y)&&floorAt(x+1,y))||(floorAt(x,y-1)&&floorAt(x,y+1)))grid[y][x]=0;
+    }
+    // Create distinct rooms: interior floors, continuous perimeter walls and
+    // explicit door openings. Avoid overlapping neighboring room boundaries.
+    roomTiles=new Set();
+    const protectedBorders=new Set(), rooms=[];
+    const target=seed===1709?3:seed===2911?4:5;
+    for(let attempt=0;attempt<110&&rooms.length<target;attempt++){
+      const w=4+Math.floor(rand()*3),h=3+Math.floor(rand()*2);
+      const x=3+Math.floor(rand()*(COLS-w-6)),y=3+Math.floor(rand()*(ROWS-h-6));
+      if(x<=5&&y<=5)continue;
+      if(rooms.some(r=>x<r.x+r.w+3&&x+w+3>r.x&&y<r.y+r.h+3&&y+h+3>r.y))continue;
+      rooms.push({x,y,w,h});
+    }
+    for(const {x,y,w,h} of rooms){
+      const borders=[];
+      for(let yy=y-1;yy<=y+h;yy++)for(let xx=x-1;xx<=x+w;xx++){
+        if(xx===x-1||xx===x+w||yy===y-1||yy===y+h){
+          grid[yy][xx]=1;protectedBorders.add(keyOf(xx,yy));
+          // Only straight sides may have doors, never corners.
+          if((xx>x-1&&xx<x+w)||(yy>y-1&&yy<y+h))borders.push({x:xx,y:yy});
+        }else{grid[yy][xx]=0;roomTiles.add(keyOf(xx,yy));}
+      }
+      // One entrance on each of two different sides, connected back to the maze.
+      const doorCandidates=shuffle(borders).sort((a,b)=>{
+        const outside=p=>{
+          const dx=p.x===x-1?-1:p.x===x+w?1:0;
+          const dy=p.y===y-1?-1:p.y===y+h?1:0;
+          return floorAt(p.x+dx,p.y+dy)?1:0;
+        };
+        return outside(b)-outside(a);
+      });
+      const doors=[];
+      for(const d of doorCandidates){
+        const side=d.x===x-1?'L':d.x===x+w?'R':d.y===y-1?'T':'B';
+        if(doors.some(z=>z.side===side))continue;
+        doors.push({...d,side});if(doors.length===2)break;
+      }
+      for(const d of doors){grid[d.y][d.x]=0;protectedBorders.delete(keyOf(d.x,d.y));}
+    }
+    // Reconnect any corridors cut by new room boundaries. A shortest-carve
+    // route prefers existing corridors and avoids piercing room walls.
+    const reachable=()=>{
+      const seen=new Set([keyOf(1,1)]),queue=[{x:1,y:1}];
+      for(let i=0;i<queue.length;i++){
+        const p=queue[i];
+        for(const [dx,dy] of dirs){
+          const x=p.x+dx,y=p.y+dy,k=keyOf(x,y);
+          if(!floorAt(x,y)||seen.has(k))continue;
+          seen.add(k);queue.push({x,y});
+        }
+      }
+      return seen;
+    };
+    for(let pass=0;pass<30;pass++){
+      const seen=reachable();
+      let targetTile=null;
+      for(let y=1;y<ROWS-1&&!targetTile;y++)for(let x=1;x<COLS-1;x++)
+        if(grid[y][x]===0&&!seen.has(keyOf(x,y))){targetTile={x,y};break;}
+      if(!targetTile)break;
+      // Multi-source Dijkstra over the small tile map.
+      const size=COLS*ROWS,cost=new Float64Array(size).fill(Infinity),
+        prev=new Int32Array(size).fill(-1),used=new Uint8Array(size);
+      for(const k of seen)cost[k]=0;
+      const targetKey=keyOf(targetTile.x,targetTile.y);
+      for(let i=0;i<size;i++){
+        let best=-1,score=Infinity;
+        for(let k=0;k<size;k++)if(!used[k]&&cost[k]<score){score=cost[k];best=k;}
+        if(best<0||best===targetKey)break;
+        used[best]=1;
+        const px=best%COLS,py=Math.floor(best/COLS);
+        for(const [dx,dy] of dirs){
+          const x=px+dx,y=py+dy;
+          if(x<=0||y<=0||x>=COLS-1||y>=ROWS-1)continue;
+          const nk=keyOf(x,y),extra=grid[y][x]===0?0:protectedBorders.has(nk)?7:1;
+          if(score+extra<cost[nk]){cost[nk]=score+extra;prev[nk]=best;}
+        }
+      }
+      if(!Number.isFinite(cost[targetKey]))break;
+      for(let k=targetKey;prev[k]!==-1;k=prev[k]){
+        const x=k%COLS,y=Math.floor(k/COLS);
+        grid[y][x]=0;protectedBorders.delete(k);
       }
     }
-    // Connecting loops ensure more than one escape route without disconnecting the maze.
-    for(let y=2;y<ROWS-2;y++) for(let x=2;x<COLS-2;x++) {
-      if(grid[y][x]!==1||rand()>extraLoops)continue;
-      if ((floorAt(x-1,y)&&floorAt(x+1,y))||(floorAt(x,y-1)&&floorAt(x,y+1)))grid[y][x]=0;
+    // Eliminate stray one-tile pillars, without touching a room's deliberate
+    // perimeter. Do this after connections are carved.
+    for(let pass=0;pass<2;pass++){
+      const remove=[];
+      for(let y=2;y<ROWS-2;y++)for(let x=2;x<COLS-2;x++){
+        if(grid[y][x]!==1||protectedBorders.has(keyOf(x,y)))continue;
+        const open=dirs.reduce((n,[dx,dy])=>n+(floorAt(x+dx,y+dy)?1:0),0);
+        if(open>=3)remove.push({x,y});
+      }
+      for(const p of remove)grid[p.y][p.x]=0;
     }
-    cells=[];for(let y=1;y<ROWS-1;y++)for(let x=1;x<COLS-1;x++)if(floorAt(x,y))cells.push({x,y});
+    cells=[];for(let y=1;y<ROWS-1;y++)for(let x=1;x<COLS-1;x++)
+      if(floorAt(x,y))cells.push({x,y});
   }
   function distanceMap(from) {
     const result = new Int16Array(COLS*ROWS).fill(-1), queue=[from], k=keyOf(from.x,from.y);result[k]=0;
