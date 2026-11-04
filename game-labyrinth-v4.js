@@ -206,6 +206,8 @@
     const steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/.07));
     const sx=dx/steps,sy=dy/steps;
     let stalled=0;
+    // Limit automatic sideways steering per frame so controls still feel manual.
+    let correctionBudget=Math.min(assist*.28,.075);
     function moveAxis(axis,delta) {
       if(!delta)return false;
       if(canStand(e.x+(axis==='x'?delta:0),e.y+(axis==='y'?delta:0),r)){
@@ -222,7 +224,7 @@
       return false;
     }
     function enterOpenLane() {
-      if(assist<=0)return false;
+      if(assist<=0||correctionBudget<=.001)return false;
       const alongX=Math.abs(sx)>=Math.abs(sy);
       const forward=alongX?sx:sy;
       if(!forward)return false;
@@ -252,8 +254,11 @@
       }
       if(target===null)return false;
       // Gradual nudge, capped per substep, avoids snapping through corners.
-      const delta=Math.sign(target-initial)*Math.min(Math.abs(target-initial),.065);
-      return moveAxis(sideAxis,delta);
+      const delta=Math.sign(target-initial)*Math.min(Math.abs(target-initial),.025,correctionBudget);
+      const before=e[sideAxis];
+      const moved=moveAxis(sideAxis,delta);
+      correctionBudget-=Math.abs(e[sideAxis]-before);
+      return moved;
     }
     for(let i=0;i<steps;i++){
       const beforeX=e.x,beforeY=e.y;
@@ -386,11 +391,11 @@
     if(magnitude>.08)player.facing={x:vx/magnitude,y:vy/magnitude};
     if(player.dashTime>0){
       player.dashTime=Math.max(0,player.dashTime-dt);
-      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.19,.44);
+      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.21,.28);
       if(hitWall)player.dashTime=0; // Return joystick control immediately on collision.
       if(Math.random()<.8)player.trail.push({x:player.x,y:player.y,life:.36});
     }
-    else if(vx||vy)moveEntity(player,vx*3.5*dt,vy*3.5*dt,.19,.44);
+    else if(vx||vy)moveEntity(player,vx*3.5*dt,vy*3.5*dt,.21,.24);
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
