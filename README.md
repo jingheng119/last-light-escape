@@ -45,6 +45,13 @@ No additional changes are necessary. All asset references are relative paths, so
 
 The game now uses a randomized, fully connected depth-first labyrinth, with twisting corridors, optional shortcuts, irregular carved chambers, and alternate routes. A fresh map seed is selected when beginning a new run; restarting the current floor retains the same layout. Walkable areas and objectives are validated by the game logic. The wall renderer uses seamless solid tiles rather than inset square blocks.
 
+## Atmosphere and audio (v2.5)
+
+- Original synthesized low ambient pulses, escalating warning beats during pursuit, and a brief detection cue.
+- Gentle animated dust motes and a subtle red danger tint.
+- Sound is **off by default**. Use the ♪ button to enable it. No external audio files, trackers, or network requests are used.
+- These effects do not change enemy behavior, collision rules, or mission objectives.
+
 ## Nine-floor lighting progression (v2.4)
 
 | Floors | Ambient darkness | Experience |
