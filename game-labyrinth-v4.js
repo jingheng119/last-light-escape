@@ -372,7 +372,7 @@
       if(!musicBus||musicStage!==stage){
         stopMusic();
         musicBus=audioCtx.createGain();
-        musicBus.gain.value=.52;
+        musicBus.gain.value=.68;
         musicBus.connect(audioCtx.destination);
         musicStage=stage;musicStep=0;musicNextAt=audioCtx.currentTime+.07;
       }
@@ -585,7 +585,7 @@
     let danger=0;
     for(const h of hollows){
       if(h.stunned>0){h.stunned=Math.max(0,h.stunned-dt);h.dashTime=0;h.wobble+=dt*5;continue;}
-      // Five Stage II Dashers burst in random, collision-safe directions.
+      // Five Stage II Dashers lunge along their movement/chase direction.
       if(h.variant==='dasher'){
         if(h.dashTime>0){
           const step=Math.min(h.dashTime,dt)*8.2;
@@ -677,10 +677,10 @@
             const nx=(dashTarget.x-h.x)/distanceToTarget;
             const ny=(dashTarget.y-h.y)/distanceToTarget;
             // Only dash while a full corridor is clear, including diagonals.
-            const clearance=Math.min(1.65,distanceToTarget);
-            const clear=[.35,.70,1].every(t=>canStand(h.x+nx*clearance*t,h.y+ny*clearance*t,.13));
+            const clearance=Math.min(1.95,distanceToTarget);
+            const clear=[.25,.50,.75,1].every(t=>canStand(h.x+nx*clearance*t,h.y+ny*clearance*t,.13));
             if(clear){
-              h.dashDir={x:nx,y:ny};h.dashTime=Math.min(.24,clearance/8.2);
+              h.dashDir={x:nx,y:ny};h.dashTime=Math.min(.28,clearance/8.2);
               h.dashCooldown=2.5+rand()*3.3;
               h.angle=Math.atan2(ny,nx);
               // Keep the path until the dash completes; then recalculate it.
