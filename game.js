@@ -225,7 +225,7 @@
     else if(vx||vy)moveEntity(player,vx*3.5*dt,vy*3.5*dt);
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
-    for(const h of hollows)if(dist(player,h)<.52)damage();
+    for(const h of hollows)if(!(h.stunned>0)&&dist(player,h)<.52)damage();
   }
   function updateHollows(dt){
     let danger=0;
