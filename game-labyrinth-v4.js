@@ -500,12 +500,39 @@
   function updateHollows(dt){
     let danger=0;
     for(const h of hollows){
-      if(h.stunned>0){h.stunned=Math.max(0,h.stunned-dt);h.wobble+=dt*5;continue;}
+      if(h.stunned>0){h.stunned=Math.max(0,h.stunned-dt);h.dashTime=0;h.wobble+=dt*5;continue;}
+      // Five Stage II Dashers burst in random, collision-safe directions.
+      if(h.variant==='dasher'){
+        if(h.dashTime>0){
+          const step=Math.min(h.dashTime,dt)*8.2;
+          h.dashTime=Math.max(0,h.dashTime-dt);
+          const x=h.x,y=h.y;
+          moveEntity(h,h.dashDir.x*step,h.dashDir.y*step,.13);
+          h.angle=Math.atan2(h.dashDir.y,h.dashDir.x);
+          if(Math.hypot(h.x-x,h.y-y)<step*.35)h.dashTime=0;
+          h.wobble+=dt*10;
+          if(dist(h,player)<3)danger=Math.max(danger,1);
+          continue;
+        }
+        h.dashCooldown-=dt;
+        if(h.dashCooldown<=0){
+          const options=[];
+          for(const [dx,dy] of [...dirs,[1,1],[1,-1],[-1,1],[-1,-1]]){
+            const len=Math.hypot(dx,dy),nx=dx/len,ny=dy/len;
+            if(canStand(h.x+nx*.5,h.y+ny*.5,.13))options.push({x:nx,y:ny});
+          }
+          if(options.length){
+            h.dashDir=options[Math.floor(rand()*options.length)];h.dashTime=.34;
+            h.dashCooldown=2.5+rand()*3.3;
+            h.repath=0;
+          }else h.dashCooldown=.8;
+        }
+      }
       const distance=dist(h,player);
       const lookX=Math.cos(h.angle),lookY=Math.sin(h.angle);
       const dot=distance>0?((player.x-h.x)*lookX+(player.y-h.y)*lookY)/distance:1;
       // A Hollow can notice a nearby player in any direction, but sees further ahead.
-      const visible=distance<1.7||(distance<(h.mode==='chase'?8:6.6)&&dot>.12&&clearLine(h,player));
+      const visible=h.variant==='hunter'||distance<1.7||(distance<(h.mode==='chase'?8:6.6)&&dot>.12&&clearLine(h,player));
       const heard=noiseEvents.filter(n=>n.expires>clock&&dist(h,n)<n.radius)
         .sort((a,b)=>dist(h,a)-dist(h,b))[0];
       if(visible){
@@ -763,11 +790,20 @@
     for(const d of decoys){const x=d.x*TILE,y=d.y*TILE,rad=(d.age*50)%80;ctx.strokeStyle=`rgba(244,191,101,${Math.min(.7,d.life/5)})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(x,y,Math.max(0,rad-24),0,Math.PI*2);ctx.stroke();diamond(x,y,7,'#ffd179');}
   }
   function drawHollows(){for(const h of hollows){let x=h.x*TILE,y=h.y*TILE,red=h.mode==='chase'&&!(h.stunned>0);
-    halo(x,y,red?62:38,h.stunned>0?'#6dbeff3f':red?'#ff465b35':'#fa8f6a16');ctx.save();ctx.translate(x,y);
-    ctx.fillStyle=h.stunned>0?'#79c2e7':red?'#ff5767':'#b87c83';ctx.beginPath();ctx.ellipse(0,1+Math.sin(h.wobble)*1.5,10,12,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#4c202d';ctx.beginPath();ctx.arc(0,-2,7,0,Math.PI*2);ctx.fill();ctx.fillStyle=red?'#ffecdc':'#ffc4bd';ctx.fillRect(-5,-4,3,3);ctx.fillRect(3,-4,3,3);
-    ctx.strokeStyle=red?'#f66f78':'#92535b';ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-8,6);ctx.lineTo(-12,11+Math.sin(h.wobble)*3);ctx.moveTo(8,6);ctx.lineTo(12,11-Math.sin(h.wobble)*3);ctx.stroke();
-    if(red){ctx.strokeStyle='#ff546c';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,15,0,Math.PI*2);ctx.stroke();}
+    const hunter=h.variant==='hunter',dasher=h.variant==='dasher';
+    const glow=h.stunned>0?'#6dbeff3f':hunter?'#fa4c8c48':dasher?'#edaa3540':red?'#ff465b35':'#fa8f6a16';
+    halo(x,y,hunter?70:dasher?52:red?62:38,glow);ctx.save();ctx.translate(x,y);
+    ctx.fillStyle=h.stunned>0?'#79c2e7':hunter?'#ee5e9d':dasher?'#ffc064':red?'#ff5767':'#b87c83';
+    ctx.beginPath();ctx.ellipse(0,1+Math.sin(h.wobble)*1.5,hunter?12:10,hunter?14:12,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=hunter?'#602245':dasher?'#633b1b':'#4c202d';
+    ctx.beginPath();ctx.arc(0,-2,7,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=red||hunter||dasher?'#fff2dd':'#ffc4bd';ctx.fillRect(-5,-4,3,3);ctx.fillRect(3,-4,3,3);
+    ctx.strokeStyle=hunter?'#ff8fc1':dasher?'#ffce70':red?'#f66f78':'#92535b';
+    ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-8,6);ctx.lineTo(-12,11+Math.sin(h.wobble)*3);ctx.moveTo(8,6);ctx.lineTo(12,11-Math.sin(h.wobble)*3);ctx.stroke();
+    if(red||hunter||dasher){ctx.strokeStyle=hunter?'#ff5caa':dasher?'#efad4c':'#ff546c';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(0,0,hunter?17:15,0,Math.PI*2);ctx.stroke();}
+    if(hunter){ctx.fillStyle='#ffd0e5';ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText('HUNT',0,-22);}
+    if(dasher&&h.dashTime>0){ctx.strokeStyle='#ffcf72';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-h.dashDir.x*18,-h.dashDir.y*18);ctx.lineTo(-h.dashDir.x*34,-h.dashDir.y*34);ctx.stroke();}
     ctx.restore();}}
   function drawPlayer(){for(const p of player.trail){ctx.fillStyle=`rgba(110,255,218,${p.life*.55})`;ctx.beginPath();ctx.arc(p.x*TILE,p.y*TILE,8,0,Math.PI*2);ctx.fill();}
     const x=player.x*TILE,y=player.y*TILE,flicker=player.invincible>0&&Math.sin(clock*31)>0;
