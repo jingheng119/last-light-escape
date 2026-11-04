@@ -45,6 +45,8 @@
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
   let roomTiles = new Set(), noiseEvents = [], survivor = null;
   let runSeed=0;
+  // Temporary developer shortcut. Skipped runs never enter the best-time record.
+  let developerSkipped=false;
   let classChoice = 'scout';
   let elapsed = 0, overallElapsed = 0, clock = 0, toastUntil = 0, hitFlash = 0, alertLevel = 0;
   let lastFrame = 0, audioCtx = null, soundEnabled = false, best = 0;
@@ -349,11 +351,26 @@
     ui.overlay.classList.remove('hidden');
   }
   function hideOverlay(){ui.overlay.classList.add('hidden');}
-  function startGame(){runSeed=Math.floor(Math.random()*1000000);overallElapsed=0;buildLevel(0);state='playing';hideOverlay();notify('Rescue the survivor, collect cores, and reach the elevator.');beep(560,.16);}
+  function startGame(){developerSkipped=false;runSeed=Math.floor(Math.random()*1000000);overallElapsed=0;buildLevel(0);state='playing';hideOverlay();notify('Rescue the survivor, collect cores, and reach the elevator.');beep(560,.16);}
   function advance() {
     if(state==='menu'||state==='victory'||state==='dead'){startGame();return;}
     if(state==='leveldone') {buildLevel(levelIndex+1);state='playing';hideOverlay();notify('New floor. Stay quiet.');return;}
     if(state==='paused') {state='playing';hideOverlay();return;}
+  }
+  function developerSkip(fullStage=false){
+    if(state!=='playing'&&state!=='paused'&&state!=='leveldone')return;
+    developerSkipped=true;
+    // M advances one floor; Shift+M jumps from Stage I to Stage II,
+    // or to Stage II's final floor for endgame testing.
+    const target=fullStage?(levelIndex<STAGE_ONE_FLOORS?STAGE_ONE_FLOORS:CONFIGS.length-1):levelIndex+1;
+    if(target>=CONFIGS.length){
+      state='victory';
+      setOverlay('DEVELOPER TEST COMPLETE','You reached the end using the test shortcut. This run will not record a best time.','PLAY AGAIN','TEST MODE · PROGRESSION CHECK');
+      return;
+    }
+    buildLevel(target);
+    state='playing';hideOverlay();
+    notify(fullStage?'DEV · Stage jump':'DEV · Floor skipped');
   }
   function pause(){if(state==='playing'){state='paused';setOverlay('BREATHING ROOM','The ward is silent. Your position is safe until you resume.','RESUME GAME');}else if(state==='paused'){state='playing';hideOverlay();}}
   function triggerDecoy(){
@@ -409,7 +426,7 @@
   }
   function completeLevel(){
     beep(950,.4,'sine',.06);beep(1180,.48,'sine',.03);
-    if(levelIndex===CONFIGS.length-1){state='victory';if(best===0||overallElapsed<best){best=overallElapsed;try{localStorage.setItem('last-light-best',String(best));}catch(e){}}setOverlay('YOU FOUND THE LIGHT',`All ${CONFIGS.length} floors escaped in ${formatTime(overallElapsed)}. The elevator doors close behind you. Best escape: ${formatTime(best)}.`,'PLAY AGAIN','THE WARD WILL BE WAITING');}
+    if(levelIndex===CONFIGS.length-1){state='victory';if(!developerSkipped&&(best===0||overallElapsed<best)){best=overallElapsed;try{localStorage.setItem('last-light-best',String(best));}catch(e){}}setOverlay('YOU FOUND THE LIGHT',`All ${CONFIGS.length} floors escaped in ${formatTime(overallElapsed)}. The elevator doors close behind you. Best escape: ${formatTime(best)}.`,'PLAY AGAIN','THE WARD WILL BE WAITING');}
     else {state='leveldone';
       if(levelIndex===STAGE_ONE_FLOORS-1){
         setOverlay('STAGE ONE COMPLETE',`You survived all nine floors of the Hollow Ward. Your ${player.hp} remaining ${player.hp===1?'heart carries':'hearts carry'} into a much larger outer complex.`,'ENTER STAGE TWO','NINE EXPANDED FLOORS AWAIT');
@@ -856,9 +873,10 @@
   }
   const keyMap={w:'up',arrowup:'up',s:'down',arrowdown:'down',a:'left',arrowleft:'left',d:'right',arrowright:'right'};
   document.addEventListener('keydown', e => {
-    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r'].includes(k))e.preventDefault();
+    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k))e.preventDefault();
     if(keyMap[k])moveHeld[keyMap[k]]=true;
     if(e.repeat)return;
+    if(k==='m'){developerSkip(e.shiftKey);return;}
     if(k===' ')dash();else if(k==='q')triggerDecoy();else if(k==='e')interact();else if(k==='f')activateAbility();else if(k==='p'||k==='escape')pause();else if(k==='enter'&&state!=='playing')advance();else if(k==='r'&&state==='playing'){buildLevel(levelIndex);notify('Floor restarted.');}
   });
   document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir)moveHeld[dir]=false;});
