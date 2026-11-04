@@ -164,3 +164,43 @@
 .mobile-controls .dpad [data-dir="right"]{grid-column:3;grid-row:2}
 .mobile-controls .dpad [data-dir="down"]{grid-column:2;grid-row:3}
 @media(max-width:550px){.mobile-controls .dpad{gap:2px}}
+
+
+/* v3.0: tactile analog thumbstick, preserving the game's teal visual language. */
+.virtual-joystick{
+  position:relative;flex:0 0 auto;width:154px;height:154px;
+  border-radius:50%;touch-action:none;user-select:none;-webkit-user-select:none;
+  border:2px solid #64b7abbb;
+  background:radial-gradient(circle,#1a3944ef 0%,#122c36eb 64%,#091b25e8 100%);
+  box-shadow:inset 0 0 24px #010b15a8,0 7px 25px #0009;
+  pointer-events:auto;
+}
+.joystick-ring{
+  position:absolute;inset:25px;border:1px dashed #91ead24f;
+  border-radius:50%;pointer-events:none;
+}
+.joystick-knob{
+  position:absolute;left:50%;top:50%;width:68px;height:68px;
+  margin-left:-34px;margin-top:-34px;border-radius:50%;
+  border:2px solid #91eed5;background:linear-gradient(145deg,#397a78,#1b4b54);
+  box-shadow:0 4px 15px #000a,inset 0 2px 8px #b8fff224;
+  pointer-events:none;will-change:transform;
+  transform:translate(0px,0px);
+}
+.joystick-knob::after{
+  content:'';position:absolute;inset:25px;border-radius:50%;background:#a6ffe2;
+  box-shadow:0 0 13px #62ffce88;
+}
+.virtual-joystick.is-active{border-color:#8df1d4}
+@media(max-width:550px){
+  .virtual-joystick{width:126px;height:126px}
+  .joystick-ring{inset:19px}
+  .joystick-knob{width:56px;height:56px;margin-left:-28px;margin-top:-28px}
+  .joystick-knob::after{inset:20px}
+}
+@media(max-height:450px) and (orientation:landscape){
+  .virtual-joystick{width:132px;height:132px}
+  .joystick-ring{inset:20px}
+  .joystick-knob{width:58px;height:58px;margin-left:-29px;margin-top:-29px}
+  .joystick-knob::after{inset:21px}
+}
