@@ -212,9 +212,9 @@
     decoys=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
-    ui.level.textContent=`BROWSER GAME V4.13 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
+    ui.level.textContent=`BROWSER GAME V4.14 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.stageCard.textContent=ui.level.textContent;
-    ui.mobileStage.children[0].textContent='BROWSER GAME V4.13';
+    ui.mobileStage.children[0].textContent='BROWSER GAME V4.14';
     ui.mobileStage.children[1].textContent=`STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.note.textContent=cfg.note;
     ui.allyLabel.textContent=cfg.stage===2?'ALLIES':'SURVIVOR';
