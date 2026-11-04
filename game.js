@@ -22,6 +22,7 @@
     button: $('#primaryBtn'), hint: $('#overlayHint'), toast: $('#toast'), flash: $('#screenFlash'), sound: $('#soundBtn')
   };
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
+  let roomTiles = new Set(), noiseEvents = [];
   let elapsed = 0, overallElapsed = 0, clock = 0, toastUntil = 0, hitFlash = 0, alertLevel = 0;
   let lastFrame = 0, audioCtx = null, soundEnabled = false, best = 0;
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
@@ -49,6 +50,17 @@
         .filter(p=>p.x>0&&p.y>0&&p.x<COLS-1&&p.y<ROWS-1&&grid[p.y][p.x]===1);
       if (!poss.length) {stack.pop();continue;}
       const n=poss[0]; grid[n.my][n.mx]=0;grid[n.y][n.x]=0;stack.push([n.x,n.y]);
+    }
+    // Open several small wards within the maze. Each includes odd-coordinate carved maze cells,
+    // so rooms remain connected while offering open spaces and multiple escape routes.
+    roomTiles = new Set();
+    const roomCount = seed === 1709 ? 3 : seed === 2911 ? 4 : 5;
+    for (let i=0;i<roomCount;i++) {
+      const rw = 4 + Math.floor(rand()*4), rh = 3 + Math.floor(rand()*3);
+      const rx = 2 + Math.floor(rand()*(COLS-rw-4)), ry = 2 + Math.floor(rand()*(ROWS-rh-4));
+      for(let y=ry;y<ry+rh;y++)for(let x=rx;x<rx+rw;x++) {
+        grid[y][x]=0;roomTiles.add(keyOf(x,y));
+      }
     }
     // Connecting loops ensure more than one escape route without disconnecting the maze.
     for(let y=2;y<ROWS-2;y++) for(let x=2;x<COLS-2;x++) {
@@ -89,9 +101,9 @@
       const p=selectSpot(reserved,5,distances,false);reserved.push(p);
       hollows.push({x:p.x+.5,y:p.y+.5,home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18),
         path:[],pathIndex:0,repath:0,mode:'patrol',chaseUntil:0,target:null,angle:rand()*6.28,
-        wobble:rand()*10,patrolWait:rand()*1.6});
+        wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100});
     }
-    decoys=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
+    decoys=[];noiseEvents=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     ui.label.textContent=cfg.name;ui.level.textContent=`FLOOR 0${index+1} / 0${CONFIGS.length}`;ui.note.textContent=cfg.note;
     updateUI();
   }
@@ -146,12 +158,14 @@
     const nearest=cells.filter(c=>dist({x:c.x+.5,y:c.y+.5},p)<4).sort((a,b)=>dist({x:a.x+.5,y:a.y+.5},p)-dist({x:b.x+.5,y:b.y+.5},p))[0];
     if(!nearest){player.decoys++;return;}
     decoys.push({...TILE_CENTER(nearest.x,nearest.y),life:5,age:0});
+    noiseEvents.push({x:nearest.x+.5,y:nearest.y+.5,radius:11,expires:clock+1.7});
     notify('Sound decoy deployed — they heard it!');beep(850,.22,'square',.016);
     updateUI();
   }
   function dash(){if(state!=='playing'||player.dashCooldown>0)return;player.dashCooldown=3.5;player.dashTime=.24;
     let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0),vy=(moveHeld.down?1:0)-(moveHeld.up?1:0);
     if(vx||vy){const len=Math.hypot(vx,vy);player.dashDir={x:vx/len,y:vy/len};}else player.dashDir={...player.facing};
+    noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
     beep(220,.17,'sawtooth',.019);updateUI();
   }
   function interact(){if(state!=='playing')return;
@@ -168,7 +182,8 @@
     player.hp--;player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
     // Reposition player to start to prevent repeated contact hits.
     player.x=1.5;player.y=1.5;player.dashTime=0;
-    hollows.forEach(h=>{h.mode='patrol';h.chaseUntil=0;h.path=[];h.repath=0;});
+    hollows.forEach(h=>{h.mode='patrol';h.chaseUntil=0;h.path=[];h.repath=0;h.target=null;h.searchPoints=0;});
+    noiseEvents=[];
     if(player.hp<=0){state='dead';setOverlay('SIGNAL LOST','The ward has taken another survivor. Try a new route, save your decoys, and break line of sight.','TRY AGAIN','THE MAZE REMAINS THE SAME — YOU CAN LEARN IT');}
     updateUI();
   }
@@ -186,27 +201,58 @@
   function updateHollows(dt){
     let danger=0;
     for(const h of hollows){
-      const seen=dist(h,player)<(h.mode==='chase'?7.8:5.8)&&clearLine(h,player);
-      if(seen){h.mode='chase';h.target={x:player.x,y:player.y};h.chaseUntil=clock+2.6;h.repath=0;}
-      else if(h.mode==='chase'&&clock>h.chaseUntil){h.mode='search';h.chaseUntil=clock+3.0;}
-      const noisy=decoys.filter(d=>dist(h,d)<9).sort((a,b)=>dist(h,a)-dist(h,b))[0];
-      if(!seen&&noisy&&h.mode!=='chase'){h.mode='lure';h.target=noisy;}
-      if(h.mode==='lure'&&(!noisy||!h.target||dist(h,h.target)<.45)){h.mode='search';h.chaseUntil=clock+2;}
-      if(h.mode==='search'&&clock>h.chaseUntil){h.mode='patrol';h.target=null;}
-      if(h.mode==='chase')danger=Math.max(danger,dist(h,player)<3.5?2:1);
+      const distance=dist(h,player);
+      const lookX=Math.cos(h.angle),lookY=Math.sin(h.angle);
+      const dot=distance>0?((player.x-h.x)*lookX+(player.y-h.y)*lookY)/distance:1;
+      // A Hollow can notice a nearby player in any direction, but sees further ahead.
+      const visible=distance<1.7||(distance<(h.mode==='chase'?8:6.6)&&dot>.12&&clearLine(h,player));
+      const heard=noiseEvents.filter(n=>n.expires>clock&&dist(h,n)<n.radius)
+        .sort((a,b)=>dist(h,a)-dist(h,b))[0];
+      if(visible){
+        h.mode='chase';h.target={x:player.x,y:player.y};
+        h.chaseUntil=clock+2.8;h.repath=0;h.searchPoints=0;
+      } else if(h.mode==='chase'&&clock>h.chaseUntil){
+        // Investigate the last seen location rather than knowing where the player moved.
+        h.mode='search';h.chaseUntil=clock+4.5;h.searchPoints=0;h.repath=0;
+      }
+      if(!visible&&heard&&h.mode!=='chase'&&(h.mode!=='lure'||h.heardAt<clock-0.65)){
+        h.mode='lure';h.target={x:heard.x,y:heard.y};h.heardAt=clock;
+        h.chaseUntil=clock+3.5;h.repath=0;h.searchPoints=0;
+      }
+      if(h.mode==='lure'&&(clock>h.chaseUntil||h.target&&dist(h,h.target)<.5)){
+        h.mode='search';h.chaseUntil=clock+3.3;h.searchPoints=0;h.repath=0;
+      }
+      if(h.mode==='search'&&clock>h.chaseUntil){
+        h.mode='patrol';h.target=null;h.repath=0;
+      }
+      if(h.mode==='search'&&h.target&&dist(h,h.target)<.6&&h.searchPoints<2){
+        // Check neighboring passages before returning to patrol.
+        const pos=tileAt(h), candidates=cells.filter(p=>Math.abs(p.x-pos.x)+Math.abs(p.y-pos.y)>=2&&Math.abs(p.x-pos.x)+Math.abs(p.y-pos.y)<=5);
+        const chosen=candidates[Math.floor(rand()*candidates.length)];
+        if(chosen){h.target=TILE_CENTER(chosen.x,chosen.y);h.repath=0;h.searchPoints++;}
+      }
+      if(h.mode==='chase')danger=Math.max(danger,distance<3.5?2:1);
+      if(h.mode==='lure'&&distance<5)danger=Math.max(danger,1);
       if(h.repath<=0){
-        let target;
-        if(h.mode==='chase'||h.mode==='lure'||h.mode==='search')target=h.target;
-        else {
-          const pos=tileAt(h), opts=cells.filter(p=>Math.abs(p.x-pos.x)+Math.abs(p.y-pos.y)>4&&Math.abs(p.x-h.home.x)+Math.abs(p.y-h.home.y)<11);
-          const chosen=opts[Math.floor(rand()*opts.length)]||h.home;target=TILE_CENTER(chosen.x,chosen.y);
+        let target=h.mode==='patrol'?null:h.target;
+        if(!target){
+          const pos=tileAt(h);
+          const opts=cells.filter(p=>Math.abs(p.x-pos.x)+Math.abs(p.y-pos.y)>4&&Math.abs(p.x-h.home.x)+Math.abs(p.y-h.home.y)<12);
+          const chosen=opts[Math.floor(rand()*opts.length)]||h.home;
+          target=TILE_CENTER(chosen.x,chosen.y);
         }
-        if(target)h.path=pathTo(h,target);h.pathIndex=0;h.repath=h.mode==='chase'?.30:(h.mode==='lure'?.7:1.5);
-      } else h.repath-=dt;
-      if(h.pathIndex<h.path.length){const p=h.path[h.pathIndex],delta=dist(h,p);
+        if(target)h.path=pathTo(h,target);
+        h.pathIndex=0;h.repath=h.mode==='chase'?.23:(h.mode==='lure'?.65:1.25);
+      }else h.repath-=dt;
+      if(h.pathIndex<h.path.length){
+        const p=h.path[h.pathIndex],delta=dist(h,p);
         if(delta<.07)h.pathIndex++;
-        else{const speed=h.speed*(h.mode==='chase'?1.55:1)*(h.mode==='lure'?1.22:1);const step=Math.min(speed*dt,delta);
-          h.x+=(p.x-h.x)/delta*step;h.y+=(p.y-h.y)/delta*step;h.angle=Math.atan2(p.y-h.y,p.x-h.x);}
+        else{
+          const speed=h.speed*(h.mode==='chase'?1.55:1)*(h.mode==='lure'?1.20:1);
+          const step=Math.min(speed*dt,delta);
+          h.angle=Math.atan2(p.y-h.y,p.x-h.x);
+          h.x+=Math.cos(h.angle)*step;h.y+=Math.sin(h.angle)*step;
+        }
       } else if(h.repath>.2&&h.mode==='patrol')h.repath=.2;
       h.wobble+=dt*5;
     }
@@ -229,11 +275,12 @@
     elapsed+=dt;overallElapsed+=dt;updatePlayer(dt);if(state!=='playing')return;
     updateHollows(dt);
     for(const d of decoys){d.life-=dt;d.age+=dt;}decoys=decoys.filter(d=>d.life>0);
+    noiseEvents=noiseEvents.filter(n=>n.expires>clock);
     if(dist(player,exit)<.58&&relay.active&&cores.every(c=>c.collected))completeLevel();
     if(frameIndex%8===0)updateUI();
   }
   function roundedRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
-  function drawFloor(x,y){const px=x*TILE,py=y*TILE;ctx.fillStyle=((x+y)%2===0)?'#10252b':'#11272c';ctx.fillRect(px,py,TILE,TILE);ctx.strokeStyle='#1a3639';ctx.lineWidth=.65;ctx.strokeRect(px+.5,py+.5,TILE-1,TILE-1);if((x*7+y*13)%19===0){ctx.fillStyle='#294448';ctx.fillRect(px+7,py+22,9,1);ctx.fillRect(px+16,py+13,5,1);}}
+  function drawFloor(x,y){const px=x*TILE,py=y*TILE;const isRoom=roomTiles.has(keyOf(x,y));ctx.fillStyle=isRoom?'#193039':((x+y)%2===0)?'#10252b':'#11272c';ctx.fillRect(px,py,TILE,TILE);ctx.strokeStyle='#1a3639';ctx.lineWidth=.65;ctx.strokeRect(px+.5,py+.5,TILE-1,TILE-1);if((x*7+y*13)%19===0){ctx.fillStyle='#294448';ctx.fillRect(px+7,py+22,9,1);ctx.fillRect(px+16,py+13,5,1);}}
   function drawWall(x,y){const px=x*TILE,py=y*TILE;ctx.fillStyle='#203b42';ctx.fillRect(px,py,TILE,TILE);ctx.fillStyle='#294b52';ctx.fillRect(px,py,TILE,5);ctx.fillStyle='#0a1c23';ctx.fillRect(px+4,py+8,TILE-8,TILE-12);ctx.strokeStyle='#36535b';ctx.strokeRect(px+.5,py+.5,TILE-1,TILE-1);if(!floorAt(x,y+1)){ctx.fillStyle='#172d35';ctx.fillRect(px,py+TILE-5,TILE,5);}if((x*11+y*17)%27===0){ctx.strokeStyle='#42606a';ctx.beginPath();ctx.moveTo(px+9,py+13);ctx.lineTo(px+19,py+23);ctx.stroke();}}
   function halo(x,y,r,color){const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
   function diamond(x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();ctx.fill();}
@@ -316,5 +363,5 @@
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
   // Expose read-only diagnostics for smoke tests, not used by gameplay.
-  window.__lastLightDiagnostics=()=>({state,level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,cores:cores.length,enemies:hollows.length,playerHP:player.hp});
+  window.__lastLightDiagnostics=()=>({state,level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp});
 })();
