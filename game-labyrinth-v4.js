@@ -561,7 +561,29 @@
   document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir)moveHeld[dir]=false;});
   window.addEventListener('blur',()=>{moveHeld={up:false,down:false,left:false,right:false};if(state==='playing')pause();});
   $('#primaryBtn').addEventListener('click',advance);
-  $('#touchDash').addEventListener('click',dash);$('#touchInteract').addEventListener('click',interact);$('#touchDecoy').addEventListener('click',triggerDecoy);$('#touchAbility').addEventListener('click',activateAbility);$('#touchPause').addEventListener('click',pause);
+  // Touch games need independent pointerdown actions: mobile browsers may
+  // suppress click on a second finger while the joystick finger remains held.
+  // Never require isPrimary here, since action taps are usually secondary touches.
+  function bindGameAction(selector,action){
+    const button=$(selector);
+    let lastTouchAt=-Infinity;
+    button.addEventListener('pointerdown',e=>{
+      if(e.pointerType==='mouse')return;
+      e.preventDefault();
+      lastTouchAt=Date.now();
+      action();
+    });
+    // Keep mouse and keyboard activation, without double-triggering touch taps.
+    button.addEventListener('click',e=>{
+      if(e.detail!==0 && Date.now()-lastTouchAt<650)return;
+      action();
+    });
+  }
+  bindGameAction('#touchDash',dash);
+  bindGameAction('#touchInteract',interact);
+  bindGameAction('#touchDecoy',triggerDecoy);
+  bindGameAction('#touchAbility',activateAbility);
+  bindGameAction('#touchPause',pause);
   const joystick=$('#joystick'),stick=$('#joystickKnob');
   let joystickPointer=null;
   function resetJoystick(){
