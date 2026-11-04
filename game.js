@@ -362,8 +362,35 @@
     if(frameIndex%8===0)updateUI();
   }
   function roundedRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
-  function drawFloor(x,y){const px=x*TILE,py=y*TILE;const isRoom=roomTiles.has(keyOf(x,y));ctx.fillStyle=isRoom?'#193039':((x+y)%2===0)?'#10252b':'#11272c';ctx.fillRect(px,py,TILE,TILE);ctx.strokeStyle='#1a3639';ctx.lineWidth=.65;ctx.strokeRect(px+.5,py+.5,TILE-1,TILE-1);if((x*7+y*13)%19===0){ctx.fillStyle='#294448';ctx.fillRect(px+7,py+22,9,1);ctx.fillRect(px+16,py+13,5,1);}}
-  function drawWall(x,y){const px=x*TILE,py=y*TILE;ctx.fillStyle='#203b42';ctx.fillRect(px,py,TILE,TILE);ctx.fillStyle='#294b52';ctx.fillRect(px,py,TILE,5);ctx.fillStyle='#0a1c23';ctx.fillRect(px+4,py+8,TILE-8,TILE-12);ctx.strokeStyle='#36535b';ctx.strokeRect(px+.5,py+.5,TILE-1,TILE-1);if(!floorAt(x,y+1)){ctx.fillStyle='#172d35';ctx.fillRect(px,py+TILE-5,TILE,5);}if((x*11+y*17)%27===0){ctx.strokeStyle='#42606a';ctx.beginPath();ctx.moveTo(px+9,py+13);ctx.lineTo(px+19,py+23);ctx.stroke();}}
+  function drawFloor(x,y){
+    const px=x*TILE,py=y*TILE;
+    const isRoom=roomTiles.has(keyOf(x,y));
+    // Walkable areas are clearly brighter than solid walls.
+    ctx.fillStyle=isRoom?'#294951':'#244048';
+    ctx.fillRect(px,py,TILE,TILE);
+    ctx.strokeStyle='rgba(139,190,196,.08)';
+    ctx.lineWidth=.5;
+    ctx.strokeRect(px+.5,py+.5,TILE-1,TILE-1);
+    if((x*7+y*13)%19===0){
+      ctx.fillStyle='rgba(161,219,211,.10)';
+      ctx.fillRect(px+7,py+22,9,1);
+    }
+  }
+  function drawWall(x,y){
+    const px=x*TILE,py=y*TILE;
+    // A single solid fill joins neighboring wall tiles without inset squares.
+    ctx.fillStyle='#10252f';
+    ctx.fillRect(px,py,TILE,TILE);
+    // Accentuate only boundaries between a wall and walkable space.
+    ctx.strokeStyle='rgba(107,189,195,.55)';
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    if(floorAt(x,y-1)){ctx.moveTo(px,py+1);ctx.lineTo(px+TILE,py+1);}
+    if(floorAt(x,y+1)){ctx.moveTo(px,py+TILE-1);ctx.lineTo(px+TILE,py+TILE-1);}
+    if(floorAt(x-1,y)){ctx.moveTo(px+1,py);ctx.lineTo(px+1,py+TILE);}
+    if(floorAt(x+1,y)){ctx.moveTo(px+TILE-1,py);ctx.lineTo(px+TILE-1,py+TILE);}
+    ctx.stroke();
+  }
   function halo(x,y,r,color){const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
   function diamond(x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(x,y-r);ctx.lineTo(x+r,y);ctx.lineTo(x,y+r);ctx.lineTo(x-r,y);ctx.closePath();ctx.fill();}
   function drawItems(){
@@ -397,7 +424,7 @@
   function drawDarkness(){
     const c=darkCtx;
     c.clearRect(0,0,W,H);
-    c.fillStyle='rgba(0,8,13,0.77)';c.fillRect(0,0,W,H);
+    c.fillStyle='rgba(0,8,13,0.43)';c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
     const lights=[{x:player.x*TILE,y:player.y*TILE,r:245,alpha:1},...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
     for(const l of lights){const g=c.createRadialGradient(l.x,l.y,0,l.x,l.y,l.r);g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(l.x-l.r,l.y-l.r,l.r*2,l.r*2);}
