@@ -39,6 +39,7 @@
     dash: $('#dashStatus'), decoys: $('#decoys'), skillCD: $('#skillCD'), dashCD: $('#dashCD'), decoyCD: $('#decoyCD'), label: $('#missionLabel'), level: $('#missionLevel'),
     note: $('#fieldNote'), overlay: $('#overlay'), title: $('#overlayTitle'), text: $('#overlayText'),
     classSelect: $('#classSelect'), classStatus: $('#classStatus'), survivorStatus: $('#survivorStatus'), abilityStatus: $('#abilityStatus'),
+    allyLabel: $('#allyStatusLabel'), rescueObjective: $('#rescueObjective'),
     button: $('#primaryBtn'), hint: $('#overlayHint'), toast: $('#toast'), flash: $('#screenFlash'), sound: $('#soundBtn'),
     roleOptions: $('#roleOptions'), roleLocked: $('#roleLocked'), lockedRoleText: $('#lockedRoleText'), roleLabel: $('#roleChoiceLabel')
   };
@@ -213,6 +214,8 @@
     ui.label.textContent=cfg.name;
     ui.level.textContent=`STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.note.textContent=cfg.note;
+    ui.allyLabel.textContent=cfg.stage===2?'ALLIES':'SURVIVOR';
+    ui.rescueObjective.textContent=cfg.stage===2?'✚ Rescue both allies':'✚ Rescue the survivor';
     const gameShell=$('.game-shell');
     gameShell.classList.toggle('stage-two',cfg.stage===2);
     gameShell.style.setProperty('--stage-accent',cfg.theme?.glow||'#7ae3c5');
@@ -614,6 +617,7 @@
       ?`${Number(survivor.rescued)+Number(technician.rescued)} / 2 ALLIES`
       :(survivor.rescued?'FOLLOWING':'TRAPPED');
     ui.abilityStatus.textContent=player.abilityCooldown<=0?(classChoice==='medic'?'HEAL READY':'PULSE READY'):'ABILITY RECHARGING';
+    if(technician?.rescued)ui.abilityStatus.textContent+=' · CD -30%';
     ui.dash.textContent=player.dashCooldown<=0?'DASH READY':`DASH ${player.dashCooldown.toFixed(1)}s`;
     // On-screen cooldowns reflect the exact timers used by keyboard actions.
     const skillTotal=SKILL_COOLDOWN[classChoice]*cooldownFactor();
