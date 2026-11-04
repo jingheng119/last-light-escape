@@ -605,12 +605,12 @@
 }
 
 
-/* v3.7: slim the radial cooldown strokes without changing orb dimensions. */
+/* v3.8: 1.5px radial cooldown strokes without changing orb dimensions. */
 .mobile-controls .mobile-actions #touchAbility::before,
 .mobile-controls .mobile-actions #touchDash::before,
 .mobile-controls .mobile-actions #touchDecoy::before{
   -webkit-mask:radial-gradient(farthest-side,
-    transparent calc(100% - 4px),#000 calc(100% - 3px));
+    transparent calc(100% - 2.5px),#000 calc(100% - 1px));
   mask:radial-gradient(farthest-side,
-    transparent calc(100% - 4px),#000 calc(100% - 3px));
+    transparent calc(100% - 2.5px),#000 calc(100% - 1px));
 }
