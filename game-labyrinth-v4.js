@@ -157,6 +157,9 @@
     camera.y+=(target.y-camera.y)*ease;
   }
   function buildLevel(index) {
+    // Hearts carry across floors in the same run. A fresh run (floor 1)
+    // always starts with three hearts. Only the Medic skill restores health.
+    const carriedHealth=index>0&&player?Math.max(1,Math.min(3,player.hp)):3;
     levelIndex=index;const cfg=CONFIGS[index];buildMaze(cfg.seed+runSeed,cfg.loops);
     const start={x:1,y:1}, distances=distanceMap(start), reserved=[start];
     exit=selectSpot(reserved,18,distances);reserved.push(exit);
@@ -167,7 +170,7 @@
     exit={...TILE_CENTER(exit.x,exit.y)};
     const survivorSpot=selectSpot(reserved,7,distances,false);reserved.push(survivorSpot);
     survivor={...TILE_CENTER(survivorSpot.x,survivorSpot.y),rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
-    player={...TILE_CENTER(1,1),hp:3,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
+    player={...TILE_CENTER(1,1),hp:carriedHealth,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
     hollows=[];
     for(let i=0;i<cfg.enemies;i++) {
       const p=selectSpot(reserved,5,distances,false);reserved.push(p);
