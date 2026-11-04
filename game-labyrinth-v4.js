@@ -197,8 +197,32 @@
     return true;
   }
   function moveEntity(e,dx,dy,r=.26) {
-    if(canStand(e.x+dx,e.y,r))e.x+=dx;
-    if(canStand(e.x,e.y+dy,r))e.y+=dy;
+    // Substeps prevent a fast dash from skipping wall collisions. On contact,
+    // approach the wall up to the safe boundary, then slide on the free axis.
+    const steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/.10));
+    const sx=dx/steps,sy=dy/steps;
+    let blocked=false;
+    for(let i=0;i<steps;i++){
+      for(const axis of ['x','y']){
+        const step=axis==='x'?sx:sy;
+        if(!step)continue;
+        const nx=e.x+(axis==='x'?step:0);
+        const ny=e.y+(axis==='y'?step:0);
+        if(canStand(nx,ny,r)){e[axis]+=step;continue;}
+        blocked=true;
+        // Find the nearest safe point, so a blocked dash does not leave the
+        // player short of a doorway or locked against a wall corner.
+        let lo=0,hi=1;
+        for(let k=0;k<10;k++){
+          const mid=(lo+hi)/2;
+          const x=e.x+(axis==='x'?step*mid:0);
+          const y=e.y+(axis==='y'?step*mid:0);
+          if(canStand(x,y,r))lo=mid;else hi=mid;
+        }
+        e[axis]+=step*lo;
+      }
+    }
+    return blocked;
   }
   function clearLine(a,b) {
     const len=dist(a,b), steps=Math.max(1,Math.ceil(len*7));
@@ -308,12 +332,19 @@
     const magnitude=Math.hypot(vx,vy);
     if(magnitude>1){vx/=magnitude;vy/=magnitude;}
     if(magnitude>.08)player.facing={x:vx/magnitude,y:vy/magnitude};
-    if(player.dashTime>0){player.dashTime-=dt;moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.24);
-      if(Math.random()<.8)player.trail.push({x:player.x,y:player.y,life:.36});}
+    if(player.dashTime>0){
+      player.dashTime=Math.max(0,player.dashTime-dt);
+      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.24);
+      if(hitWall)player.dashTime=0; // Return joystick control immediately on collision.
+      if(Math.random()<.8)player.trail.push({x:player.x,y:player.y,life:.36});
+    }
     else if(vx||vy)moveEntity(player,vx*3.5*dt,vy*3.5*dt);
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
-    for(const h of hollows)if(!(h.stunned>0)&&dist(player,h)<.52)damage();
+  }
+  function checkGhostContact(){
+    if(state!=='playing'||player.invincible>0||player.dashTime>0)return;
+    if(hollows.some(h=>!(h.stunned>0)&&dist(player,h)<.58))damage();
   }
   function updateHollows(dt){
     let danger=0;
@@ -401,7 +432,11 @@
     hitFlash=Math.max(0,hitFlash-dt);ui.flash.style.opacity=(hitFlash*.4).toFixed(2);
     if(state!=='playing')return;
     elapsed+=dt;overallElapsed+=dt;updatePlayer(dt);if(state!=='playing')return;
-    updateSurvivor(dt);updateHollows(dt);ambientAudio();
+    updateSurvivor(dt);updateHollows(dt);
+    // Check AFTER ghosts move, including when the player is stationary.
+    checkGhostContact();
+    if(state!=='playing')return;
+    ambientAudio();
     for(const d of decoys){d.life-=dt;d.age+=dt;}decoys=decoys.filter(d=>d.life>0);
     noiseEvents=noiseEvents.filter(n=>n.expires>clock);
     if(dist(player,exit)<.58&&relay.active&&cores.every(c=>c.collected)&&survivor.rescued&&dist(survivor,exit)<2.0)completeLevel();
