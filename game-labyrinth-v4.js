@@ -19,15 +19,15 @@
     { name: 'THE LOST DEPTHS', seed: 9539, cores: 4, enemies: 7, loops: 0.20, speed: 1.46, note: 'Only your immediate surroundings are visible. Protect the survivor.' },
     { name: 'THE FINAL ASCENT', seed: 10867, cores: 4, enemies: 7, loops: 0.22, speed: 1.49, note: 'Find the last elevator and bring everyone into the light.' },
     // Stage II is ready for future Hollow and ally variants via metadata.
-    { name:'THE AZURE GATE',seed:12419,cores:5,enemies:12,loops:0.24,speed:1.50,stage:2,architecture:'circuit',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#243c55',wall:'#101f34',trim:'#5aaadd',line:'#77c6ee',glow:'#7ad8ef'},note:'STAGE II · Blue conduits lead into the outer complex.' },
-    { name:'THE VIOLET VAULT',seed:13773,cores:5,enemies:12,loops:0.25,speed:1.52,stage:2,architecture:'vault',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#392e56',wall:'#211c39',trim:'#a98bea',line:'#bc9ef6',glow:'#e0adff'},note:'STAGE II · Violet chambers conceal branching passages.' },
-    { name:'THE AMBER REACTOR',seed:15131,cores:5,enemies:13,loops:0.26,speed:1.54,stage:2,architecture:'reactor',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#4a382d',wall:'#2c211e',trim:'#f0ae68',line:'#eecc8b',glow:'#ffdb8e'},note:'STAGE II · Explore the immense machinery of the reactor.' },
-    { name:'THE EMERALD ARRAY',seed:16807,cores:5,enemies:13,loops:0.27,speed:1.56,stage:2,architecture:'array',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#23483e',wall:'#152d2b',trim:'#68d8ac',line:'#84f1bf',glow:'#8bffe1'},note:'STAGE II · Green signal grids illuminate ruined corridors.' },
-    { name:'THE CARMINE FOUNDRY',seed:18061,cores:6,enemies:14,loops:0.23,speed:1.58,stage:2,architecture:'foundry',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#4a303b',wall:'#2b1c29',trim:'#f0809e',line:'#e9a0ac',glow:'#ff9cb0'},note:'STAGE II · Red furnace halls lead deeper underground.' },
-    { name:'THE FROST NETWORK',seed:19937,cores:6,enemies:14,loops:0.26,speed:1.60,stage:2,architecture:'network',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#304d5a',wall:'#1b303d',trim:'#9bd9e8',line:'#c1f1fa',glow:'#cbfbff'},note:'STAGE II · Frozen nodes divide the complex into sectors.' },
-    { name:'THE INDIGO SANCTUM',seed:21401,cores:6,enemies:15,loops:0.25,speed:1.61,stage:2,architecture:'sanctum',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#302f59',wall:'#1b1c39',trim:'#8e95f1',line:'#bbc4ff',glow:'#aeb1ff'},note:'STAGE II · Old data sanctums conceal long routes.' },
-    { name:'THE COPPER ENGINE',seed:23549,cores:6,enemies:15,loops:0.29,speed:1.63,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#493a34',wall:'#2e2324',trim:'#d9986c',line:'#f1c39a',glow:'#ffd1a1'},note:'STAGE II · Copper machinery runs beneath the entire ward.' },
-    { name:'THE PRISMATIC CORE',seed:25717,cores:7,enemies:16,loops:0.28,speed:1.65,stage:2,architecture:'prism',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#374353',wall:'#1b2638',trim:'#a0ccdf',line:'#c1b5f2',glow:'#d2f9ff'},note:'STAGE II · Find the final elevator in the vast prismatic core.' }
+    { name:'THE COPPER ENGINE',seed:12419,cores:5,enemies:12,loops:0.24,speed:1.50,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#493a34',wall:'#2e2324',trim:'#d9986c',line:'#f1c39a',glow:'#ffd1a1'},note:'STAGE II · Copper Engine · Sector 01 / 09.' },
+    { name:'THE COPPER ENGINE',seed:13773,cores:5,enemies:12,loops:0.25,speed:1.52,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#493a34',wall:'#2e2324',trim:'#d9986c',line:'#f1c39a',glow:'#ffd1a1'},note:'STAGE II · Copper Engine · Sector 02 / 09.' },
+    { name:'THE COPPER ENGINE',seed:15131,cores:5,enemies:13,loops:0.26,speed:1.54,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#493a34',wall:'#2e2324',trim:'#d9986c',line:'#f1c39a',glow:'#ffd1a1'},note:'STAGE II · Copper Engine · Sector 03 / 09.' },
+    { name:'THE COPPER ENGINE',seed:16807,cores:5,enemies:13,loops:0.27,speed:1.56,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#493a34',wall:'#2e2324',trim:'#d9986c',line:'#f1c39a',glow:'#ffd1a1'},note:'STAGE II · Copper Engine · Sector 04 / 09.' },
+    { name:'THE COPPER ENGINE',seed:18061,cores:6,enemies:14,loops:0.23,speed:1.58,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#493a34',wall:'#2e2324',trim:'#d9986c',line:'#f1c39a',glow:'#ffd1a1'},note:'STAGE II · Copper Engine · Sector 05 / 09.' },
+    { name:'THE COPPER ENGINE',seed:19937,cores:6,enemies:14,loops:0.26,speed:1.60,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#493a34',wall:'#2e2324',trim:'#d9986c',line:'#f1c39a',glow:'#ffd1a1'},note:'STAGE II · Copper Engine · Sector 06 / 09.' },
+    { name:'THE COPPER ENGINE',seed:21401,cores:6,enemies:15,loops:0.25,speed:1.61,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#493a34',wall:'#2e2324',trim:'#d9986c',line:'#f1c39a',glow:'#ffd1a1'},note:'STAGE II · Copper Engine · Sector 07 / 09.' },
+    { name:'THE COPPER ENGINE',seed:23549,cores:6,enemies:15,loops:0.29,speed:1.63,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#493a34',wall:'#2e2324',trim:'#d9986c',line:'#f1c39a',glow:'#ffd1a1'},note:'STAGE II · Copper Engine · Sector 08 / 09.' },
+    { name:'THE COPPER ENGINE',seed:25717,cores:7,enemies:16,loops:0.28,speed:1.65,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#493a34',wall:'#2e2324',trim:'#d9986c',line:'#f1c39a',glow:'#ffd1a1'},note:'STAGE II · Copper Engine · Sector 09 / 09.' },
   ];
   const $ = s => document.querySelector(s);
   const canvas = $('#game'), ctx = canvas.getContext('2d');
@@ -212,9 +212,9 @@
     decoys=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
-    ui.level.textContent=`BROWSER GAME V4.18 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
+    ui.level.textContent=`BROWSER GAME V4.19 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.stageCard.textContent=ui.level.textContent;
-    ui.mobileStage.children[0].textContent='BROWSER GAME V4.18';
+    ui.mobileStage.children[0].textContent='BROWSER GAME V4.19';
     ui.mobileStage.children[1].textContent=`STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.note.textContent=cfg.note;
     ui.allyLabel.textContent=cfg.stage===2?'ALLIES':'SURVIVOR';
