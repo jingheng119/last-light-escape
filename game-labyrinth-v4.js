@@ -431,8 +431,14 @@
     $('#touchAbility').style.setProperty('--skill-charge',`${skillCharge.toFixed(3)}turn`);
     ui.skillCD.textContent=player.abilityCooldown>0?'CHARGING':'READY';
     $('#touchAbility').setAttribute('aria-label',player.abilityCooldown>0?'Skill recharging':'Use skill');
-    ui.dashCD.textContent=player.dashCooldown>0?`${player.dashCooldown.toFixed(1)}s`:'READY';
-    ui.decoyCD.textContent=player.decoyCooldown>0?`${player.decoyCooldown.toFixed(1)}s`:`×${player.decoys}`;
+    const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/3.5));
+    const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/2));
+    $('#touchDash').style.setProperty('--skill-charge',`${dashCharge.toFixed(3)}turn`);
+    $('#touchDecoy').style.setProperty('--skill-charge',`${decoyCharge.toFixed(3)}turn`);
+    ui.dashCD.textContent=player.dashCooldown>0?'CHARGING':'READY';
+    ui.decoyCD.textContent=`×${player.decoys}`;
+    $('#touchDash').setAttribute('aria-label',player.dashCooldown>0?'Dash recharging':'Dash ready');
+    $('#touchDecoy').setAttribute('aria-label',player.decoyCooldown>0?'Decoy recharging':`Decoy, ${player.decoys} remaining`);
     $('#touchAbility').classList.toggle('on-cooldown',player.abilityCooldown>0);
     $('#touchDash').classList.toggle('on-cooldown',player.dashCooldown>0);
     $('#touchDecoy').classList.toggle('on-cooldown',player.decoyCooldown>0||player.decoys===0);
