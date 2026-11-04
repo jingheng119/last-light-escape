@@ -357,7 +357,7 @@
     const px=x*TILE,py=y*TILE;
     const isRoom=roomTiles.has(keyOf(x,y));
     // Walkable areas are clearly brighter than solid walls.
-    ctx.fillStyle=isRoom?'#294951':'#244048';
+    ctx.fillStyle='#244048';
     ctx.fillRect(px,py,TILE,TILE);
     ctx.strokeStyle='rgba(139,190,196,.08)';
     ctx.lineWidth=.5;
@@ -415,9 +415,9 @@
   function drawDarkness(){
     const c=darkCtx;
     c.clearRect(0,0,W,H);
-    c.fillStyle='rgba(0,8,13,0.43)';c.fillRect(0,0,W,H);
+    c.fillStyle='rgba(0,8,13,0.63)';c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
-    const lights=[{x:player.x*TILE,y:player.y*TILE,r:245,alpha:1},...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
+    const lights=[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1},...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
     for(const l of lights){const g=c.createRadialGradient(l.x,l.y,0,l.x,l.y,l.r);g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(l.x-l.r,l.y-l.r,l.r*2,l.r*2);}
     c.globalCompositeOperation='source-over';
     ctx.drawImage(darknessCanvas,0,0);
