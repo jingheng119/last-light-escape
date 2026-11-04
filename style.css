@@ -144,3 +144,49 @@
 }
 .game-shell:fullscreen .mobile-fullscreen-toggle{display:block;top:10px;left:10px}
 @media(max-width:550px){.mobile-fullscreen-toggle{font-size:10px;padding:9px 11px}}
+
+
+/* v2.9.2: four round D-pad buttons on a compact square base. */
+.mobile-controls .dpad{
+  display:block;position:relative;flex:0 0 170px;
+  width:170px;height:170px;padding:0;
+  background:rgba(43,46,49,.94);
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:17px;
+  box-shadow:0 9px 26px #0009;
+}
+.mobile-controls .dpad button{
+  position:absolute;display:flex;align-items:center;justify-content:center;
+  width:54px;height:54px;padding:0;
+  grid-column:auto;grid-row:auto;
+  background:#080b10;color:#f0f7fb;
+  border:1px solid rgba(255,255,255,.07);border-radius:50%;
+  font-size:25px;line-height:1;
+  box-shadow:0 3px 10px #0009;
+  transform:none;
+}
+.mobile-controls .dpad [data-dir="up"]{top:5px;left:57px;right:auto;bottom:auto}
+.mobile-controls .dpad [data-dir="left"]{top:57px;left:5px;right:auto;bottom:auto}
+.mobile-controls .dpad [data-dir="right"]{top:57px;left:109px;right:auto;bottom:auto}
+.mobile-controls .dpad [data-dir="down"]{top:109px;left:57px;right:auto;bottom:auto}
+.mobile-controls .dpad button:active,
+.mobile-controls .dpad button.is-held{
+  background:#27615d;color:#fff;transform:scale(.94);
+  border-color:#86e2c7;
+}
+@media(max-width:550px){
+  .mobile-controls .dpad{width:140px;height:140px;flex-basis:140px;border-radius:15px}
+  .mobile-controls .dpad button{width:44px;height:44px;font-size:21px}
+  .mobile-controls .dpad [data-dir="up"]{top:4px;left:47px}
+  .mobile-controls .dpad [data-dir="left"]{top:47px;left:4px}
+  .mobile-controls .dpad [data-dir="right"]{top:47px;left:90px}
+  .mobile-controls .dpad [data-dir="down"]{top:90px;left:47px}
+}
+@media(max-height:450px) and (orientation:landscape){
+  .mobile-controls .dpad{width:134px;height:134px;flex-basis:134px}
+  .mobile-controls .dpad button{width:42px;height:42px;font-size:20px}
+  .mobile-controls .dpad [data-dir="up"]{top:3px;left:45px}
+  .mobile-controls .dpad [data-dir="left"]{top:45px;left:3px}
+  .mobile-controls .dpad [data-dir="right"]{top:45px;left:87px}
+  .mobile-controls .dpad [data-dir="down"]{top:87px;left:45px}
+}
