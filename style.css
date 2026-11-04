@@ -592,3 +592,14 @@
   .mobile-pause-toggle,
   .game-shell:fullscreen .mobile-pause-toggle{display:none}
 }
+
+
+/* v3.5: on touch/mobile devices, keep HUD and action buttons but hide
+   the keyboard shortcut footer (including in landscape fullscreen).
+   The footer remains in DOM for live status updates and desktop users. */
+@media (pointer:coarse), (hover:none) and (max-width:980px) {
+  .game-shell .footerbar,
+  .game-shell:fullscreen .footerbar{
+    display:none;
+  }
+}
