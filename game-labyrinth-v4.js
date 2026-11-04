@@ -7,8 +7,14 @@
   const COLS = 31, ROWS = 21, TILE = 32, W = COLS * TILE, H = ROWS * TILE;
   const CONFIGS = [
     { name: 'THE FIRST DESCENT', seed: 1709, cores: 2, enemies: 3, loops: 0.16, speed: 1.12, note: 'Hollows can see along corridors. Break line of sight to escape a pursuit.' },
-    { name: 'THE DARK CIRCUIT', seed: 2911, cores: 3, enemies: 5, loops: 0.20, speed: 1.33, note: 'Tap Q to throw a sound decoy. Nearby Hollows will investigate the noise.' },
-    { name: 'THE LAST ELEVATOR', seed: 4207, cores: 3, enemies: 7, loops: 0.22, speed: 1.48, note: 'Dash with Space to slip through danger. It briefly protects you from contact.' }
+    { name: 'THE DARK CIRCUIT', seed: 2911, cores: 3, enemies: 4, loops: 0.19, speed: 1.23, note: 'Tap Q to throw a sound decoy. Nearby Hollows will investigate the noise.' },
+    { name: 'THE BROKEN WARD', seed: 4207, cores: 3, enemies: 5, loops: 0.21, speed: 1.34, note: 'The final normally lit floor. Learn to use cover and your class ability.' },
+    { name: 'THE LOWER PASSAGES', seed: 5849, cores: 3, enemies: 5, loops: 0.19, speed: 1.37, note: 'The lights are fading. Stay close to your survivor.' },
+    { name: 'THE SILENT BLOCK', seed: 6691, cores: 3, enemies: 6, loops: 0.18, speed: 1.40, note: 'Dim corridors hide moving Hollows. Use decoys strategically.' },
+    { name: 'THE SHADOW ENGINE', seed: 7313, cores: 4, enemies: 6, loops: 0.20, speed: 1.43, note: 'Darkness deepens. Do not dash blindly into corridors.' },
+    { name: 'THE BLACK ARCHIVE', seed: 8269, cores: 3, enemies: 6, loops: 0.18, speed: 1.43, note: 'Emergency lighting at 10%. Watch for enemies at close range.' },
+    { name: 'THE LOST DEPTHS', seed: 9539, cores: 4, enemies: 7, loops: 0.20, speed: 1.46, note: 'Only your immediate surroundings are visible. Protect the survivor.' },
+    { name: 'THE FINAL ASCENT', seed: 10867, cores: 4, enemies: 7, loops: 0.22, speed: 1.49, note: 'Find the last elevator and bring everyone into the light.' }
   ];
   const $ = s => document.querySelector(s);
   const canvas = $('#game'), ctx = canvas.getContext('2d');
@@ -148,7 +154,7 @@
         wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100});
     }
     decoys=[];noiseEvents=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
-    ui.label.textContent=cfg.name;ui.level.textContent=`FLOOR 0${index+1} / 0${CONFIGS.length}`;ui.note.textContent=cfg.note;
+    ui.label.textContent=cfg.name;ui.level.textContent=`FLOOR ${String(index+1).padStart(2,'0')} / ${String(CONFIGS.length).padStart(2,'0')}`;ui.note.textContent=cfg.note;
     updateUI();
   }
   function pathTo(from,to) {
@@ -243,7 +249,7 @@
   }
   function completeLevel(){
     beep(950,.4,'sine',.06);beep(1180,.48,'sine',.03);
-    if(levelIndex===CONFIGS.length-1){state='victory';if(best===0||overallElapsed<best){best=overallElapsed;try{localStorage.setItem('last-light-best',String(best));}catch(e){}}setOverlay('YOU FOUND THE LIGHT',`All three floors escaped in ${formatTime(overallElapsed)}. The elevator doors close behind you. Best escape: ${formatTime(best)}.`,'PLAY AGAIN','THE WARD WILL BE WAITING');}
+    if(levelIndex===CONFIGS.length-1){state='victory';if(best===0||overallElapsed<best){best=overallElapsed;try{localStorage.setItem('last-light-best',String(best));}catch(e){}}setOverlay('YOU FOUND THE LIGHT',`All ${CONFIGS.length} floors escaped in ${formatTime(overallElapsed)}. The elevator doors close behind you. Best escape: ${formatTime(best)}.`,'PLAY AGAIN','THE WARD WILL BE WAITING');}
     else {state='leveldone';setOverlay('FLOOR CLEARED',`You restored the relay, collected every core, and escaped ${CONFIGS[levelIndex].name.toLowerCase()} in ${formatTime(elapsed)}.`,'DESCEND DEEPER','THE NEXT FLOOR IS MORE DANGEROUS');}
   }
   function damage(){if(player.invincible>0||player.dashTime>0||state!=='playing')return;
@@ -425,7 +431,8 @@
   function drawDarkness(){
     const c=darkCtx;
     c.clearRect(0,0,W,H);
-    c.fillStyle='rgba(0,8,13,0.63)';c.fillRect(0,0,W,H);
+    const darkness=levelIndex<3?.63:levelIndex<6?.76:.90;
+    c.fillStyle=`rgba(0,8,13,${darkness})`;c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
     const lights=[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1},...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
     for(const l of lights){const g=c.createRadialGradient(l.x,l.y,0,l.x,l.y,l.r);g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(l.x-l.r,l.y-l.r,l.r*2,l.r*2);}
