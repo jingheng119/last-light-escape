@@ -447,3 +447,47 @@
 .mobile-controls .mobile-actions #touchAbility .action-cd{
   font-size:9px;letter-spacing:.02em;
 }
+
+
+/* v3.2: desktop mouse-action dock; mobile joystick layout stays unchanged. */
+@media (min-width:981px) and (pointer:fine) {
+  .mobile-controls{
+    display:flex;align-items:flex-end;justify-content:flex-end;
+    left:auto;right:12px;bottom:12px;inset:auto 12px 12px auto;
+    width:auto;padding:0;gap:0;z-index:3;
+  }
+  .mobile-controls .virtual-joystick{display:none}
+  .mobile-controls .mobile-actions{
+    display:flex;align-items:center;justify-content:flex-end;
+    gap:8px;position:relative;flex:0 0 auto;
+    width:auto;height:auto;min-width:0;
+    --cluster-w:auto;--cluster-h:auto;
+  }
+  .mobile-controls .mobile-actions button{
+    position:relative;top:auto;right:auto;bottom:auto;left:auto;
+    transform:none;flex:0 0 auto;width:64px;height:64px;
+    font-size:10px;aspect-ratio:1;border-radius:50%;
+  }
+  .mobile-controls .mobile-actions #touchAbility{
+    position:relative;top:auto;right:auto;bottom:auto;left:auto;
+    width:74px;height:74px;
+  }
+  .mobile-controls .mobile-actions #touchDash,
+  .mobile-controls .mobile-actions #touchDecoy{
+    position:relative;top:auto;right:auto;bottom:auto;left:auto;
+    width:64px;height:64px;
+  }
+  .mobile-controls .mobile-actions #touchInteract{
+    position:relative;top:auto;right:auto;bottom:auto;left:auto;
+    width:56px;height:56px;
+  }
+  .mobile-controls .mobile-actions .action-name{font-size:10px}
+  .mobile-controls .mobile-actions .action-cd{font-size:9px}
+}
+@media (min-width:981px) and (pointer:fine) and (max-height:650px) {
+  .mobile-controls .mobile-actions{gap:5px}
+  .mobile-controls .mobile-actions #touchAbility{width:62px;height:62px}
+  .mobile-controls .mobile-actions #touchDash,
+  .mobile-controls .mobile-actions #touchDecoy{width:55px;height:55px}
+  .mobile-controls .mobile-actions #touchInteract{width:50px;height:50px}
+}
