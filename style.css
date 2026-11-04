@@ -986,3 +986,29 @@
     max-width:calc(100vw - 18px);
   }
 }
+
+/* v4.20: compact, icon-only mobile fullscreen and pause buttons. */
+.mobile-fullscreen-toggle,
+.mobile-pause-toggle{
+  box-sizing:border-box;
+  width:48px;
+  height:48px;
+  min-width:48px;
+  min-height:48px;
+  padding:0;
+  font-size:23px;
+  line-height:1;
+  text-align:center;
+  border-radius:12px;
+}
+@media(max-width:550px){
+  .mobile-fullscreen-toggle,
+  .mobile-pause-toggle{
+    width:44px;
+    height:44px;
+    min-width:44px;
+    min-height:44px;
+    padding:0;
+    font-size:22px;
+  }
+}
