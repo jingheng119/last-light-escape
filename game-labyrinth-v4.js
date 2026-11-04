@@ -678,14 +678,21 @@
           if(distanceToTarget>.28){
             const nx=(dashTarget.x-h.x)/distanceToTarget;
             const ny=(dashTarget.y-h.y)/distanceToTarget;
-            // Only dash while a full corridor is clear, including diagonals.
-            const clearance=Math.min(1.95,distanceToTarget);
-            const clear=[.25,.50,.75,1].every(t=>canStand(h.x+nx*clearance*t,h.y+ny*clearance*t,.13));
-            if(clear){
-              h.dashDir={x:nx,y:ny};h.dashTime=Math.min(.28,clearance/8.2);
+            // Walk speed remains identical to a Standard Hollow. Dashing is
+            // the only burst of speed. Extend the lunge beyond a nearby path
+            // waypoint, but never across solid walls or diagonal corners.
+            const maxDash=canAimAtPlayer?Math.min(2.75,distanceToTarget):2.75;
+            let clearance=0;
+            for(let check=.15;check<=maxDash+.001;check+=.15){
+              const distance=Math.min(check,maxDash);
+              if(!canStand(h.x+nx*distance,h.y+ny*distance,.13))break;
+              clearance=distance;
+            }
+            if(clearance>=.6){
+              h.dashDir={x:nx,y:ny};h.dashTime=Math.min(.34,clearance/8.2);
               h.dashCooldown=2.5+rand()*3.3;
               h.angle=Math.atan2(ny,nx);
-              // Keep the path until the dash completes; then recalculate it.
+              // Rebuild path after the dash; no random steering.
             }else h.dashCooldown=.35;
           }else h.dashCooldown=.35;
         }else h.dashCooldown=.35;
