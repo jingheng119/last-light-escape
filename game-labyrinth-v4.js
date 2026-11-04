@@ -186,12 +186,12 @@
     relay={...TILE_CENTER(switchSpot.x,switchSpot.y),active:false};
     exit={...TILE_CENTER(exit.x,exit.y)};
     const survivorSpot=selectSpot(reserved,cfg.stage===2?13:7,distances,false);reserved.push(survivorSpot);
-    survivor={...TILE_CENTER(survivorSpot.x,survivorSpot.y),rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
+    survivor={...TILE_CENTER(survivorSpot.x,survivorSpot.y),variant:cfg.allyVariant||'survivor',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     player={...TILE_CENTER(1,1),hp:carriedHealth,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
     hollows=[];
     for(let i=0;i<cfg.enemies;i++) {
       const p=selectSpot(reserved,cfg.stage===2?8:5,distances,false);reserved.push(p);
-      hollows.push({x:p.x+.5,y:p.y+.5,home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18),
+      hollows.push({x:p.x+.5,y:p.y+.5,variant:cfg.enemyVariant||'standard',home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18),
         path:[],pathIndex:0,repath:0,mode:'patrol',chaseUntil:0,target:null,angle:rand()*6.28,
         wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100,stunned:0});
     }
