@@ -614,3 +614,66 @@
   mask:radial-gradient(farthest-side,
     transparent calc(100% - 2.5px),#000 calc(100% - 1px));
 }
+
+
+/* v3.13: choose your character once per run with compact class cards. */
+.role-selection{margin:0 auto 16px;max-width:410px}
+.role-choice-label{
+  margin:0 0 9px;color:#a1e3d5;font-size:10px;
+  letter-spacing:.16em;font-weight:850;text-align:left;
+}
+.role-choice-label span{color:#638e8a;font-size:8px;letter-spacing:.09em}
+.role-options{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+}
+.role-options[hidden],.role-locked[hidden]{display:none!important}
+.role-option{
+  position:relative;display:flex;align-items:center;gap:9px;
+  min-width:0;min-height:81px;padding:12px 10px;
+  text-align:left;color:#d6f5ee;background:linear-gradient(150deg,#132b34,#0b1c26);
+  border:1px solid #32565d;border-radius:13px;
+  transition:background .16s,border-color .16s,box-shadow .16s;
+}
+.role-option:hover,.role-option:focus-visible{border-color:#6fe8c9;background:#17373b}
+.role-option.is-selected{
+  border-color:#84f6d1;
+  background:linear-gradient(145deg,#1c4948,#102d33);
+  box-shadow:0 0 0 1px #84f6d164 inset,0 0 22px #55edbd1e;
+}
+.role-option-icon{
+  display:grid;place-items:center;flex:0 0 37px;
+  width:37px;height:37px;border:1px solid #4b8079;
+  border-radius:10px;background:#0a252b;color:#95f7d8;
+  font-size:22px;font-weight:900;
+}
+.role-option-copy{display:flex;min-width:0;flex-direction:column;gap:3px}
+.role-option-copy strong{font-size:13px;letter-spacing:.08em;color:#f1fff9}
+.role-option-copy small{font-size:8px;line-height:1.3;letter-spacing:.03em;color:#aacbc4}
+.role-option-key{font-size:9px;color:#8ee6cd}
+.role-option-check{
+  position:absolute;right:6px;top:5px;color:#99ffe0;
+  font-size:11px;opacity:0;
+}
+.role-option.is-selected .role-option-check{opacity:1}
+.role-locked{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  border:1px solid #38655f;background:#163138;border-radius:12px;
+  padding:11px;color:#bdf8e2;font-weight:800;font-size:12px;
+}
+.role-locked small{font-size:8px;letter-spacing:.08em;color:#87bcb2}
+@media(max-width:550px){
+  .role-selection{margin-bottom:11px}
+  .role-choice-label{font-size:9px;margin-bottom:6px}
+  .role-options{gap:7px}
+  .role-option{padding:8px 7px;gap:6px;min-height:63px}
+  .role-option-icon{width:27px;height:27px;flex-basis:27px;font-size:17px;border-radius:7px}
+  .role-option-copy strong{font-size:11px}
+  .role-option-copy small{font-size:7px}
+  .role-option-key{font-size:8px}
+  .role-locked{flex-wrap:wrap;font-size:10px;padding:7px}
+}
+@media(max-height:450px) and (orientation:landscape){
+  .overlay-panel{overflow-y:auto;max-height:calc(100% - 8px)}
+  .role-option{min-height:53px;padding:6px 7px}
+  .role-selection{margin-bottom:8px}
+}
