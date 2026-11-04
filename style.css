@@ -9,3 +9,40 @@
 .statusbar{flex-wrap:wrap}
 .status-item{min-width:75px}
 @media(max-width:550px){.statusbar{justify-content:space-around;gap:8px}.status-item{min-width:72px}.status-item strong{font-size:10px}.class-picker{margin:0 auto 12px}.class-picker select{font-size:11px;padding:8px}.mobile-actions{grid-template-columns:repeat(3,minmax(0,1fr))}.mobile-controls button{min-width:0;padding:6px 9px}}
+
+
+/* v2.7: mobile-game controls float over the gameplay, not below the page. */
+.mobile-controls{display:none;position:absolute;z-index:3;inset:auto 0 0;pointer-events:none;line-height:1.2;align-items:flex-end;justify-content:space-between;gap:12px;padding:0 clamp(10px,2vw,24px) 15px;user-select:none;-webkit-user-select:none}
+.mobile-controls button{pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;color:#d8fff4;font-weight:900;cursor:pointer;box-shadow:0 4px 16px #0008}
+.dpad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:3px;flex:0 0 auto}
+.dpad button{width:clamp(42px,6vw,59px);height:clamp(42px,6vw,59px);border-radius:12px;background:#112c37cc;border:1px solid #6cd6c4a0;font-size:19px}
+.dpad [data-dir="up"]{grid-column:2;grid-row:1}
+.dpad [data-dir="left"]{grid-column:1;grid-row:2}
+.dpad [data-dir="down"]{grid-column:2;grid-row:2}
+.dpad [data-dir="right"]{grid-column:3;grid-row:2}
+.dpad button:active,.dpad button.is-held{background:#2d9185e6;transform:scale(.94)}
+.mobile-actions{display:grid;grid-template-columns:repeat(3,clamp(48px,7vw,70px));grid-template-rows:auto auto;gap:6px;align-items:end;justify-items:center}
+.mobile-actions button{min-width:0;width:100%;border:1px solid #5db5a7a8;background:#11333edb;border-radius:50%;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;padding:4px}
+.mobile-actions .action-orb .action-name{font-size:11px;letter-spacing:.02em}
+.mobile-actions .action-cd{margin-top:4px;font-size:10px;color:#8cf1d2;font-variant-numeric:tabular-nums}
+.mobile-actions button.on-cooldown{background:#182831e8;border-color:#6380888c;color:#809ea6}
+.mobile-actions button.on-cooldown .action-cd{color:#ffc38a}
+.mobile-actions .action-use{grid-column:2;grid-row:2;background:#297666da}
+.mobile-actions .action-pause{grid-column:3;grid-row:2;aspect-ratio:auto;height:32px;border-radius:9px;font-size:10px;white-space:nowrap}
+@media(max-width:980px),(hover:none) and (pointer:coarse){
+  .mobile-controls{display:flex}
+  .canvas-wrap{min-height:470px}
+  .canvas-wrap canvas{height:470px}
+  .bottom-row{padding-top:3px}
+  .toast{top:13px;font-size:11px;padding:8px 10px}
+}
+@media(max-width:550px){
+  .mobile-controls{gap:5px;padding:0 7px 9px}
+  .dpad{gap:2px}
+  .dpad button{width:clamp(37px,11vw,49px);height:clamp(37px,11vw,49px);font-size:16px}
+  .mobile-actions{grid-template-columns:repeat(3,clamp(44px,13vw,56px));gap:3px}
+  .mobile-actions .action-orb .action-name{font-size:9px}
+  .mobile-actions .action-cd{font-size:9px;margin-top:2px}
+  .mobile-actions .action-pause{font-size:9px;height:28px}
+  .canvas-wrap,.canvas-wrap canvas{min-height:470px;height:470px}
+}
