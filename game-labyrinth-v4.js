@@ -207,14 +207,14 @@
       hollows.push({x:p.x+.5,y:p.y+.5,variant,home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18)*(variant==='hunter'?1.27:1),
         path:[],pathIndex:0,repath:0,mode:'patrol',chaseUntil:0,target:null,angle:rand()*6.28,
         wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100,stunned:0,
-        dashCooldown:variant==='dasher'?2+rand()*3:0,dashTime:0,dashDir:{x:0,y:0}});
+        dashCooldown:variant==='dasher'?2+rand()*1.5:0,dashTime:0,dashDir:{x:0,y:0}});
     }
     decoys=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
-    ui.level.textContent=`BROWSER GAME V4.16 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
+    ui.level.textContent=`BROWSER GAME V4.17 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.stageCard.textContent=ui.level.textContent;
-    ui.mobileStage.children[0].textContent='BROWSER GAME V4.16';
+    ui.mobileStage.children[0].textContent='BROWSER GAME V4.17';
     ui.mobileStage.children[1].textContent=`STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.note.textContent=cfg.note;
     ui.allyLabel.textContent=cfg.stage===2?'ALLIES':'SURVIVOR';
@@ -690,7 +690,7 @@
             }
             if(clearance>=.6){
               h.dashDir={x:nx,y:ny};h.dashTime=Math.min(.34,clearance/8.2);
-              h.dashCooldown=2.5+rand()*3.3;
+              h.dashCooldown=2.5+rand()*1.0;
               h.angle=Math.atan2(ny,nx);
               // Rebuild path after the dash; no random steering.
             }else h.dashCooldown=.35;
