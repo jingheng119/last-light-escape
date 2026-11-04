@@ -391,17 +391,26 @@
     if(magnitude>.08)player.facing={x:vx/magnitude,y:vy/magnitude};
     if(player.dashTime>0){
       player.dashTime=Math.max(0,player.dashTime-dt);
-      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,.21,.32);
+      const touchDash=Math.hypot(joystickMove.x,joystickMove.y)>.08;
+      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,touchDash?.195:.21,.32);
       if(hitWall)player.dashTime=0; // Return joystick control immediately on collision.
       if(Math.random()<.8)player.trail.push({x:player.x,y:player.y,life:.36});
     }
-    else if(vx||vy)moveEntity(player,vx*3.5*dt,vy*3.5*dt,.21,.30);
+    else if(vx||vy){
+      // A slightly smaller mobile hitbox eases narrow passages. The verified
+      // v3.11 keyboard/desktop wall-slide parameters are preserved.
+      const touchSteering=Math.hypot(joystickMove.x,joystickMove.y)>.08;
+      moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.195:.21,.30);
+    }
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
   function checkGhostContact(){
     if(state!=='playing'||player.invincible>0||player.dashTime>0)return;
-    if(hollows.some(h=>!(h.stunned>0)&&dist(player,h)<.58))damage();
+    // Hollows follow tile-centre paths; allow contact at their visible edge,
+    // including when the player is stationary off-centre inside the same tile.
+    // Require a clear path to avoid hitting through a wall.
+    if(hollows.some(h=>h.stunned<=0&&dist(player,h)<.80&&clearLine(player,h)))damage();
   }
   function updateHollows(dt){
     let danger=0;
@@ -756,8 +765,13 @@
     const deadZone=.12;
     const strength=Math.hypot(x,y)/maxRange;
     const amount=strength<deadZone?0:(strength-deadZone)/(1-deadZone);
-    joystickMove.x=length?dx/length*amount:0;
-    joystickMove.y=length?dy/length*amount:0;
+    let ux=length?dx/length:0,uy=length?dy/length:0;
+    // Small off-axis thumb movements should not steer the player into a wall.
+    // Preserve deliberate diagonal movement and the joystick's analog speed.
+    if(Math.abs(ux)<.20){ux=0;uy=Math.sign(uy);}
+    else if(Math.abs(uy)<.20){uy=0;ux=Math.sign(ux);}
+    joystickMove.x=ux*amount;
+    joystickMove.y=uy*amount;
   }
   joystick.addEventListener('pointerdown',e=>{
     if(joystickPointer!==null)return;
