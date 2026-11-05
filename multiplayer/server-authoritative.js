@@ -9,7 +9,7 @@ const PORT=Number(process.env.PORT||3001);
 const HOST=process.env.HOST||'0.0.0.0';
 const MAX_ROOMS=16, MAX_PLAYERS=5;
 const rooms=new Map(),lobbyClients=new Set();
-const MIME={'/':'text/html; charset=utf-8','/game.js':'text/javascript; charset=utf-8',
+const MIME={'/':'text/html; charset=utf-8','/play':'text/html; charset=utf-8','/play/':'text/html; charset=utf-8','/game.js':'text/javascript; charset=utf-8',
   '/style.css':'text/css; charset=utf-8','/favicon.svg':'image/svg+xml'};
 const FILE={'/':'index.html','/play':'index.html','/play/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg'};
 const send=(ws,m)=>{
