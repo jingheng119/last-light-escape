@@ -6,7 +6,7 @@ services:
     name: last-light-online-trial
     region: singapore
     plan: free
-    branch: feature/multiplayer-phase1
+    branch: feature/server-authoritative
     rootDir: multiplayer
     buildCommand: npm install --omit=dev
     startCommand: npm start
