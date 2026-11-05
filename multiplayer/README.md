@@ -53,3 +53,9 @@ You can alternatively create a **Web Service** manually, using these settings: r
 ## Online movement latency improvement
 
 The joining player now predicts their own movement immediately using the original maze collision rules, and incoming host snapshots gently correct small errors. Actions, enemy hits, core pickups, exits and win/loss decisions remain authoritative on the room host. The goal is to make controls feel less delayed over internet round trips; this does not reduce network ping or make the simulation dedicated-server authoritative. Test both straight corridors, turns against walls, dashing, and reviving after deployment.
+
+## Dash and Hollow timing (online prototype)
+
+The remote client now sends movement position alongside control input and sends its dash direction with each dash request. The host makes **bounded, maze-collision-checked** corrections before applying those commands; this reduces disagreement about where remote players stand when Hollow collision is evaluated. The remote player retains the dash animation for its brief startup window. Hollow visuals extrapolate up to 120 ms based on recent snapshots. These are prototype responsiveness improvements, not a replacement for a dedicated authoritative server. Health changes, damage, survival, and victory still come from the host, so there can be residual delays equal to the network round trip.
+
+After an auto-deployment, hard-refresh both clients and create a new room. Test dash when a Hollow approaches, dash at walls, regular collision damage, and revival. Revert the latest change if collision rules diverge.
