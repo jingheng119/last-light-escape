@@ -8,6 +8,7 @@ import { createRoomEngine } from './headless-engine.js';
 const PORT=Number(process.env.PORT||3001);
 const HOST=process.env.HOST||'0.0.0.0';
 const rooms=new Map();
+const MAX_ROOMS=16;
 const MIME={
   '/':'text/html; charset=utf-8',
   '/game.js':'text/javascript; charset=utf-8',
@@ -62,6 +63,7 @@ function join(ws,room){
   if(room.clients.has(id))return send(ws,{type:'error',message:'Room is full'});
   room.clients.set(id,ws);ws.room=room;ws.playerId=id;
   if(id===2)room.engine.join();
+  else if(room.clients.has(2))room.engine.rejoinHost();
   send(ws,{type:'joined',code:room.code,id,host:id===1});
   for(const client of room.clients.values())
     send(client,{type:'roster',count:room.clients.size});
@@ -100,12 +102,17 @@ wss.on('connection',(ws,req)=>{
   try{
     if(origin&&new URL(origin).host!==req.headers.host)return ws.close(1008,'Origin invalid');
   }catch{return ws.close(1008,'Origin invalid');}
+  let lastInputAt=0;
   ws.on('message',raw=>{
     if(raw.length>16000)return;
     let m;try{m=JSON.parse(raw.toString());}catch{return;}
     if(!m||typeof m.type!=='string')return;
     if(m.type==='ping'&&Number.isFinite(m.at))return send(ws,{type:'pong',at:m.at});
-    if(m.type==='create'){if(ws.room)return;return join(ws,createRoom());}
+    if(m.type==='create'){
+      if(ws.room)return;
+      if(rooms.size>=MAX_ROOMS)return send(ws,{type:'error',message:'Server room capacity reached. Try later.'});
+      return join(ws,createRoom());
+    }
     if(m.type==='join'){
       if(typeof m.code!=='string'||!/^[0-9A-F]{6}$/.test(m.code))
         return send(ws,{type:'error',message:'Invalid room code'});
@@ -113,7 +120,12 @@ wss.on('connection',(ws,req)=>{
     }
     const room=ws.room,id=ws.playerId;
     if(!room)return;
-    if(m.type==='input')room.engine.input(id,safeKeys(m.keys),safeStick(m.joystick));
+    if(m.type==='input'){
+      const now=Date.now();
+      if(now-lastInputAt<20)return;
+      lastInputAt=now;
+      room.engine.input(id,safeKeys(m.keys),safeStick(m.joystick));
+    }
     else if(m.type==='action'&&['dash','interact','decoy','ability'].includes(m.name))
       room.engine.action(id,m.name,safeDirection(m.direction));
     else if(m.type==='role'&&['scout','medic'].includes(m.role))
