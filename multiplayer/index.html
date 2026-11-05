@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Last Light — Multiplayer Prototype</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:22px;background:#07131b;color:#d7fcf0;font-family:Inter,Arial,sans-serif}
+main{max-width:1020px;margin:auto}h1{font-size:clamp(22px,4vw,34px)}
+p{color:#a7c9c7}button,input{font:inherit;border-radius:9px;padding:10px 14px}
+button{background:#1f746a;color:white;border:1px solid #70bcb4;cursor:pointer}
+input{width:135px;background:#16333b;color:white;border:1px solid #568781}
+#actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 0}
+canvas{width:100%;height:auto;border:2px solid #487d77;border-radius:12px;display:block}
+#room{font-weight:bold;color:#8cffd5}#invite{overflow-wrap:anywhere}
+</style>
+<script src="/client.js" defer></script>
+</head>
+<body><main>
+<h1>LAST LIGHT — Multiplayer Phase 1</h1>
+<p>Two-player room and real-time movement test. This prototype does not replace the original game.</p>
+<section id="actions"><button id="create">Create room</button><span>or</span>
+<input id="code" maxlength="6" placeholder="Room code" aria-label="Room code">
+<button id="join">Join room</button></section>
+<p id="status" role="status">Connecting...</p>
+<p>Room: <span id="room">—</span></p><p id="invite"></p>
+<canvas id="arena" width="992" height="672" aria-label="Shared game arena"></canvas>
+<p>Move with WASD or arrow keys. Share the invite link to join the same room in a second tab.</p>
+</main></body></html>
