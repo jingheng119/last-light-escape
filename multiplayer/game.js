@@ -959,7 +959,7 @@
     const darkness=floorWithinStage<3?.63:floorWithinStage<6?.76:.90;
     c.fillStyle=`rgba(0,8,13,${darkness})`;c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
-    const lights=[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1},...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...(technician?[{x:technician.x*TILE,y:technician.y*TILE,r:68,alpha:.42}]:[]),...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
+    const lights=[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1},...(guestPlayer?[{x:guestPlayer.x*TILE,y:guestPlayer.y*TILE,r:155,alpha:.90}]:[]),...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...(technician?[{x:technician.x*TILE,y:technician.y*TILE,r:68,alpha:.42}]:[]),...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
     for(const l of lights){const lx=l.x-camera.x,ly=l.y-camera.y;
       const g=c.createRadialGradient(lx,ly,0,lx,ly,l.r);g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(lx-l.r,ly-l.r,l.r*2,l.r*2);}
     c.globalCompositeOperation='source-over';
