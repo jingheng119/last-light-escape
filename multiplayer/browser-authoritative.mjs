@@ -27,15 +27,15 @@ try{
   for(const [p,label] of [[first,'P1'],[second,'P2']]){
     p.on('pageerror',error=>problems.push(label+': '+error.message));
     await p.goto('http://127.0.0.1:'+port+'/');
-    await p.locator('#roomStatus').getByText(/connected/i).waitFor({timeout:10000});
+    await p.waitForFunction(()=>document.querySelector('#roomStatus')?.textContent?.includes('Connected'),null,{timeout:10000});
   }
   await first.locator('#createRoom').click();
-  await first.locator('#roomStatus').getByText(/room created/i).waitFor({timeout:7000});
+  await first.waitForFunction(()=>document.querySelector('#roomStatus')?.textContent?.includes('Room created'),null,{timeout:7000});
   const room=await first.locator('#joinRoomCode').inputValue();
   assert.match(room,/^[0-9A-F]{6}$/);
   await second.locator('#joinRoomCode').fill(room);
   await second.locator('#joinRoom').click();
-  await second.locator('#roomStatus').getByText(/room joined/i).waitFor({timeout:7000});
+  await second.waitForFunction(()=>document.querySelector('#roomStatus')?.textContent?.includes('Room joined'),null,{timeout:7000});
   await first.locator('#primaryBtn').click();
   await first.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='playing',{timeout:8000});
   await second.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='playing',{timeout:8000});
