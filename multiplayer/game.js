@@ -1262,7 +1262,7 @@
   // player positions and souls, so these markers need no additional packets.
   function getTeammateIndicators(teammates=remotePlayers){
     if(roomRole==='none'||!teammates.length||!grid)return [];
-    const view={left:35,top:103,right:W-35,bottom:H-76};
+    const view={left:14,top:84,right:W-14,bottom:H-48};
     const center={x:W/2,y:H/2};
     const markers=[];
     for(const teammate of teammates){
@@ -1310,39 +1310,34 @@
     }
     return markers;
   }
+
   function drawTeammateIndicators(){
     for(const m of getTeammateIndicators()){
       ctx.save();
       ctx.translate(m.x,m.y);
-      ctx.fillStyle='rgba(5,22,29,.87)';
-      ctx.strokeStyle=m.color;
-      ctx.lineWidth=1.5;
-      ctx.beginPath();ctx.arc(0,0,18,0,Math.PI*2);ctx.fill();ctx.stroke();
-      ctx.save();
       ctx.rotate(m.angle);
-      ctx.fillStyle=m.color;
-      ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(-4,-8);ctx.lineTo(-1,0);
-      ctx.lineTo(-4,8);ctx.closePath();ctx.fill();
-      ctx.restore();
-      // Fallen teammates keep their color, plus a persistent soul marker.
+  
+      ctx.fillStyle = m.color;
+      ctx.beginPath();
+      ctx.moveTo(14,0);
+      ctx.lineTo(-8,-7);
+      ctx.lineTo(-2,0);
+      ctx.lineTo(-8,7);
+      ctx.closePath();
+      ctx.fill();
+  
+      // optional small soul dot if teammate is dead
       if(m.dead){
-        ctx.fillStyle='#e8fdff';
-        ctx.beginPath();ctx.arc(0,0,4.5,Math.PI,0);
-        ctx.lineTo(4.5,5);ctx.lineTo(-4.5,5);ctx.closePath();ctx.fill();
+        ctx.fillStyle = '#e8fdff';
+        ctx.beginPath();
+        ctx.arc(-12,0,3.5,0,Math.PI*2);
+        ctx.fill();
       }
-      ctx.font='bold 10px monospace';
-      ctx.textAlign=m.edge==='left'?'left':m.edge==='right'?'right':'center';
-      ctx.textBaseline='middle';
-      ctx.lineWidth=3;ctx.strokeStyle='#06161c';
-      const label=m.dead?'SOUL · '+m.name:m.name;
-      // Keep long names on-screen even when their arrow hugs the left/right edge.
-      const textX=m.edge==='left'?24:m.edge==='right'?-24:0;
-      const textY=m.edge==='top'?29:m.edge==='bottom'?-29:0;
-      ctx.strokeText(label,textX,textY);
-      ctx.fillStyle=m.color;ctx.fillText(label,textX,textY);
+  
       ctx.restore();
     }
   }
+  
   function drawInteractPrompts(){ctx.font='bold 11px monospace';ctx.textAlign='center';
     let message='';
     const fallen=remotePlayers.find(p=>p.hp<=0&&dist(player,p)<=REVIVE_RADIUS&&clearLine(player,p));
