@@ -1089,3 +1089,12 @@
 .overlay.countdown-active .role-selection,
 .overlay.countdown-active #primaryBtn{display:none!important}
 .overlay.countdown-active #overlayHint{letter-spacing:1px;margin-top:18px;color:#8dd9cc}
+
+
+/* Browse every room even while hosting or participating in a match. */
+#roomBrowser.has-active-room .lobby-create,
+#roomBrowser.has-active-room .room-search{display:none!important}
+.room-entry-current{border-color:#60d8bd;background:linear-gradient(135deg,#153e40,#103038)}
+.room-current-label{font:700 10px monospace;letter-spacing:1.4px;color:#7beccd}
+.room-entry-current button{background:#257768}
+.show-lobby #roomSession:not([hidden]){padding:12px 0 22px;border-bottom:1px solid #335960;margin-bottom:20px}
