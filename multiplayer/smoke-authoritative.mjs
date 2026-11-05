@@ -83,4 +83,26 @@ game.leave(2);
 assert.equal(game.snapshot(false).guestPlayer,null);
 assert.equal(game.snapshot(false).players.filter(Boolean).length,3);
 
-console.log('PASS: original game simulation runs server-side through Stage 2, with five independent players.');
+// A non-host player reaching zero hearts must become a revivable soul,
+// not end the room while any other connected teammate is alive.
+for(const downedSlot of [2,3,4,5]){
+  const room=createRoomEngine();
+  room.join(2);room.join(3);room.join(4);room.join(5);room.start();
+  for(let hit=0;hit<3;hit++)room.testHit(downedSlot);
+  const snap=room.snapshot(false);
+  assert.equal(snap.state,'playing','Player '+downedSlot+' death must not end a living team run');
+  assert.equal(snap.players[downedSlot-1].hp,0,'Player '+downedSlot+' must become a soul');
+  assert(snap.players[0].hp>0,'Host must remain alive');
+  // Host can also become a soul while a teammate remains active.
+  for(let hit=0;hit<3;hit++)room.testHit(1);
+  assert.equal(room.snapshot(false).state,'playing','Host death must not end team while others remain');
+}
+const duet=createRoomEngine();
+duet.join(2);duet.start();
+for(let hit=0;hit<3;hit++)duet.testHit(2);
+assert.equal(duet.snapshot(false).state,'playing','Second player down, first alive');
+assert.equal(duet.snapshot(false).guestPlayer.hp,0);
+for(let hit=0;hit<3;hit++)duet.testHit(1);
+assert.equal(duet.snapshot(false).state,'dead','Only end when all connected players are down');
+
+console.log('PASS: original game simulation runs server-side through Stage 2, with five independent players and correct co-op death conditions.');
