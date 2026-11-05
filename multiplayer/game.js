@@ -1331,12 +1331,15 @@
         ctx.lineTo(4.5,5);ctx.lineTo(-4.5,5);ctx.closePath();ctx.fill();
       }
       ctx.font='bold 10px monospace';
-      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.textAlign=m.edge==='left'?'left':m.edge==='right'?'right':'center';
+      ctx.textBaseline='middle';
       ctx.lineWidth=3;ctx.strokeStyle='#06161c';
       const label=m.dead?'SOUL · '+m.name:m.name;
-      const textY=m.y<130?31:-30;
-      ctx.strokeText(label,0,textY);
-      ctx.fillStyle=m.color;ctx.fillText(label,0,textY);
+      // Keep long names on-screen even when their arrow hugs the left/right edge.
+      const textX=m.edge==='left'?24:m.edge==='right'?-24:0;
+      const textY=m.edge==='top'?29:m.edge==='bottom'?-29:0;
+      ctx.strokeText(label,textX,textY);
+      ctx.fillStyle=m.color;ctx.fillText(label,textX,textY);
       ctx.restore();
     }
   }
