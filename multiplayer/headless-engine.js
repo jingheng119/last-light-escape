@@ -93,6 +93,7 @@ const bridge=`
 // The browser-only guestAction hook must never send WebSocket messages.
 const codeText=original.slice(0,cut)
   .replace('function guestAction(name){','function guestAction(name){return false;')
+  .replace("function developerSkip(fullStage=false){if(roomRole==='host'){sendRoom({type:'skip',fullStage});return;}","function developerSkip(fullStage=false){")
   +bridge;
 const fakeElement=()=>({
   textContent:'',dataset:{},getContext:()=>({}),children:[{textContent:''},{textContent:''}],
