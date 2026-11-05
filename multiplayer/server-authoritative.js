@@ -25,6 +25,11 @@ const safeDirection=input=>Number.isFinite(input?.x)&&Number.isFinite(input?.y)
   ?{x:Math.max(-1,Math.min(1,input.x)),y:Math.max(-1,Math.min(1,input.y))}:null;
 const safeRoomName=input=>typeof input==='string'
   ?input.replace(/[<>\u0000-\u001f]/g,'').trim().slice(0,32)||'Hollow Ward': 'Hollow Ward';
+const safeNickname=(input,id)=>{
+  const clean=typeof input==='string'
+    ?input.replace(/[<>\u0000-\u001f\u007f]/g,'').trim().slice(0,20):'';
+  return clean||'Survivor '+id;
+};
 function makeCode(){
   let value;
   do{value=randomBytes(3).toString('hex').toUpperCase();}while(rooms.has(value));
@@ -46,9 +51,14 @@ function publish(room,full=false){
   for(const ws of room.clients.values())send(ws,{type:'snapshot',snapshot});
 }
 function notifyRoom(room){
-  for(const ws of room.clients.values())send(ws,{
-    type:'roster',count:room.clients.size,capacity:MAX_PLAYERS,hostId:room.hostId
-  });
+  const roles=room.engine.snapshot(false).playerRoles;
+  const players=[...room.clients.entries()].map(([id,ws])=>({
+    id,name:ws.nickname||'Survivor '+id,role:roles[id-1]||'scout',
+    host:id===room.hostId
+  })).sort((a,b)=>a.id-b.id);
+  const update={type:'roster',count:room.clients.size,
+    capacity:MAX_PLAYERS,hostId:room.hostId,players};
+  for(const ws of room.clients.values())send(ws,update);
   broadcastLobby();
 }
 function createRoom(name){
@@ -79,6 +89,7 @@ function join(ws,room){
   if(room.clients.size>=MAX_PLAYERS)return send(ws,{type:'error',message:'Room is full'});
   const id=[1,2,3,4,5].find(id=>!room.clients.has(id));
   if(!id)return send(ws,{type:'error',message:'Room is full'});
+  ws.nickname=safeNickname(ws.pendingNickname,id);
   room.clients.set(id,ws);ws.room=room;ws.playerId=id;
   if(id===1&&room.clients.size>1)room.engine.rejoinHost();
   else if(id!==1)room.engine.join(id);
@@ -134,11 +145,13 @@ wss.on('connection',(ws,req)=>{
     if(m.type==='create'){
       if(ws.room)return send(ws,{type:'error',message:'Leave your current room first'});
       if(rooms.size>=MAX_ROOMS)return send(ws,{type:'error',message:'All room slots are occupied'});
+      ws.pendingNickname=m.nickname;
       return join(ws,createRoom(m.name));
     }
     if(m.type==='join'){
       if(typeof m.code!=='string'||!/^[0-9A-F]{6}$/.test(m.code))
         return send(ws,{type:'error',message:'Invalid room code'});
+      ws.pendingNickname=m.nickname;
       return join(ws,rooms.get(m.code));
     }
     if(m.type==='leave')return leave(ws);
@@ -151,9 +164,15 @@ wss.on('connection',(ws,req)=>{
       room.engine.input(id,safeKeys(m.keys),safeStick(m.joystick));
     }else if(m.type==='action'&&['dash','interact','decoy','ability'].includes(m.name))
       room.engine.action(id,m.name,safeDirection(m.direction));
-    else if(m.type==='role'&&['scout','medic'].includes(m.role))
-      room.engine.role(id,m.role);
-    else if(id===room.hostId){
+    else if(m.type==='role'&&['scout','medic'].includes(m.role)){
+      if(['menu','dead','victory'].includes(room.engine.status())){
+        room.engine.role(id,m.role);
+        notifyRoom(room);
+      }
+    }else if(m.type==='profile'){
+      ws.nickname=safeNickname(m.nickname,id);
+      notifyRoom(room);
+    }else if(id===room.hostId){
       if(m.type==='start'){room.engine.start();publish(room,true);broadcastLobby();}
       else if(m.type==='next'){room.engine.next();publish(room,true);broadcastLobby();}
       else if(m.type==='restart'){room.engine.restart();publish(room,true);}
