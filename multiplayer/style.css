@@ -1012,3 +1012,34 @@
     font-size:18px;
   }
 }
+
+
+/* Five-player lobby — keeps the same Hollow Ward visual language. */
+.online-lobby{border:1px solid #3d756e;border-radius:16px;padding:20px;background:linear-gradient(145deg,#102830,#0b1b24);color:#d9fff5;margin:12px 0 20px}
+.lobby-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.lobby-eyebrow{font:700 11px monospace;letter-spacing:2px;color:#78dbcd}
+.lobby-heading h2{font-size:23px;margin:5px 0;color:#effff9}
+.lobby-heading p{color:#adc9cb;margin:0 0 14px;font-size:14px;line-height:1.5}
+.lobby-count{display:flex;gap:10px;align-items:center;color:#acd2cd;font:12px monospace}
+.online-lobby button{cursor:pointer;background:#195b56;color:#fff;border:1px solid #65bcae;padding:9px 14px;border-radius:9px;font:600 13px inherit}
+.online-lobby button:hover:not(:disabled){background:#278175}
+.online-lobby button:disabled{opacity:.48;cursor:not-allowed}
+.online-lobby input{min-height:39px;max-width:100%;background:#0d242c;color:#fff;border:1px solid #477e80;padding:9px 12px;border-radius:8px}
+.online-lobby input:focus{outline:2px solid #6ce6c4;outline-offset:2px}
+.lobby-create,.room-search{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:11px 0}
+.lobby-create input{flex:1;min-width:160px}
+.lobby-create label,.room-search label,.available-title{font:700 11px monospace;color:#8fd9d2;letter-spacing:1px}
+.room-search input{width:145px}
+.available-title{display:flex;justify-content:space-between;gap:8px;margin:20px 0 10px}
+#roomListCaption{font-weight:400;letter-spacing:0;color:#9bb9b8}
+.room-directory{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:10px}
+.room-entry{border:1px solid #31575a;border-radius:11px;padding:12px;background:#102f37;display:flex;align-items:center;gap:12px;justify-content:space-between;min-width:0}
+.room-description{display:flex;flex-direction:column;gap:6px;min-width:0}
+.room-description strong{font-size:14px;color:#eefff7;overflow-wrap:anywhere}
+.room-description span{font:11px monospace;color:#a4cbca;line-height:1.4}
+.room-empty{margin:4px 0;padding:14px;border:1px dashed #3d706e;border-radius:10px;color:#9ec8c3;font-size:13px}
+.lobby-session-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.lobby-invite{color:#8ee8d0;overflow-wrap:anywhere;line-height:1.5;font-size:13px}
+.lobby-status{color:#b1d4d0;margin:11px 0 0}
+.lobby-ping{color:#b1d4d0;margin:6px 0 0;font:12px monospace}
+@media(max-width:600px){.online-lobby{padding:15px}.lobby-create,.room-search{align-items:stretch}.lobby-create label,.room-search label{width:100%}.lobby-create input,.room-search input{flex:1;width:auto}}
