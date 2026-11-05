@@ -43,7 +43,7 @@ try{
     socketStatus:document.querySelector('#networkStatus')?.textContent
   }));
   console.log('Join state:',JSON.stringify(joinState));
-  await second.waitForFunction(()=>document.querySelector('#roomStatus')?.textContent?.includes('Room joined'),null,{timeout:7000});
+  await second.waitForFunction(()=>document.querySelector('#networkStatus')?.textContent?.includes('PLAYER 2'),null,{timeout:7000});
   await first.locator('#primaryBtn').click();
   await first.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='playing',{timeout:8000});
   await second.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='playing',{timeout:8000});
