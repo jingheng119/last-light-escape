@@ -87,17 +87,33 @@ try{
   catalog.send(JSON.stringify({type:'list'}));
   const listing=await waitFor(catalog,m=>m.type==='rooms'&&m.rooms.some(x=>x.code===joined.code));
   assert(listing.rooms.find(x=>x.code===joined.code).capacity===5);
+  let fifthPlayer=null,fifthToken=null;
   for(let id=3;id<=5;id++){
     const newcomer=await open();
     newcomer.send(JSON.stringify({type:'join',code:joined.code}));
     const received=await waitFor(newcomer,m=>m.type==='joined');
     assert.equal(received.id,id);
+    if(id===5){fifthPlayer=newcomer;fifthToken=received.reconnectToken;}
     const snap=await waitFor(newcomer,m=>m.type==='snapshot'&&
       m.snapshot.players?.filter(Boolean).length===id);
     assert.equal(snap.snapshot.players.filter(Boolean).length,id);
     newcomer.send(JSON.stringify({type:'action',name:'dash',direction:{x:1,y:0}}));
     await waitFor(newcomer,m=>m.type==='snapshot'&&m.snapshot.players?.[id-1]?.dashCooldown>0);
   }
+  // A full room keeps a brief private reservation for the fifth player.
+  // Its return must not create another seat or reset dash health/state.
+  const fifthBefore=wsMessages.get(fifthPlayer)
+    .filter(m=>m.type==='snapshot'&&m.snapshot.players?.[4]).at(-1).snapshot;
+  fifthPlayer.close();
+  await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.players?.[4]===null);
+  const fifthBack=await open();
+  fifthBack.send(JSON.stringify({type:'resume',code:joined.code,token:fifthToken}));
+  const fifthResumed=await waitFor(fifthBack,m=>m.type==='joined'&&m.resumed);
+  assert.equal(fifthResumed.id,5);
+  const fifthAfter=await waitFor(fifthBack,m=>m.type==='snapshot'&&m.snapshot.players?.[4]);
+  assert.equal(fifthAfter.snapshot.players[4].hp,fifthBefore.players[4].hp);
+  assert.equal(fifthAfter.snapshot.players[4].x,fifthBefore.players[4].x);
+  assert.equal(fifthAfter.snapshot.playerRoles[4],fifthBefore.playerRoles[4]);
   const overflow=await open();
   overflow.send(JSON.stringify({type:'join',code:joined.code}));
   await waitFor(overflow,m=>m.type==='error'&&m.message==='Room is full');
