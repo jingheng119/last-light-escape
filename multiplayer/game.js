@@ -82,7 +82,7 @@
     if(!status)return;
     const label=remotePingMs===null?'measuring…':Math.round(remotePingMs)+' ms';
     const healthy=remotePingMs!==null&&remotePingMs<180;
-    status.textContent=(roomRole==='host'?'HOST':'PLAYER 2')+' · SERVER '+label+
+    status.textContent=(roomRole==='host'?'HOST':'PLAYER '+roomPlayerId)+' · SERVER '+label+
       (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
