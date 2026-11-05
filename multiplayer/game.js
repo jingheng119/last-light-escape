@@ -45,6 +45,9 @@
   };
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
   let roomTiles = new Set(), noiseEvents = [], survivor = null, technician = null;
+  // Slots 3–5 are simulated on the server, with the same original rules.
+  // Browser snapshots use remotePlayers to render every teammate.
+  let extraPlayers=[null,null,null],remotePlayers=[],roomPlayerId=0;
   let runSeed=0;
   let roomRole='none',roomSocket=null,roomCount=0,guestPlayer=null,lastSync=0,lastInput=0,lastLevel=-1,lastSentStaticLevel=-1,lastFullSnapshot=0,remotePingAt=0,remotePingMs=null,lastGuestUIAt=0;
   let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout',guestContextHost=null;
@@ -84,6 +87,28 @@
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
   function newGuest(){guestPlayer=structuredClone(player);guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.trail=[];}
+  function allPlayers(){
+    // During a temporary asGuest context, player and guestPlayer exchange roles.
+    return [player,guestPlayer,...extraPlayers].filter(Boolean);
+  }
+  function withExtra(slot,fn){
+    const i=slot-3,extra=extraPlayers[i];
+    if(!extra)return;
+    const originalGuest=guestPlayer,originalKeys=remoteKeys,originalStick=remoteStick,
+      originalRole=guestClassChoice;
+    guestPlayer=extra;
+    remoteKeys=extraControls[i]?.keys||{up:false,down:false,left:false,right:false};
+    remoteStick=extraControls[i]?.stick||{x:0,y:0};
+    guestClassChoice=extraControls[i]?.role||'scout';
+    try{asGuest(fn);}
+    finally{
+      extraPlayers[i]=guestPlayer;guestPlayer=originalGuest;remoteKeys=originalKeys;
+      remoteStick=originalStick;guestClassChoice=originalRole;
+    }
+  }
+  let extraControls=[0,1,2].map(()=>({
+    keys:{up:false,down:false,left:false,right:false},stick:{x:0,y:0},role:'scout'
+  }));
   function asGuest(fn){
     if(!guestPlayer)return;
     const own=player,keys=moveHeld,jx=joystickMove.x,jy=joystickMove.y,ownClass=classChoice;
@@ -146,12 +171,7 @@
   // A room with one player has one exit requirement; a room with two
   // players requires BOTH survivors to reach the elevator together.
   // All living players must reach the elevator; a downed player spectates.
-  const playersAtExit=()=>{
-    // During remote action handling player temporarily aliases the guest.
-    const host=guestContextHost||player;
-    return (host.hp<=0||dist(host,exit)<1.1)&&
-      (!guestPlayer||guestPlayer.hp<=0||dist(guestPlayer,exit)<1.1);
-  };
+  const playersAtExit=()=>allPlayers().every(p=>p.hp<=0||dist(p,exit)<1.1);
   let skillWaves = [];
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
@@ -259,7 +279,7 @@
   function cameraTarget(){
     const viewW=W/CAMERA_ZOOM,viewH=H/CAMERA_ZOOM;
     // Eliminated players spectate their surviving teammate.
-    const focus=player.hp<=0&&guestPlayer?.hp>0?guestPlayer:player;
+    const focus=player.hp<=0?(remotePlayers.find(p=>p.hp>0)||guestPlayer||player):player;
     return {
       x:clamp(focus.x*TILE-viewW/2,0,Math.max(0,COLS*TILE-viewW)),
       y:clamp(focus.y*TILE-viewH/2,0,Math.max(0,ROWS*TILE-viewH))
@@ -278,6 +298,8 @@
     // A downed player returns with one heart at the start of the next floor.
     const carriedHealth=index>0&&player?Math.max(1,Math.min(3,player.hp)):3;
     const guestCarriedHealth=index>0&&guestPlayer?Math.max(1,Math.min(3,guestPlayer.hp)):3;
+    const extraCarriedHealth=extraPlayers.map(p=>index>0&&p?Math.max(1,Math.min(3,p.hp)):3);
+    const extraActive=extraPlayers.map(Boolean);
     levelIndex=index;const cfg=CONFIGS[index];
     COLS=cfg.stage===2?STAGE_TWO_SIZE.cols:31;
     ROWS=cfg.stage===2?STAGE_TWO_SIZE.rows:21;
@@ -297,7 +319,13 @@
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
     player={...TILE_CENTER(1,1),hp:carriedHealth,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
-    if(roomRole==='host'&&roomCount>1){newGuest();guestPlayer.hp=guestCarriedHealth;}
+    if(roomRole==='host'&&guestPlayer){newGuest();guestPlayer.hp=guestCarriedHealth;}
+    for(let i=0;i<3;i++){
+      if(extraActive[i]){
+        extraPlayers[i]=structuredClone(player);
+        extraPlayers[i].hp=extraCarriedHealth[i];
+      }
+    }
     hollows=[];
     for(let i=0;i<cfg.enemies;i++) {
       const p=selectSpot(reserved,cfg.stage===2?8:5,distances,false);reserved.push(p);
@@ -638,9 +666,9 @@
   }
   function followAlly(ally,dt){
     if(!ally)return;
-    const target=player.hp<=0&&guestPlayer?.hp>0?guestPlayer:
-      guestPlayer?.hp>0&&dist(ally,guestPlayer)<dist(ally,player)?guestPlayer:player;
-    if(!ally.rescued||ally.extracted||dist(ally,target)<1.05)return;
+    const living=allPlayers().filter(p=>p.hp>0);
+    const target=living.sort((a,b)=>dist(a,ally)-dist(b,ally))[0];
+    if(!target||!ally.rescued||ally.extracted||dist(ally,target)<1.05)return;
     ally.repath-=dt;
     if(ally.repath<=0){ally.followPath=pathTo(ally,target);ally.followIndex=0;ally.repath=.32;}
     if(ally.followIndex<ally.followPath.length){
@@ -662,25 +690,18 @@
   const REVIVE_SECONDS=5;
   const REVIVE_RADIUS=1.5; // Measured in maze tiles, not pixels.
   function updateSoulRevival(dt){
-    if(!guestPlayer||state!=='playing')return;
-    for(const [soul,rescuer] of [[player,guestPlayer],[guestPlayer,player]]){
+    if(state!=='playing')return;
+    const alive=allPlayers().filter(p=>p.hp>0);
+    for(const soul of allPlayers()){
       if(soul.hp>0)continue;
-      // The count must be continuous. Walking out of range restarts it.
-      if(rescuer.hp<=0||dist(soul,rescuer)>REVIVE_RADIUS||!clearLine(soul,rescuer)){
-        soul.reviveProgress=0;
-        continue;
-      }
+      const nearby=alive.some(rescuer=>dist(soul,rescuer)<=REVIVE_RADIUS&&clearLine(soul,rescuer));
+      if(!nearby){soul.reviveProgress=0;continue;}
       soul.reviveProgress=Math.min(REVIVE_SECONDS,(soul.reviveProgress||0)+dt);
       if(soul.reviveProgress>=REVIVE_SECONDS){
-        soul.hp=1;
-        soul.invincible=2.5;
-        soul.dashTime=0;
-        soul.dashCooldown=0;
-        soul.reviveProgress=0;
-        soul.trail=[];
+        soul.hp=1;soul.invincible=2.5;soul.dashTime=0;soul.dashCooldown=0;
+        soul.reviveProgress=0;soul.trail=[];
         notify('SOUL REVIVED — ONE HEART RESTORED!',3);
-        beep(930,.35,'sine',.038);
-        updateUI();
+        beep(930,.35,'sine',.038);updateUI();
       }
     }
   }
@@ -725,8 +746,8 @@
     if(player.hp<=0){
       player.hp=0;
       player.reviveProgress=0;
-      const otherPlayer=guestContextHost||guestPlayer;
-      if(!otherPlayer||otherPlayer.hp<=0){
+      const others=allPlayers().filter(p=>p!==player&&p.hp>0);
+      if(!others.length){
         state='dead';
         setOverlay('SIGNAL LOST','All players have lost their hearts. Try again together.','TRY AGAIN','THE MAZE REMAINS THE SAME — YOU CAN LEARN IT');
       }else{
@@ -772,8 +793,8 @@
     let danger=0;
     for(const h of hollows){
       // Avoid targeting a downed player if their teammate is still alive.
-      const nearest=player.hp<=0&&guestPlayer?.hp>0?guestPlayer:
-        guestPlayer?.hp>0&&dist(h,guestPlayer)<dist(h,player)?guestPlayer:player;
+      const nearest=allPlayers().filter(p=>p.hp>0)
+        .sort((a,b)=>dist(h,a)-dist(h,b))[0]||player;
       if(h.stunned>0){h.stunned=Math.max(0,h.stunned-dt);h.dashTime=0;h.wobble+=dt*5;continue;}
       // Five Stage II Dashers lunge along their movement/chase direction.
       if(h.variant==='dasher'){
@@ -941,12 +962,18 @@
     clock+=dt;if(toastUntil<clock)ui.toast.classList.remove('show');
     hitFlash=Math.max(0,hitFlash-dt);ui.flash.style.opacity=(hitFlash*.4).toFixed(2);
     if(state!=='playing')return;
-    elapsed+=dt;overallElapsed+=dt;updatePlayer(dt);if(guestPlayer)asGuest(()=>updatePlayer(dt));if(state!=='playing')return;
+    elapsed+=dt;overallElapsed+=dt;
+    updatePlayer(dt);
+    if(guestPlayer)asGuest(()=>updatePlayer(dt));
+    for(let slot=3;slot<=5;slot++)withExtra(slot,()=>updatePlayer(dt));
+    if(state!=='playing')return;
     updateSurvivor(dt);updateHollows(dt);
     for(const wave of skillWaves)wave.age+=dt;
     skillWaves=skillWaves.filter(wave=>wave.age<wave.duration);
     // Check AFTER ghosts move, including when the player is stationary.
-    checkGhostContact();if(guestPlayer)asGuest(()=>checkGhostContact());
+    checkGhostContact();
+    if(guestPlayer)asGuest(()=>checkGhostContact());
+    for(let slot=3;slot<=5;slot++)withExtra(slot,()=>checkGhostContact());
     if(state!=='playing')return;
     updateSoulRevival(dt);
     ambientAudio();
