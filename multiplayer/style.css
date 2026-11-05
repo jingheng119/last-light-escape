@@ -1043,3 +1043,32 @@
 .lobby-status{color:#b1d4d0;margin:11px 0 0}
 .lobby-ping{color:#b1d4d0;margin:6px 0 0;font:12px monospace}
 @media(max-width:600px){.online-lobby{padding:15px}.lobby-create,.room-search{align-items:stretch}.lobby-create label,.room-search label{width:100%}.lobby-create input,.room-search input{flex:1;width:auto}}
+
+
+/* Dedicated Lobby and Game routes: keep one persistent socket across screens. */
+#lobbyPage[hidden],#playPage[hidden],#roomBrowser[hidden],#roomSession[hidden]{display:none!important}
+.show-lobby .shell{max-width:1120px}
+.show-lobby .page-lobby{min-height:calc(100vh - 190px)}
+.show-lobby .online-lobby{margin:26px 0 52px;padding:28px;border-radius:20px;box-shadow:0 18px 75px #0005}
+.show-lobby .lobby-heading h2{font-size:clamp(26px,3vw,36px)}
+.show-lobby .lobby-heading p{max-width:620px}
+.show-lobby .room-directory{grid-template-columns:repeat(auto-fit,minmax(min(100%,315px),1fr));gap:14px}
+.show-lobby .room-entry{padding:18px}
+.show-lobby #roomSession{padding:24px 0 8px}
+.show-lobby .lobby-session-actions{display:flex;gap:9px;flex-wrap:wrap}
+.game-page-nav{display:flex;align-items:center;gap:16px;justify-content:space-between;
+  background:#0c242c;border:1px solid #356467;border-radius:12px;padding:13px 16px;margin:12px 0 16px;color:#ccf6ed}
+.game-page-nav button{background:#124c49;color:#dffff5;border:1px solid #489b8f;border-radius:8px;
+  padding:9px 13px;font-family:inherit;font-weight:700;cursor:pointer}
+.game-page-nav button:hover{background:#1b6c62}
+.game-room-details{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}
+.game-room-details strong{font-size:13px;letter-spacing:.5px}
+.game-room-details span{font:11px monospace;color:#83c9c5}
+.game-nav-leave{border-color:#806068!important;background:#382e38!important}
+.game-nav-leave:hover{background:#66404b!important}
+@media(max-width:650px){
+  .show-lobby .online-lobby{margin:16px 0 30px;padding:16px}
+  .game-page-nav{gap:9px;flex-wrap:wrap}
+  .game-room-details{order:-1;width:100%;justify-content:space-between}
+  .game-page-nav button{flex:1}
+}
