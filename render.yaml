@@ -1,12 +1,12 @@
 # Online multiplayer trial — original public single-player site remains on main.
-# Reconnection-enabled five-player lobby runs from feature/player-reconnection; the original game on main is unchanged.
+# Persistent completed-match database runs from feature/persistent-match-results; the original game on main is unchanged.
 services:
   - type: web
     runtime: node
     name: last-light-online-trial
     region: singapore
     plan: free
-    branch: feature/player-reconnection
+    branch: feature/persistent-match-results
     rootDir: multiplayer
     buildCommand: npm install --omit=dev
     startCommand: npm start
