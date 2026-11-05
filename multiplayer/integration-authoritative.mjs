@@ -2,10 +2,11 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
 import WebSocket from 'ws';
+import { fileURLToPath } from 'node:url';
 
 const PORT=34579;
 const processServer=spawn(process.execPath,['server-authoritative.js'],{
-  cwd:new URL('.',import.meta.url).pathname,
+  cwd:fileURLToPath(new URL('.',import.meta.url)),
   env:{...process.env,PORT:String(PORT),HOST:'127.0.0.1'},
   stdio:['ignore','pipe','pipe']
 });
