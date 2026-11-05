@@ -2,6 +2,8 @@ name: Authoritative multiplayer smoke
 on:
   push:
     branches: [feature/server-authoritative]
+  pull_request:
+    branches: [feature/multiplayer-phase1]
   workflow_dispatch:
 jobs:
   smoke:
