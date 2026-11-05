@@ -136,7 +136,7 @@ try{
   assert(await first.locator('.room-entry').filter({hasText:otherRoom}).isVisible());
   assert(await first.locator('.room-entry').filter({hasText:otherRoom}).locator('button').isDisabled(),
     'Other rooms should remain visible but not joinable until current room is left');
-  await first.locator('.room-entry').filter({hasText:room}).locator('button').click();
+  await first.locator('#myRoomCard #returnToGame').click();
   assert.equal(new URL(first.url()).pathname,'/play');
   assert.equal((await first.evaluate(()=>window.__lastLightDiagnostics())).roomPlayerId,1);
 
