@@ -774,7 +774,7 @@
     // The soul artwork stays visible; only show a timer during an active revive.
     if(progress>0)ctx.fillText('REVIVING '+(REVIVE_SECONDS-(soul.reviveProgress||0)).toFixed(1)+'s',x,y-28);
   }
-  function damage(){if(player.hp<=0||player.invincible>0||player.dashTime>0||state!=='playing')return;
+  function damage(){if(player.hp<=0||player.disconnected||player.invincible>0||player.dashTime>0||state!=='playing')return;
     player.hp--;player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
     // On the final hit, keep the soul at the exact place the player fell.
     // Surviving players are still teleported to start as in the original game.
@@ -798,7 +798,7 @@
     updateUI();
   }
   function updatePlayer(dt){
-    if(player.hp<=0)return;
+    if(player.hp<=0||player.disconnected)return;
     player.invincible=Math.max(0,player.invincible-dt);player.dashCooldown=Math.max(0,player.dashCooldown-dt);
     player.abilityCooldown=Math.max(0,player.abilityCooldown-dt);
     player.decoyCooldown=Math.max(0,player.decoyCooldown-dt);
@@ -824,7 +824,7 @@
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
   function checkGhostContact(){
-    if(state!=='playing'||player.hp<=0||player.invincible>0||player.dashTime>0)return;
+    if(state!=='playing'||player.hp<=0||player.disconnected||player.invincible>0||player.dashTime>0)return;
     // Hollows follow tile-centre paths; allow contact at their visible edge,
     // including when the player is stationary off-centre inside the same tile.
     // Require a clear path to avoid hitting through a wall.
