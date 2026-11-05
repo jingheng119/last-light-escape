@@ -1069,12 +1069,29 @@
     ctx.fillStyle='#0000000a';
     for(let y=0;y<H;y+=4)ctx.fillRect(0,y,W,1);
   }
+  // Simulation must not depend on requestAnimationFrame: browsers throttle
+  // inactive tabs, which previously froze the host whenever the guest tab
+  // was being controlled on the same computer.
+  let simulationLast=performance.now();
+  setInterval(()=>{
+    const now=performance.now();
+    const dt=Math.min(.10,Math.max(0,(now-simulationLast)/1000));
+    simulationLast=now;
+    if(roomRole==='host'){
+      // Catch up safely after the tab was suspended, without huge physics jumps.
+      const steps=Math.max(1,Math.ceil(dt/.035));
+      for(let i=0;i<steps;i++)update(dt/steps);
+      if(now-lastSync>=100){lastSync=now;sendSnapshot();}
+    }else if(roomRole==='guest'&&now-lastInput>=50){
+      lastInput=now;
+      sendRoom({type:'input',keys:moveHeld,joystick:joystickMove});
+    }
+  },35);
   function tick(timestamp){
     const dt=Math.min(.045,Math.max(0,(timestamp-lastFrame)/1000||0));
     lastFrame=timestamp;frameIndex++;
-    if(roomRole!=='guest')update(dt);
-    if(roomRole==='host'&&timestamp-lastSync>100){lastSync=timestamp;sendSnapshot();}
-    if(roomRole==='guest'&&timestamp-lastInput>50){lastInput=timestamp;sendRoom({type:'input',keys:moveHeld,joystick:joystickMove});}
+    // Rendering stays on animation frames; room physics continues in the
+    // simulation timer even when the host tab is in the background.
     updateMusic();
     if(state==='playing')updateCamera(dt);
     draw();
@@ -1083,12 +1100,12 @@
   const keyMap={w:'up',arrowup:'up',s:'down',arrowdown:'down',a:'left',arrowleft:'left',d:'right',arrowright:'right'};
   document.addEventListener('keydown', e => {
     const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k))e.preventDefault();
-    if(keyMap[k])moveHeld[keyMap[k]]=true;
+    if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole==='guest')sendRoom({type:'input',keys:moveHeld,joystick:joystickMove});}
     if(e.repeat)return;
     if(k==='m'){if(roomRole==='host')developerSkip(e.shiftKey);return;}
     if(k===' ')dash();else if(k==='q')triggerDecoy();else if(k==='e')interact();else if(k==='f')activateAbility();else if(k==='p'||k==='escape')pause();else if(k==='enter'&&state!=='playing')advance();else if(k==='r'&&state==='playing'&&roomRole==='host'){buildLevel(levelIndex);notify('Floor restarted.');}
   });
-  document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir)moveHeld[dir]=false;});
+  document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir){moveHeld[dir]=false;if(roomRole==='guest')sendRoom({type:'input',keys:moveHeld,joystick:joystickMove});}});
   window.addEventListener('blur',()=>{moveHeld={up:false,down:false,left:false,right:false};if(state==='playing'&&roomRole==='none')pause();});
   $('#primaryBtn').addEventListener('click',advance);
   document.querySelectorAll('.role-option').forEach(card=>{
