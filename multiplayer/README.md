@@ -47,3 +47,24 @@ untouched there.
 
 The prior verified **two-player** server-authoritative version remains on
 `feature/server-authoritative`, providing an easy rollback path.
+
+## Separate Lobby and Game pages
+
+The home route `/` is the **Survivor Lobby**. It shows room discovery,
+creation, occupancy, and invite-code joining, without displaying the game.
+Joining or creating a room navigates to `/play?room=CODE`, a dedicated
+game view with controls, HUD, game canvas and room navigation.
+
+Both routes are rendered from the same HTML app on purpose: switching
+pages via browser history preserves the same WebSocket connection and
+server-assigned player slot. **Survivor Lobby** returns to the lobby
+without leaving the room, **Return to game** restores the game screen,
+and **Leave Room** exits the room and frees the slot. A direct `/play`
+invite in a new browser connects and joins automatically.
+
+The Node server serves `/`, `/play`, and `/play/` with the correct
+HTML content type. GitHub's Chromium test verifies route changes,
+visibility, preserving live room membership, direct invites and normal
+five-player gameplay. A reload will open a new WebSocket session, so
+players should use the in-page lobby button rather than browser reload
+when switching between lobby and game.
