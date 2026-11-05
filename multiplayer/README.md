@@ -49,3 +49,7 @@ You can alternatively create a **Web Service** manually, using these settings: r
 - **A cold-start delay:** this is a known Free tier limitation.
 - **The host leaves:** the room closes. This is expected in the current prototype.
 - **Unexpected game changes during a deployment:** restart the room after a new release; mid-session updates are not hot-swappable.
+
+## Online movement latency improvement
+
+The joining player now predicts their own movement immediately using the original maze collision rules, and incoming host snapshots gently correct small errors. Actions, enemy hits, core pickups, exits and win/loss decisions remain authoritative on the room host. The goal is to make controls feel less delayed over internet round trips; this does not reduce network ping or make the simulation dedicated-server authoritative. Test both straight corridors, turns against walls, dashing, and reviving after deployment.
