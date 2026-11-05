@@ -61,7 +61,23 @@ try{
   await sleep(350);
   await first.keyboard.up('d');await second.keyboard.up('s');
   await second.keyboard.press('Space');
+  await sleep(400);
+  let p1=await first.evaluate(()=>window.__lastLightDiagnostics());
+  let p2=await second.evaluate(()=>window.__lastLightDiagnostics());
+  // Both clients must render the SAME server positions. The camera may ease
+  // independently, but player coordinates and dash collision rules must not.
+  const delta=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+  assert(p1.allyPosition&&p2.allyPosition,'Both clients should see both players');
+  assert(delta(p1.playerPosition,p2.allyPosition)<.24,
+    'Player 1 diverged from the position seen by Player 2');
+  assert(delta(p2.playerPosition,p1.allyPosition)<.24,
+    'Player 2 diverged from the position seen by Player 1');
+  assert(p2.dashCooldown>0,'Player 2 dash should be authoritative');
   await sleep(300);
+  p1=await first.evaluate(()=>window.__lastLightDiagnostics());
+  p2=await second.evaluate(()=>window.__lastLightDiagnostics());
+  assert(delta(p1.playerPosition,p2.allyPosition)<.24);
+  assert(delta(p2.playerPosition,p1.allyPosition)<.24);
   if(problems.length)throw new Error('Browser JS errors: '+problems.join(' | '));
   console.log('PASS: Both real browsers leave Start menu, render shared room and accept inputs.');
 }catch(e){
