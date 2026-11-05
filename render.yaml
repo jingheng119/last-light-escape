@@ -11,4 +11,4 @@ services:
     buildCommand: npm install --omit=dev
     startCommand: npm start
     healthCheckPath: /health
-    autoDeployTrigger: onCommit
+    autoDeployTrigger: commit
