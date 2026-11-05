@@ -209,8 +209,8 @@ try{
   assert.equal(markers.dead.length,1,'Fallen offscreen soul remains trackable');
   assert.equal(markers.dead[0].dead,true);
   for(const m of markers.offscreen){
-    assert(m.x>=30&&m.x<=962&&m.y>=98&&m.y<=596,
-      'Teammate direction marker must stay inside the visible HUD margins');
+    assert(m.x>=14&&m.x<=978&&m.y>=84&&m.y<=624,
+      'Teammate arrow must stay inside the updated near-edge HUD margins');
   }
   assert(await first.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
   assert(await second.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
