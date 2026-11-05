@@ -56,6 +56,10 @@ wss.on('connection',(ws,req)=>{
   ws.on('message',raw=>{
     let msg;try{msg=JSON.parse(raw.toString());}catch{return;}
     if(!msg||typeof msg!=='object'||typeof msg.type!=='string')return;
+    // Keep latency measurement tiny and independent of host game frames.
+    if(msg.type==='ping'&&typeof msg.at==='number'&&Number.isFinite(msg.at)){
+      send(ws,{type:'pong',at:msg.at});return;
+    }
     if(msg.type==='create'&&!ws.room){
       const room={code:makeCode(),players:new Map(),lastSnapshot:null};rooms.set(room.code,room);join(ws,room);return;
     }
