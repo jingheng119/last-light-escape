@@ -1478,6 +1478,7 @@
     }
     if(activePage==='play'){
       updateMusic();
+      if(roomRole!=='none')ambientAudio();
       if(state==='playing')updateCamera(dt);
       draw();
     }
@@ -1624,6 +1625,8 @@
       lastLevel=d.levelIndex;runSeed=d.runSeed;buildLevel(d.levelIndex);
     }
     const previous=state;
+    const priorAudioPlayer=previous==='playing'&&player&&
+      lastLevel===d.levelIndex?player:null;
     if(Array.isArray(d.grid))grid=d.grid;
     if(Array.isArray(d.cells))cells=d.cells;
     if(Array.isArray(d.roomTiles))roomTiles=new Set(d.roomTiles);
@@ -1639,6 +1642,19 @@
       notify(authoritative.hp>0?'A HOLLOW HIT YOU!':'SIGNAL LOST — WAIT FOR RESCUE',1.5);
     }
     guestPreviousHP=authoritative.hp;
+    // In multiplayer the server executes actions, so browser-side dash(),
+    // interact() and skill() return before their sound effects. Play local
+    // feedback only after the server confirms the action in a snapshot.
+    // Never predict cooldowns or movement here.
+    if(priorAudioPlayer&&d.state==='playing'&&soundEnabled&&activePage==='play'){
+      if(authoritative.dashTime>0&&priorAudioPlayer.dashTime<=0&&
+         authoritative.dashCooldown>priorAudioPlayer.dashCooldown+.05)
+        beep(220,.17,'sawtooth',.019);
+      if(authoritative.abilityCooldown>priorAudioPlayer.abilityCooldown+.1)
+        beep(classChoice==='medic'?740:620,.20,'triangle',.018);
+      if(authoritative.decoys<priorAudioPlayer.decoys)
+        beep(850,.22,'square',.016);
+    }
     player=authoritative;
     remotePlayers=occupants.map((p,i)=>p&&i!==roomPlayerId-1?{...p,slot:i+1}:null).filter(Boolean);
     guestPlayer=remotePlayers[0]||null;
@@ -1890,10 +1906,12 @@
     connectSocket();
     create.addEventListener('click',()=>{
       if(roomRole!=='none')return;
+      unlockGameAudio();
       sendRoom({type:'create',name:roomName.value.trim()||'Hollow Ward',
         nickname:nameForServer()});
     });
     join.addEventListener('click',()=>{
+      unlockGameAudio();
       const value=code.value.trim().toUpperCase();
       if(!/^[0-9A-F]{6}$/.test(value)){
         status.textContent='Enter a valid six-character room code.';return;
@@ -1904,7 +1922,17 @@
     $('#leaveRoom').addEventListener('click',()=>{clearSession();sendRoom({type:'leave'});});
     $('#leaveGameRoom').addEventListener('click',()=>{clearSession();sendRoom({type:'leave'});});
     $('#backToLobby').addEventListener('click',()=>showPage('lobby'));
-    $('#returnToGame').addEventListener('click',()=>showPage('play'));
+    $('#returnToGame').addEventListener('click',()=>{unlockGameAudio();showPage('play');});
+    // Room cards and invitation links may join directly without using the
+    // Join by Code button. Unlock sound on their actual click gesture too.
+    directory.addEventListener('click',event=>{
+      if(event.target.closest('button'))unlockGameAudio();
+    });
+    // Direct invite/reconnect visitors can unlock sound with their first
+    // in-game input. Do not attempt autoplay on unsolicited socket messages.
+    document.addEventListener('pointerdown',()=>{
+      if(activePage==='play'&&!soundEnabled)unlockGameAudio();
+    },{capture:true});
     window.addEventListener('popstate',()=>{
       showPage(location.pathname==='/play'?'play':'lobby',false);
     });
