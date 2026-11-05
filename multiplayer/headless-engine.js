@@ -77,7 +77,7 @@ const bridge=`
     snapshot(full){
       const value={
         state,levelIndex,runSeed,elapsed,overallElapsed,clock,alertLevel,
-        player,guestPlayer,cores,relay,exit,decoys,skillWaves,survivor,technician,
+        player,guestPlayer,cores,relay,exit,decoys,noiseEvents,skillWaves,survivor,technician,
         classChoice,guestClassChoice,
         hollows:hollows.map(h=>({
           x:h.x,y:h.y,angle:h.angle,variant:h.variant,
