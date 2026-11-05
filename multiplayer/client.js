@@ -74,7 +74,6 @@ function draw() {
     ctx.lineWidth=2;
     ctx.stroke();
     ctx.lineWidth=1;
-    }
   }
   for(const p of players){
     const color = p.id === me ? '#79f3cc' : '#ffa96e';
