@@ -1,77 +1,108 @@
-# Last Light — server-authoritative multiplayer (experimental branch)
+# Last Light — Five-player co-op lobby (experimental)
 
-**Branch:** `feature/server-authoritative`
+**Development branch:** `feature/five-player-lobby`
 
-The original game simulation (all 18 floors, Hollows, Dashers, damage, skills,
-survivors, relays, soul revival, objectives and victory) now runs inside a
-dedicated **Node.js room engine**. Each browser sends movement and action
-requests; it does not run enemy or damage logic.
+The game now includes a public lobby listing all active rooms by name, room
+code, activity and occupancy, updated live over WebSocket. Anyone can create
+a named room or join an existing room using its Join button or a six-character
+invite code. Each room supports **up to five players**. The sixth is rejected.
+The lobby is part of the existing web game; no new account is required.
 
-The known-working host-authoritative multiplayer remains unchanged on
-`feature/multiplayer-phase1`. The existing Render deployment still serves
-that branch until manually switched.
+Each room owns one dedicated server simulation. Players 1–5 have independent
+controls, roles (Scout or Medic), dash cooldowns, hearts and character
+positions. Hollows target any living connected player. Any living teammate
+may revive a downed one by staying nearby for five seconds. The elevator
+requires all living connected teammates to be present. Separate player
+colors/labels and lighting are rendered locally in the browser.
 
-## Local test — Windows CMD
+The room creator starts the run and advances floors. If the creator leaves,
+host controls transfer to the oldest remaining connected player. Joining a
+room mid-run is supported, with the joining player spawning at the beginning
+of the current floor. Room state remains in memory and is lost if Render
+restarts, which is expected with the Free hosting plan.
 
-Stop any old `node --watch server.js` process using Ctrl+C first, to release port 3001.
+## Test before deploying
 
-From the **repository root**, run:
+Run from the repository root:
 
-```cmd
+```bash
 git fetch origin
-git switch --track origin/feature/server-authoritative
+git switch --track origin/feature/five-player-lobby
 cd multiplayer
 npm install
 npm test
 npm start
 ```
 
-If the branch already exists locally, use `git switch feature/server-authoritative`
-instead of `git switch --track ...`.
+Open `http://localhost:3001/` in five browser sessions, create a room, join
+it from the directory and verify the lobby displays `5 / 5` and disables
+its Join button. Test movement, dash, soul revival, Hollow hits, elevator
+progression, role selection, departure and host transfer.
 
-Then open http://localhost:3001/ in two browsers or two tabs. Create a room,
-start, join using the room code and test independently moving both players.
-Try dashing near Hollows, taking damage, 5-second soul revival, completing an
-elevator and Stage 2 progression.
+Our automated tests exercise the headless five-player game engine, real
+WebSocket clients and five Chromium browser sessions. A live internet
+playthrough on Render is still required before considering this a stable
+release. Do **not** merge directly into `main`; the original game remains
+untouched there.
 
-The new server runs from `server-authoritative.js`; do **not** launch the
-old `server.js` relay on this branch.
+The prior verified **two-player** server-authoritative version remains on
+`feature/server-authoritative`, providing an easy rollback path.
 
-## What's different
+## Separate Lobby and Game pages
 
-- The server owns the room's full state and runs the **original game's rules** through
-  `headless-engine.js`. This adapter removes browser-only rendering/network hooks
-  and stubs DOM elements; it does not rewrite the combat mechanics from scratch.
-- `game.js` in each browser only sends inputs, predicts its own movement for
-  responsiveness, and renders server-owned snapshots.
-- Both players' dash, ghost collision, health, level objectives and revival
-  are decided by the server. Browsers cannot declare victory or damage.
-- The simulation can continue after the room creator disconnects, provided
-  another player remains connected.
-- One-player rooms use the same simulation as two-player rooms.
+The home route `/` is the **Survivor Lobby**. It shows room discovery,
+creation, occupancy, and invite-code joining, without displaying the game.
+Joining or creating a room navigates to `/play?room=CODE`, a dedicated
+game view with controls, HUD, game canvas and room navigation.
 
-## Validation
+Both routes are rendered from the same HTML app on purpose: switching
+pages via browser history preserves the same WebSocket connection and
+server-assigned player slot. **Survivor Lobby** returns to the lobby
+without leaving the room, **Return to game** restores the game screen,
+and **Leave Room** exits the room and frees the slot. A direct `/play`
+invite in a new browser connects and joins automatically.
 
-Run `npm test` for the Node-only gameplay smoke test. It checks room start,
-two players, dashing, Stage 2 Floor 1 and Floor 9, and survival after the
-original host leaves. Network integration and full real-world co-op gameplay
-still require manual testing.
+The Node server serves `/`, `/play`, and `/play/` with the correct
+HTML content type. GitHub's Chromium test verifies route changes,
+visibility, preserving live room membership, direct invites and normal
+five-player gameplay. A reload will open a new WebSocket session, so
+players should use the in-page lobby button rather than browser reload
+when switching between lobby and game.
 
-## Online release
+## Player nicknames and lobby roster
 
-The new branch contains a `render.yaml` targeting
-`feature/server-authoritative`, but **it is not deployed to the existing live
-service automatically**. After successful local testing, you can change the
-Render web service's Git branch from `feature/multiplayer-phase1` to
-`feature/server-authoritative`, deploy, and check
-`https://last-light-online-trial.onrender.com/health` for
-`"authority":"server"`.
+Before creating or joining a room, players may set a nickname (up to
+20 characters) and choose **Scout** or **Medic** in the lobby. If no nickname
+is entered, the server assigns `Survivor 1` through `Survivor 5`.
+The browser remembers the nickname for the current tab session; accounts
+and permanent player identities are not required.
 
-**Do not switch Render yet if the local server isn't working.** The original
-online multiplayer can remain available while we verify this new design.
+The active room shows a five-slot roster with each connected survivor's
+nickname, role, a **HOST** indicator for the current leader, and **YOU** for
+the local player. Empty slots display **Waiting for survivor…**. The server
+broadcasts updates whenever somebody joins, leaves, renames, changes class
+before starting, or inherits host status after a disconnect. The lobby
+remains browseable while already joined.
 
-Known limitations: Browser client prediction can still mispredict at walls
-or during a dash; server corrections can be visible on slow networks.
-Rooms are in memory and can be lost during a Render restart or deploy.
-Accounts and reconnection are not yet implemented. Only two players are
-supported; public abuse protection and load testing are still pending.
+Role changes are blocked by the server during an active run, while nickname
+updates remain available. Names are length-limited and stripped of markup
+and control characters on the server; browser display uses `textContent`.
+
+Run `npm test` and the Chromium GitHub Actions suite to check nickname
+updates, host handover, room roster rendering and live game behavior.
+
+## Minimal lobby team composition + player nameplates
+
+To keep the public lobby compact, the current room now displays only the
+number of **Scouts**, **Medics**, and connected players. The roster of
+individual player names is no longer displayed in the lobby. Nickname and
+class selection remain available before joining a room.
+
+Inside the game, each player sees their own nickname with **(YOU)** and all
+teammates' names above their player sprites. Names remain visible above
+fallen souls for identifying who needs revival. The authoritative roster
+still distributes nicknames and roles over WebSocket, so edits appear
+live without creating another network channel.
+
+The Chromium test verifies the class-only lobby summaries and confirms the
+canvas draws actual player nicknames during a real five-person match.

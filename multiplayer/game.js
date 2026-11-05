@@ -45,6 +45,38 @@
   };
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
   let roomTiles = new Set(), noiseEvents = [], survivor = null, technician = null;
+  // Slots 3–5 are simulated on the server, with the same original rules.
+  // Browser snapshots use remotePlayers to render every teammate.
+  let extraPlayers=[null,null,null],remotePlayers=[],roomPlayerId=0;
+  let roomIdentity=new Map();
+  // The two screens share a single live WebSocket connection. Switching
+  // screens never removes a player from their server-side room.
+  let activePage='lobby';
+  let lastCountdownNumber=0;
+  function showPage(target,push=true){
+    const page=target==='play'&&roomRole!=='none'?'play':'lobby';
+    activePage=page;
+    $('#lobbyPage').hidden=page!=='lobby';
+    $('#playPage').hidden=page!=='play';
+    document.body.classList.toggle('show-lobby',page==='lobby');
+    document.body.classList.toggle('show-play',page==='play');
+    const url=new URL(location.href);
+    url.pathname=page==='play'?'/play':'/';
+    if(page==='play')url.searchParams.set('room',$('#joinRoomCode').value.trim().toUpperCase());
+    else url.searchParams.delete('room');
+    // Keep invitations clean: unrelated query parameters are not propagated.
+    url.search='';
+    if(page==='play')url.searchParams.set('room',$('#joinRoomCode').value.trim().toUpperCase());
+    const next=url.pathname+url.search;
+    if(push&&location.pathname+location.search!==next)history.pushState({screen:page},'',next);
+    if(!push&&location.pathname+location.search!==next)history.replaceState({screen:page},'',next);
+    document.title=page==='lobby'?'Survivor Lobby — Last Light':'Last Light — The Hollow Ward';
+    if(page==='play'){
+      $('#gameRoomName').textContent=$('#currentRoomName').textContent;
+      $('#gameRoomCount').textContent=roomCount+' / 5 SURVIVORS';
+      requestAnimationFrame(()=>updateCamera(0,true));
+    }else stopMusic();
+  }
   let runSeed=0;
   let roomRole='none',roomSocket=null,roomCount=0,guestPlayer=null,lastSync=0,lastInput=0,lastLevel=-1,lastSentStaticLevel=-1,lastFullSnapshot=0,remotePingAt=0,remotePingMs=null,lastGuestUIAt=0;
   let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout',guestContextHost=null;
@@ -79,11 +111,42 @@
     if(!status)return;
     const label=remotePingMs===null?'measuring…':Math.round(remotePingMs)+' ms';
     const healthy=remotePingMs!==null&&remotePingMs<180;
-    status.textContent=(roomRole==='host'?'HOST':'PLAYER 2')+' · SERVER '+label+
+    status.textContent=(roomRole==='host'?'HOST':'PLAYER '+roomPlayerId)+' · SERVER '+label+
       (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
   function newGuest(){guestPlayer=structuredClone(player);guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.trail=[];}
+  let extraContextGuest=null;
+  function allPlayers(){
+    // A player action temporarily swaps the global 'player' reference.
+    // Preserve the host AND the original second player when actions or
+    // collisions are evaluated for slots 2–5. Otherwise the second player's
+    // death can incorrectly appear to be the last survivor.
+    const originalHost=guestContextHost||player;
+    const originalSecond=extraContextGuest||guestPlayer;
+    return [...new Set([originalHost,originalSecond,...extraPlayers]
+      .filter(p=>p&&!p.disconnected))];
+  }
+  function withExtra(slot,fn){
+    const i=slot-3,extra=extraPlayers[i];
+    if(!extra)return;
+    const originalGuest=guestPlayer,originalKeys=remoteKeys,originalStick=remoteStick,
+      originalRole=guestClassChoice,previousExtraContext=extraContextGuest;
+    extraContextGuest=originalGuest;
+    guestPlayer=extra;
+    remoteKeys=extraControls[i]?.keys||{up:false,down:false,left:false,right:false};
+    remoteStick=extraControls[i]?.stick||{x:0,y:0};
+    guestClassChoice=extraControls[i]?.role||'scout';
+    try{asGuest(fn);}
+    finally{
+      extraPlayers[i]=guestPlayer;guestPlayer=originalGuest;remoteKeys=originalKeys;
+      remoteStick=originalStick;guestClassChoice=originalRole;
+      extraContextGuest=previousExtraContext;
+    }
+  }
+  let extraControls=[0,1,2].map(()=>({
+    keys:{up:false,down:false,left:false,right:false},stick:{x:0,y:0},role:'scout'
+  }));
   function asGuest(fn){
     if(!guestPlayer)return;
     const own=player,keys=moveHeld,jx=joystickMove.x,jy=joystickMove.y,ownClass=classChoice;
@@ -146,12 +209,7 @@
   // A room with one player has one exit requirement; a room with two
   // players requires BOTH survivors to reach the elevator together.
   // All living players must reach the elevator; a downed player spectates.
-  const playersAtExit=()=>{
-    // During remote action handling player temporarily aliases the guest.
-    const host=guestContextHost||player;
-    return (host.hp<=0||dist(host,exit)<1.1)&&
-      (!guestPlayer||guestPlayer.hp<=0||dist(guestPlayer,exit)<1.1);
-  };
+  const playersAtExit=()=>allPlayers().every(p=>p.hp<=0||dist(p,exit)<1.1);
   let skillWaves = [];
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
@@ -259,7 +317,7 @@
   function cameraTarget(){
     const viewW=W/CAMERA_ZOOM,viewH=H/CAMERA_ZOOM;
     // Eliminated players spectate their surviving teammate.
-    const focus=player.hp<=0&&guestPlayer?.hp>0?guestPlayer:player;
+    const focus=player.hp<=0?(remotePlayers.find(p=>p.hp>0)||guestPlayer||player):player;
     return {
       x:clamp(focus.x*TILE-viewW/2,0,Math.max(0,COLS*TILE-viewW)),
       y:clamp(focus.y*TILE-viewH/2,0,Math.max(0,ROWS*TILE-viewH))
@@ -276,8 +334,11 @@
     // Hearts carry across floors in the same run. A fresh run (floor 1)
     // always starts with three hearts. Only the Medic skill restores health.
     // A downed player returns with one heart at the start of the next floor.
+    const hostDisconnected=!!player?.disconnected;
     const carriedHealth=index>0&&player?Math.max(1,Math.min(3,player.hp)):3;
     const guestCarriedHealth=index>0&&guestPlayer?Math.max(1,Math.min(3,guestPlayer.hp)):3;
+    const extraCarriedHealth=extraPlayers.map(p=>index>0&&p?Math.max(1,Math.min(3,p.hp)):3);
+    const extraActive=extraPlayers.map(Boolean);
     levelIndex=index;const cfg=CONFIGS[index];
     COLS=cfg.stage===2?STAGE_TWO_SIZE.cols:31;
     ROWS=cfg.stage===2?STAGE_TWO_SIZE.rows:21;
@@ -296,8 +357,14 @@
       const techSpot=selectSpot(reserved,13,distances,false);reserved.push(techSpot);
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
-    player={...TILE_CENTER(1,1),hp:carriedHealth,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
-    if(roomRole==='host'&&roomCount>1){newGuest();guestPlayer.hp=guestCarriedHealth;}
+    player={...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
+    if(roomRole==='host'&&guestPlayer){newGuest();guestPlayer.hp=guestCarriedHealth;}
+    for(let i=0;i<3;i++){
+      if(extraActive[i]){
+        extraPlayers[i]=structuredClone(player);
+        extraPlayers[i].hp=extraCarriedHealth[i];
+      }
+    }
     hollows=[];
     for(let i=0;i<cfg.enemies;i++) {
       const p=selectSpot(reserved,cfg.stage===2?8:5,distances,false);reserved.push(p);
@@ -529,6 +596,7 @@
     ui.roleLocked.hidden=choosing;
     ui.roleLabel.firstChild.textContent=choosing?'CHOOSE YOUR ROLE ':'YOUR ROLE ';
     ui.lockedRoleText.textContent=classChoice==='medic'?'MEDIC · HEALING BURST':'SCOUT · STUN SHOCKWAVE';
+    if($('#lobbyClass'))$('#lobbyClass').value=classChoice;
     document.querySelectorAll('.role-option').forEach(card=>{
       const selected=card.dataset.role===classChoice;
       card.classList.toggle('is-selected',selected);
@@ -553,6 +621,7 @@
   function advance() {
     if(roomRole!=='none'){
       unlockGameAudio();
+      if(roomRole!=='host')return;
       if(state==='menu'||state==='victory'||state==='dead')sendRoom({type:'start'});
       else if(state==='leveldone')sendRoom({type:'next'});
       else if(state==='paused')sendRoom({type:'pause'});
@@ -638,9 +707,9 @@
   }
   function followAlly(ally,dt){
     if(!ally)return;
-    const target=player.hp<=0&&guestPlayer?.hp>0?guestPlayer:
-      guestPlayer?.hp>0&&dist(ally,guestPlayer)<dist(ally,player)?guestPlayer:player;
-    if(!ally.rescued||ally.extracted||dist(ally,target)<1.05)return;
+    const living=allPlayers().filter(p=>p.hp>0);
+    const target=living.sort((a,b)=>dist(a,ally)-dist(b,ally))[0];
+    if(!target||!ally.rescued||ally.extracted||dist(ally,target)<1.05)return;
     ally.repath-=dt;
     if(ally.repath<=0){ally.followPath=pathTo(ally,target);ally.followIndex=0;ally.repath=.32;}
     if(ally.followIndex<ally.followPath.length){
@@ -662,25 +731,18 @@
   const REVIVE_SECONDS=5;
   const REVIVE_RADIUS=1.5; // Measured in maze tiles, not pixels.
   function updateSoulRevival(dt){
-    if(!guestPlayer||state!=='playing')return;
-    for(const [soul,rescuer] of [[player,guestPlayer],[guestPlayer,player]]){
+    if(state!=='playing')return;
+    const alive=allPlayers().filter(p=>p.hp>0);
+    for(const soul of allPlayers()){
       if(soul.hp>0)continue;
-      // The count must be continuous. Walking out of range restarts it.
-      if(rescuer.hp<=0||dist(soul,rescuer)>REVIVE_RADIUS||!clearLine(soul,rescuer)){
-        soul.reviveProgress=0;
-        continue;
-      }
+      const nearby=alive.some(rescuer=>dist(soul,rescuer)<=REVIVE_RADIUS&&clearLine(soul,rescuer));
+      if(!nearby){soul.reviveProgress=0;continue;}
       soul.reviveProgress=Math.min(REVIVE_SECONDS,(soul.reviveProgress||0)+dt);
       if(soul.reviveProgress>=REVIVE_SECONDS){
-        soul.hp=1;
-        soul.invincible=2.5;
-        soul.dashTime=0;
-        soul.dashCooldown=0;
-        soul.reviveProgress=0;
-        soul.trail=[];
+        soul.hp=1;soul.invincible=2.5;soul.dashTime=0;soul.dashCooldown=0;
+        soul.reviveProgress=0;soul.trail=[];
         notify('SOUL REVIVED — ONE HEART RESTORED!',3);
-        beep(930,.35,'sine',.038);
-        updateUI();
+        beep(930,.35,'sine',.038);updateUI();
       }
     }
   }
@@ -725,8 +787,8 @@
     if(player.hp<=0){
       player.hp=0;
       player.reviveProgress=0;
-      const otherPlayer=guestContextHost||guestPlayer;
-      if(!otherPlayer||otherPlayer.hp<=0){
+      const others=allPlayers().filter(p=>p!==player&&p.hp>0);
+      if(!others.length){
         state='dead';
         setOverlay('SIGNAL LOST','All players have lost their hearts. Try again together.','TRY AGAIN','THE MAZE REMAINS THE SAME — YOU CAN LEARN IT');
       }else{
@@ -772,8 +834,8 @@
     let danger=0;
     for(const h of hollows){
       // Avoid targeting a downed player if their teammate is still alive.
-      const nearest=player.hp<=0&&guestPlayer?.hp>0?guestPlayer:
-        guestPlayer?.hp>0&&dist(h,guestPlayer)<dist(h,player)?guestPlayer:player;
+      const nearest=allPlayers().filter(p=>p.hp>0)
+        .sort((a,b)=>dist(h,a)-dist(h,b))[0]||player;
       if(h.stunned>0){h.stunned=Math.max(0,h.stunned-dt);h.dashTime=0;h.wobble+=dt*5;continue;}
       // Five Stage II Dashers lunge along their movement/chase direction.
       if(h.variant==='dasher'){
@@ -941,12 +1003,18 @@
     clock+=dt;if(toastUntil<clock)ui.toast.classList.remove('show');
     hitFlash=Math.max(0,hitFlash-dt);ui.flash.style.opacity=(hitFlash*.4).toFixed(2);
     if(state!=='playing')return;
-    elapsed+=dt;overallElapsed+=dt;updatePlayer(dt);if(guestPlayer)asGuest(()=>updatePlayer(dt));if(state!=='playing')return;
+    elapsed+=dt;overallElapsed+=dt;
+    updatePlayer(dt);
+    if(guestPlayer)asGuest(()=>updatePlayer(dt));
+    for(let slot=3;slot<=5;slot++)withExtra(slot,()=>updatePlayer(dt));
+    if(state!=='playing')return;
     updateSurvivor(dt);updateHollows(dt);
     for(const wave of skillWaves)wave.age+=dt;
     skillWaves=skillWaves.filter(wave=>wave.age<wave.duration);
     // Check AFTER ghosts move, including when the player is stationary.
-    checkGhostContact();if(guestPlayer)asGuest(()=>checkGhostContact());
+    checkGhostContact();
+    if(guestPlayer)asGuest(()=>checkGhostContact());
+    for(let slot=3;slot<=5;slot++)withExtra(slot,()=>checkGhostContact());
     if(state!=='playing')return;
     updateSoulRevival(dt);
     ambientAudio();
@@ -1109,6 +1177,10 @@
     if(red||hunter){ctx.strokeStyle=hunter?'#ff5caa':dasher?'#efad4c':'#ff546c';ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(0,0,hunter?17:15,0,Math.PI*2);ctx.stroke();}
     ctx.restore();}}
+  // Stable server slot colors: everyone sees the same player in the same color.
+  // Mint, amber, blue, pink and gold are distinguishable on both stage themes.
+  const PLAYER_COLORS=['#76f2d1','#ffb36e','#91b7ff','#f49edb','#f5d778'];
+  const colorForPlayer=slot=>PLAYER_COLORS[Math.max(0,Math.min(4,(slot||1)-1))];
   function drawPlayer(){
     if(player.hp<=0){
       drawSoul(player);
@@ -1116,23 +1188,43 @@
     }
     for(const p of player.trail){ctx.fillStyle=`rgba(110,255,218,${p.life*.55})`;ctx.beginPath();ctx.arc(p.x*TILE,p.y*TILE,8,0,Math.PI*2);ctx.fill();}
     const x=player.x*TILE,y=player.y*TILE,flicker=player.invincible>0&&Math.sin(clock*31)>0;
+    const color=colorForPlayer(roomPlayerId);
     if(flicker)return;
-    halo(x,y,70,'#70fce319');ctx.fillStyle='#061d23';ctx.beginPath();ctx.ellipse(x,y+6,12,6,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=player.dashTime>0?'#dcfff7':'#8cead5';ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+    halo(x,y,70,color+'25');ctx.fillStyle='#061d23';ctx.beginPath();ctx.ellipse(x,y+6,12,6,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#0d3940';ctx.beginPath();ctx.arc(x,y-2,5,0,Math.PI*2);ctx.fill();
     const fx=player.facing.x,fy=player.facing.y;ctx.strokeStyle='#e6fff7';ctx.lineWidth=2.7;ctx.beginPath();ctx.moveTo(x+fx*6,y+fy*6);ctx.lineTo(x+fx*14,y+fy*14);ctx.stroke();
-    ctx.strokeStyle=player.dashTime>0?'#f0fffb':'#56bcaa';ctx.lineWidth=1.7;ctx.beginPath();ctx.arc(x,y,13,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle=color;ctx.lineWidth=player.dashTime>0?3:1.7;ctx.beginPath();ctx.arc(x,y,13,0,Math.PI*2);ctx.stroke();
   }
   function drawOtherPlayer(){
-    if(!guestPlayer)return;
-    const x=guestPlayer.x*TILE,y=guestPlayer.y*TILE;
-    if(guestPlayer.hp<=0){
-      drawSoul(guestPlayer);
-      return;
+    for(let i=0;i<remotePlayers.length;i++){
+      const teammate=remotePlayers[i];
+      if(!teammate)continue;
+      if(teammate.hp<=0){drawSoul(teammate);continue;}
+      const x=teammate.x*TILE,y=teammate.y*TILE,color=colorForPlayer(teammate.slot);
+      halo(x,y,30,color+'36');
+      ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
     }
-    halo(x,y,30,'#ffb46a36');
-    ctx.fillStyle='#ffb46a';ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#ffffff';ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText('ALLY',x,y-17);
+  }
+  function drawNameplates(){
+    // Unboxed names in the same stable color as their respective character.
+    // No (YOU) suffix: the local player is already centered by the camera.
+    if(roomRole==='none')return;
+    for(const person of [{...player,slot:roomPlayerId},...remotePlayers]){
+      if(!person||!person.slot)continue;
+      const identity=roomIdentity.get(person.slot);
+      const name=(identity?.name||'Survivor '+person.slot).slice(0,20);
+      const x=person.x*TILE,y=person.y*TILE-29;
+      ctx.save();
+      ctx.font='bold 11px monospace';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.shadowColor='rgba(0,8,13,.95)';
+      ctx.shadowBlur=5;
+      ctx.shadowOffsetY=1;
+      ctx.fillStyle=colorForPlayer(person.slot);
+      ctx.fillText(name,x,y);
+      ctx.restore();
+    }
   }
   function drawDarkness(){
     const c=darkCtx;
@@ -1142,7 +1234,17 @@
     const darkness=floorWithinStage<3?.63:floorWithinStage<6?.76:.90;
     c.fillStyle=`rgba(0,8,13,${darkness})`;c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
-    const lights=[...(player.hp>0?[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1}]:[]),...(guestPlayer?.hp>0?[{x:guestPlayer.x*TILE,y:guestPlayer.y*TILE,r:155,alpha:.90}]:[]),...(player.hp<=0?[{x:player.x*TILE,y:player.y*TILE,r:72,alpha:.58}]:[]),...(guestPlayer?.hp<=0?[{x:guestPlayer.x*TILE,y:guestPlayer.y*TILE,r:72,alpha:.58}]:[]),...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...(technician?[{x:technician.x*TILE,y:technician.y*TILE,r:68,alpha:.42}]:[]),...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
+    const lights=[
+      ...[player,...remotePlayers].filter(Boolean).map(p=>({
+        x:p.x*TILE,y:p.y*TILE,r:p.hp>0?(p===player?205:155):72,
+        alpha:p.hp>0?(p===player?1:.90):.58
+      })),
+      ...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),
+      {x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},
+      {x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},
+      ...(technician?[{x:technician.x*TILE,y:technician.y*TILE,r:68,alpha:.42}]:[]),
+      ...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))
+    ];
     for(const l of lights){const lx=l.x-camera.x,ly=l.y-camera.y;
       const g=c.createRadialGradient(lx,ly,0,lx,ly,l.r);g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(lx-l.r,ly-l.r,l.r*2,l.r*2);}
     c.globalCompositeOperation='source-over';
@@ -1156,12 +1258,95 @@
     ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.fillStyle='#a5ffe3';ctx.beginPath();ctx.moveTo(19,0);ctx.lineTo(-7,-8);ctx.lineTo(-2,0);ctx.lineTo(-7,8);ctx.closePath();ctx.fill();ctx.restore();
     ctx.fillStyle='#7aadb0';ctx.font='10px monospace';ctx.textAlign='left';ctx.fillText(`${Math.round(dist(player,target))}m away`,W-158,60);
   }
+  // World-to-screen teammate tracking. The server already broadcasts all
+  // player positions and souls, so these markers need no additional packets.
+  function getTeammateIndicators(teammates=remotePlayers){
+    if(roomRole==='none'||!teammates.length||!grid)return [];
+    // Keep markers just inside the four game-window borders (the arrow tip
+    // extends up to 14 px, so 18 px prevents clipping).
+    const view={left:18,top:18,right:W-18,bottom:H-18};
+    const center={x:W/2,y:H/2};
+    const markers=[];
+    for(const teammate of teammates){
+      if(!teammate||!Number.isFinite(teammate.x)||!Number.isFinite(teammate.y))continue;
+      const screenX=(teammate.x*TILE-camera.x)*CAMERA_ZOOM;
+      const screenY=(teammate.y*TILE-camera.y)*CAMERA_ZOOM;
+      // Only mark teammates who are genuinely outside the game viewport,
+      // not those merely hidden by darkness or close to the HUD edge.
+      if(screenX>=0&&screenX<=W&&screenY>=0&&screenY<=H)continue;
+      const dx=screenX-center.x,dy=screenY-center.y;
+      if(!dx&&!dy)continue;
+      const factor=Math.min(
+        dx>0?(view.right-center.x)/dx:dx<0?(view.left-center.x)/dx:Infinity,
+        dy>0?(view.bottom-center.y)/dy:dy<0?(view.top-center.y)/dy:Infinity
+      );
+      markers.push({
+        slot:teammate.slot,dead:teammate.hp<=0,
+        name:(roomIdentity.get(teammate.slot)?.name||'Survivor '+teammate.slot).slice(0,12),
+        color:colorForPlayer(teammate.slot),
+        x:center.x+dx*factor,y:center.y+dy*factor,
+        angle:Math.atan2(dy,dx),
+        edge:Math.abs(center.x+dx*factor-view.left)<1?'left':
+          Math.abs(center.x+dx*factor-view.right)<1?'right':
+          dy<0?'top':'bottom'
+      });
+    }
+    // Spread nearby arrows on the same edge so up to four remain distinct.
+    for(const edge of ['left','right','top','bottom']){
+      const group=markers.filter(m=>m.edge===edge)
+        .sort((a,b)=>edge==='left'||edge==='right'?a.y-b.y:a.x-b.x);
+      const vertical=edge==='left'||edge==='right';
+      const axis=vertical?'y':'x';
+      const min=vertical?view.top:view.left,max=vertical?view.bottom:view.right;
+      const spacing=42;
+      for(let i=0;i<group.length;i++){
+        const desired=group[i][axis];
+        group[i][axis]=Math.max(min+i*spacing,Math.min(max-(group.length-1-i)*spacing,desired));
+        if(i&&group[i][axis]<group[i-1][axis]+spacing)
+          group[i][axis]=group[i-1][axis]+spacing;
+      }
+      if(group.length&&group[group.length-1][axis]>max){
+        const shift=group[group.length-1][axis]-max;
+        for(const m of group)m[axis]-=shift;
+      }
+    }
+    return markers;
+  }
+
+  function drawTeammateIndicators(){
+    for(const m of getTeammateIndicators()){
+      ctx.save();
+      ctx.translate(m.x,m.y);
+      ctx.rotate(m.angle);
+  
+      ctx.fillStyle = m.color;
+      ctx.beginPath();
+      ctx.moveTo(14,0);
+      ctx.lineTo(-8,-7);
+      ctx.lineTo(-2,0);
+      ctx.lineTo(-8,7);
+      ctx.closePath();
+      ctx.fill();
+  
+      // optional small soul dot if teammate is dead
+      if(m.dead){
+        ctx.fillStyle = '#e8fdff';
+        ctx.beginPath();
+        ctx.arc(-12,0,3.5,0,Math.PI*2);
+        ctx.fill();
+      }
+  
+      ctx.restore();
+    }
+  }
+  
   function drawInteractPrompts(){ctx.font='bold 11px monospace';ctx.textAlign='center';
     let message='';
-    if(player.hp>0&&guestPlayer?.hp<=0&&dist(player,guestPlayer)<=REVIVE_RADIUS&&clearLine(player,guestPlayer)){
-      message='REVIVING TEAMMATE · '+Math.max(0,REVIVE_SECONDS-(guestPlayer.reviveProgress||0)).toFixed(1)+'s';
-    }
-    if(player.hp<=0&&guestPlayer?.hp>0)message='SOUL DOWN · WAIT FOR TEAMMATE';
+    const fallen=remotePlayers.find(p=>p.hp<=0&&dist(player,p)<=REVIVE_RADIUS&&clearLine(player,p));
+    if(player.hp>0&&fallen)
+      message='REVIVING TEAMMATE · '+Math.max(0,REVIVE_SECONDS-(fallen.reviveProgress||0)).toFixed(1)+'s';
+    if(player.hp<=0&&remotePlayers.some(p=>p.hp>0))
+      message='SOUL DOWN · WAIT FOR TEAMMATE';
     if(!message){if(!survivor.rescued&&dist(player,survivor)<1.5)message='[ E ] RESCUE SURVIVOR';else if(technician&&!technician.rescued&&dist(player,technician)<1.5)message='[ E ] RESCUE TECHNICIAN';else if(dist(player,relay)<1.55&&!relay.active)message='[ E ] ACTIVATE RELAY';else if(dist(player,exit)<1.5)message=relay.active&&cores.every(c=>c.collected)&&alliesReady()?(playersAtExit()?'[ E ] ESCAPE':'WAIT FOR TEAMMATE'):'ELEVATOR / ALLIES NOT READY';
     }
     if(message){roundedRect(W/2-111,H-54,222,30,7,'#071c23e8');ctx.strokeStyle='#43786e';ctx.strokeRect(W/2-111,H-54,222,30);ctx.fillStyle='#d4fff2';ctx.fillText(message,W/2,H-35);}
@@ -1247,10 +1432,10 @@
     const y1=Math.min(ROWS,Math.ceil((camera.y+H/CAMERA_ZOOM)/TILE)+1);
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
-    drawItems();drawHollows();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();
+    drawItems();drawHollows();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();
     ctx.restore();
     // Fixed screen-space HUD must never drift with the camera.
-    drawDirectionalHUD();drawInteractPrompts();
+    drawDirectionalHUD();drawInteractPrompts();drawTeammateIndicators();
     if(alertLevel>0&&state==='playing'){
       ctx.fillStyle=alertLevel===2?'#e44d6411':'#ffc17c07';
       ctx.fillRect(0,0,W,H);
@@ -1291,13 +1476,16 @@
         if(left<=0)clientHitFlashUntil=0;
       }
     }
-    updateMusic();
-    if(state==='playing')updateCamera(dt);
-    draw();
+    if(activePage==='play'){
+      updateMusic();
+      if(state==='playing')updateCamera(dt);
+      draw();
+    }
     requestAnimationFrame(tick);
   }
   const keyMap={w:'up',arrowup:'up',s:'down',arrowdown:'down',a:'left',arrowleft:'left',d:'right',arrowright:'right'};
   document.addEventListener('keydown', e => {
+    if(activePage!=='play')return;
     const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k))e.preventDefault();
     if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole!=='none')sendRoom(guestInputPacket());}
     if(e.repeat)return;
@@ -1441,7 +1629,9 @@
     if(Array.isArray(d.roomTiles))roomTiles=new Set(d.roomTiles);
     // One true position, generated by the dedicated room simulation.
     // Never overwrite incoming server coordinates with client estimates.
-    const authoritative=roomRole==='host'?d.player:(d.guestPlayer||d.player);
+    // Every browser has its own assigned slot (1–5) in the SAME server room.
+    const occupants=Array.isArray(d.players)?d.players:[d.player,d.guestPlayer];
+    const authoritative=occupants[roomPlayerId-1];
     if(!authoritative)return;
     if(guestPreviousHP!==null&&authoritative.hp<guestPreviousHP){
       clientHitFlashUntil=performance.now()+450;
@@ -1450,7 +1640,12 @@
     }
     guestPreviousHP=authoritative.hp;
     player=authoritative;
-    guestPlayer=roomRole==='host'?d.guestPlayer:(d.guestPlayer?d.player:null);
+    remotePlayers=occupants.map((p,i)=>p&&i!==roomPlayerId-1?{...p,slot:i+1}:null).filter(Boolean);
+    guestPlayer=remotePlayers[0]||null;
+    if(Array.isArray(d.playerRoles)){
+      const actualRole=d.playerRoles[roomPlayerId-1];
+      if(actualRole==='medic'||actualRole==='scout')classChoice=actualRole;
+    }
     cores=d.cores;relay=d.relay;exit=d.exit;
     // Hollows must be drawn where the server checks their collisions.
     // No visual extrapolation that can put their sprites ahead of the hitbox.
@@ -1460,9 +1655,23 @@
     skillWaves=d.skillWaves||[];survivor=d.survivor;technician=d.technician;
     elapsed=d.elapsed;overallElapsed=d.overallElapsed;clock=d.clock;alertLevel=d.alertLevel;
     state=d.state;
+    if(state==='countdown'){
+      const number=Math.max(1,Math.ceil(d.countdownRemaining||0));
+      if(number!==lastCountdownNumber||previous!=='countdown'){
+        lastCountdownNumber=number;
+        setOverlay(''+number,'GET READY · THE WARD OPENS SOON','STARTING…',
+          'ALL SURVIVORS BEGIN TOGETHER');
+      }
+      ui.overlay.classList.add('countdown-active');
+      ui.button.disabled=true;
+    }else{
+      lastCountdownNumber=0;
+      ui.overlay.classList.remove('countdown-active');
+      ui.button.disabled=false;
+    }
     if(state==='playing')hideOverlay();
     else if(state==='menu'&&previous!=='menu')setOverlay('THE HOLLOW WARD','Ready to begin a new run.','START GAME');
-    else if(state!=='menu'&&state!==previous){
+    else if(state!=='menu'&&state!=='countdown'&&state!==previous){
       // The server owns floor progression, but only the room creator can
       // advance. Show that player the actual action instead of WAIT FOR HOST.
       const host=roomRole==='host';
@@ -1484,13 +1693,103 @@
     // Smooth camera motion in the render loop, not per network packet.
   }
   function connectRoom(){
-    const status=$('#roomStatus'),invite=$('#roomInvite'),create=$('#createRoom'),join=$('#joinRoom'),code=$('#joinRoomCode');
+    const status=$('#roomStatus'),invite=$('#roomInvite'),
+      create=$('#createRoom'),join=$('#joinRoom'),code=$('#joinRoomCode'),
+      roomName=$('#roomName'),directory=$('#roomList'),roomBrowser=$('#roomBrowser'),
+      myRoomCard=$('#myRoomCard'),roomCountLabel=$('#roomCount'),
+      nicknameInput=$('#playerNickname'),lobbyClass=$('#lobbyClass'),
+      rosterCountLabel=$('#rosterCount');
+    nicknameInput.value=sessionStorage.getItem('lastLightNickname')||'';
+    let savedPlayers=[];
+    const nameForServer=()=>nicknameInput.value.trim().slice(0,20);
+    const joinRequest=code=>sendRoom({type:'join',code,nickname:nameForServer()});
+    const renderRoster=players=>{
+      savedPlayers=players;
+      roomIdentity=new Map(players.map(person=>[person.id,person]));
+      const scouts=players.filter(person=>person.role==='scout').length;
+      const medics=players.filter(person=>person.role==='medic').length;
+      $('#scoutCount').textContent=String(scouts);
+      $('#medicCount').textContent=String(medics);
+      $('#rosterCount').textContent=players.length+' / 5 players';
+    };
+    nicknameInput.addEventListener('change',()=>{
+      nicknameInput.value=nameForServer();
+      sessionStorage.setItem('lastLightNickname',nicknameInput.value);
+      if(roomRole!=='none')sendRoom({type:'profile',nickname:nicknameInput.value});
+    });
+    nicknameInput.addEventListener('blur',()=>{
+      if(roomRole!=='none'){
+        nicknameInput.value=nameForServer();
+        sessionStorage.setItem('lastLightNickname',nicknameInput.value);
+        sendRoom({type:'profile',nickname:nicknameInput.value});
+      }
+    });
+    lobbyClass.addEventListener('change',()=>{
+      if(!['menu','dead','victory'].includes(state)){
+        lobbyClass.value=classChoice;return;
+      }
+      classChoice=lobbyClass.value==='medic'?'medic':'scout';
+      refreshRoleSelection();
+      if(roomRole!=='none')sendRoom({type:'role',role:classChoice});
+    });
+    const setJoined=joined=>{
+      // A host still needs to browse other active rooms. Keep the directory
+      // visible; only hide room creation / code-entry while already joined.
+      roomBrowser.hidden=false;
+      roomBrowser.classList.toggle('has-active-room',joined);
+      myRoomCard.hidden=!joined;
+      $('#leaveRoom').disabled=!joined;
+      $('#returnToGame').disabled=!joined;
+      create.disabled=joined;
+      join.disabled=joined;
+      code.disabled=joined;
+      // Refresh labels such as YOUR ROOM and JOIN (after leaving).
+      if(joined)renderRoster(savedPlayers);
+      else{savedPlayers=[];roomIdentity.clear();
+        $('#scoutCount').textContent='0';$('#medicCount').textContent='0';
+        rosterCountLabel.textContent='0 / 5 players';}
+      sendRoom({type:'list'});
+    };
+    const drawRooms=rooms=>{
+      directory.replaceChildren();
+      roomCountLabel.textContent=rooms.length+' '+(rooms.length===1?'room':'rooms');
+      // Our room already has its pinned card above the list: never duplicate it.
+      const others=rooms.filter(entry=>!(roomRole!=='none'&&entry.code===code.value));
+      if(!others.length){
+        const p=document.createElement('p');
+        p.className='room-empty';
+        p.textContent=roomRole!=='none'?'No other rooms available.':'No rooms yet. Create one and invite your friends!';
+        directory.appendChild(p);return;
+      }
+      for(const entry of others){
+        const card=document.createElement('div');
+        card.className='room-entry';
+        const description=document.createElement('div');
+        description.className='room-description';
+        const title=document.createElement('strong');
+        title.textContent=entry.name||'Hollow Ward';
+        const metadata=document.createElement('span');
+        metadata.textContent=entry.code+' · '+entry.players+' / 5 players · '+
+          (entry.status==='waiting'?'Waiting for players':'In progress');
+        description.append(title,metadata);
+        const button=document.createElement('button');
+        button.type='button';
+        button.textContent=!entry.joinable?'Full':roomRole!=='none'?'Leave to join':'Join room';
+        button.disabled=!entry.joinable||roomRole!=='none';
+        button.title=roomRole!=='none'?'Leave your current room before joining another':'';
+        button.addEventListener('click',()=>joinRequest(entry.code));
+        card.append(description,button);directory.appendChild(card);
+      }
+    };
     roomSocket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
     roomSocket.addEventListener('open',()=>{
-      status.textContent='Connected. Create a room to play solo or invite a teammate.';
-      sendRoom({type:'ping',at:performance.now()});
+      status.textContent='Connected · Choose an available room or create one.';
+      sendRoom({type:'list'});sendRoom({type:'ping',at:performance.now()});
     });
-    roomSocket.addEventListener('close',()=>{status.textContent='Disconnected from room server. Refresh to reconnect.';roomRole='none';});
+    roomSocket.addEventListener('close',()=>{
+      status.textContent='Disconnected from server. Refresh to reconnect.';
+      roomRole='none';roomPlayerId=0;setJoined(false);showPage('lobby',false);
+    });
     roomSocket.addEventListener('message',event=>{
       let m;try{m=JSON.parse(event.data);}catch{return;}
       if(m.type==='pong'&&typeof m.at==='number'){
@@ -1499,50 +1798,89 @@
         showNetworkStatus();
       }
       if(m.type==='error')status.textContent=m.message;
+      if(m.type==='rooms'&&Array.isArray(m.rooms))drawRooms(m.rooms);
       if(m.type==='joined'){
-        roomRole=m.host?'host':'guest';roomCount=m.host?1:2;showNetworkStatus();
-        code.value=m.code;
-        const url=new URL(location.href);url.searchParams.set('room',m.code);
+        roomPlayerId=m.id;roomRole=m.host?'host':'guest';roomCount=1;
+        code.value=m.code;showNetworkStatus();
+        nicknameInput.value=nicknameInput.value.trim().slice(0,20);
+        sessionStorage.setItem('lastLightNickname',nicknameInput.value);
+        const url=new URL(location.origin);
+        url.pathname='/play';url.searchParams.set('room',m.code);
         invite.textContent='ROOM '+m.code+' · Invite link: '+url.href;
-        create.disabled=true;join.disabled=true;code.disabled=true;
+        $('#currentRoomName').textContent=(m.name||'Hollow Ward')+' · ROOM '+m.code;
+        setJoined(true);showPage('play');
+        sendRoom({type:'list'});
         status.textContent=m.host?'Room created. Press START GAME to begin!':'Room joined. Waiting for host.';
-        unlockGameAudio();sendRoom({type:'role',role:classChoice});
-        if(roomRole==='guest')setOverlay('JOINED THE WARD','Waiting for the host. Once the game begins, move and use abilities as usual.','WAIT FOR HOST');
-      }else if(m.type==='roster'){
+        // The browser requires a gesture for audio; don't initialize it during
+        // an unsolicited network message. The player can enable it by clicking.
+        sendRoom({type:'role',role:classChoice});
+        if(roomRole==='guest')
+          setOverlay('JOINED THE WARD','Waiting for the room host to start.','WAIT FOR HOST');
+      }else if(m.type==='roster'&&roomPlayerId){
         roomCount=m.count;
-        status.textContent=roomCount===2?'2 / 2 players connected':'1 / 2 players · solo room';
-      }else if(m.type==='playerleft'&&roomRole==='host'){
-        guestPlayer=null;remoteKeys={up:false,down:false,left:false,right:false};
-        status.textContent='Teammate disconnected. Solo room continues.';
-      }else if(m.type==='hostleft'){
-        roomRole='none';status.textContent='Host disconnected. Refresh to join again.';
-        setOverlay('ROOM CLOSED','The host has disconnected. Refresh the browser.','ROOM CLOSED');
-      }else if(m.type==='remoteInput'&&roomRole==='host'){
-        remoteKeys=m.keys;remoteStick=m.joystick||{x:0,y:0};
-        reconcileRemotePosition(m.pos);
-      }else if(m.type==='remoteRole'&&roomRole==='host'){
-        guestClassChoice=m.role==='medic'?'medic':'scout';
-      }else if(m.type==='remoteAction'&&roomRole==='host'){
-        reconcileRemotePosition(m.pos);
-        const actions={
-          dash:()=>dash(m.direction),
-          decoy:triggerDecoy,interact,ability:activateAbility
-        };
-        if(actions[m.name])asGuest(actions[m.name]);
+        roomRole=m.hostId===roomPlayerId?'host':'guest';
+        if(Array.isArray(m.players))renderRoster(m.players);
+        showNetworkStatus();
+        status.textContent=roomCount+' / 5 players connected'+
+          (roomRole==='host'?' · You are the host':'');
+        $('#gameRoomCount').textContent=roomCount+' / 5 SURVIVORS';
+        lobbyClass.disabled=!['menu','dead','victory'].includes(state);
+        if(state==='menu'){
+          ui.button.firstChild.textContent=roomRole==='host'?'START GAME ':'WAIT FOR HOST ';
+        }else if(state==='leveldone'){
+          ui.button.firstChild.textContent=roomRole==='host'?
+            (levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO ':'ENTER NEXT FLOOR '):
+            'WAIT FOR HOST ';
+        }
+      }else if(m.type==='left'){
+        roomRole='none';roomPlayerId=0;roomCount=0;
+        guestPlayer=null;remotePlayers=[];
+        lastLevel=-1;guestPreviousHP=null;
+        setJoined(false);
+        status.textContent='You left the room. Join another or create your own.';
+        invite.textContent='';
+        showPage('lobby',true);
+        state='menu';
+        setOverlay('THE HOLLOW WARD','Choose a room to play with your team.','START GAME');
+        showNetworkStatus();sendRoom({type:'list'});
       }else if(m.type==='snapshot'&&roomRole!=='none')applySnapshot(m.snapshot);
     });
-    create.addEventListener('click',()=>sendRoom({type:'create'}));
+    create.addEventListener('click',()=>{
+      if(roomRole!=='none')return;
+      sendRoom({type:'create',name:roomName.value.trim()||'Hollow Ward',
+        nickname:nameForServer()});
+    });
     join.addEventListener('click',()=>{
       const value=code.value.trim().toUpperCase();
-      if(!/^[0-9A-F]{6}$/.test(value)){status.textContent='Enter a valid six-character room code.';return;}
-      sendRoom({type:'join',code:value});
+      if(!/^[0-9A-F]{6}$/.test(value)){
+        status.textContent='Enter a valid six-character room code.';return;
+      }
+      joinRequest(value);
+    });
+    $('#refreshRooms').addEventListener('click',()=>sendRoom({type:'list'}));
+    $('#leaveRoom').addEventListener('click',()=>sendRoom({type:'leave'}));
+    $('#leaveGameRoom').addEventListener('click',()=>sendRoom({type:'leave'}));
+    $('#backToLobby').addEventListener('click',()=>showPage('lobby'));
+    $('#returnToGame').addEventListener('click',()=>showPage('play'));
+    window.addEventListener('popstate',()=>{
+      showPage(location.pathname==='/play'?'play':'lobby',false);
     });
     const invited=new URLSearchParams(location.search).get('room');
-    if(invited&&/^[0-9A-F]{6}$/i.test(invited))code.value=invited.toUpperCase();
+    if(invited&&/^[0-9A-F]{6}$/i.test(invited)){
+      code.value=invited.toUpperCase();
+      // A direct game-room invite opens the game page after joining, while
+      // retaining the same live session used for in-app lobby navigation.
+      roomSocket.addEventListener('open',()=>joinRequest(invited.toUpperCase()),{once:true});
+    }
+    setJoined(false);
+    showPage('lobby',false);
   }
   connectRoom();
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
   // Expose read-only diagnostics for smoke tests, not used by gameplay.
-  window.__lastLightDiagnostics=()=>({state,level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp,playerPosition:{x:player.x,y:player.y},allyPosition:guestPlayer?{x:guestPlayer.x,y:guestPlayer.y}:null,dashCooldown:player.dashCooldown,characterClass:classChoice,survivorRescued:survivor.rescued,abilityCooldown:player.abilityCooldown});
+  // Read-only geometry diagnostic used by five-player browser regression tests.
+  window.__lastLightPreviewIndicators=teammates=>getTeammateIndicators(teammates)
+    .map(m=>({slot:m.slot,dead:m.dead,x:m.x,y:m.y,edge:m.edge,color:m.color}));
+  window.__lastLightDiagnostics=()=>({state,roomPlayerId,roomRole,roomCount,visibleTeammates:remotePlayers.length,teammateIndicators:getTeammateIndicators().map(m=>({slot:m.slot,dead:m.dead,x:m.x,y:m.y,angle:m.angle,edge:m.edge})),level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp,playerPosition:{x:player.x,y:player.y},allyPosition:guestPlayer?{x:guestPlayer.x,y:guestPlayer.y}:null,dashCooldown:player.dashCooldown,characterClass:classChoice,survivorRescued:survivor.rescued,abilityCooldown:player.abilityCooldown});
 })();

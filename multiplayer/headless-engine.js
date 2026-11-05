@@ -10,6 +10,7 @@ if(cut<0)throw new Error('Game source marker missing: simulation bridge must be 
 
 const bridge=`
   roomRole='host';
+  let countdownRemaining=0;
   const safeKeys=(input={})=>({
     up:input.up===true,down:input.down===true,
     left:input.left===true,right:input.right===true
@@ -28,31 +29,53 @@ const bridge=`
     };
     if(id===1)run();
     else if(id===2&&guestPlayer)asGuest(run);
+    else if(id>=3&&id<=5)withExtra(id,run);
   };
   buildLevel(0);
   globalThis.__roomEngine={
-    join(){
-      if(!guestPlayer){roomCount=2;newGuest();}
+    join(id){
+      if(id===2&&!guestPlayer)newGuest();
+      else if(id>=3&&id<=5&&!extraPlayers[id-3]){
+        extraPlayers[id-3]=structuredClone(player);
+        extraPlayers[id-3].x=1.5;extraPlayers[id-3].y=1.5;
+        extraPlayers[id-3].hp=3;extraPlayers[id-3].dashTime=0;
+        extraPlayers[id-3].dashCooldown=0;extraPlayers[id-3].trail=[];
+      }
+      roomCount=allPlayers().length;
     },
-    leave(){guestPlayer=null;roomCount=1;remoteKeys=safeKeys();},
-    hostLeft(){player.hp=0;moveHeld=safeKeys();roomCount=1;},
-    rejoinHost(){if(player.hp<=0){player.hp=1;player.invincible=2.5;player.x=1.5;player.y=1.5;}roomCount=2;},
+    leave(id){
+      if(id===1){player.hp=0;player.disconnected=true;moveHeld=safeKeys();}
+      else if(id===2){guestPlayer=null;remoteKeys=safeKeys();}
+      else if(id>=3&&id<=5){
+        extraPlayers[id-3]=null;
+        extraControls[id-3].keys=safeKeys();
+      }
+      roomCount=allPlayers().length;
+    },
+    rejoinHost(){
+      player.disconnected=false;
+      if(player.hp<=0){player.hp=1;player.invincible=2.5;player.x=1.5;player.y=1.5;}
+      roomCount=allPlayers().length;
+    },
     role(id,value){
       const role=value==='medic'?'medic':'scout';
       if(id===1)classChoice=role;
-      else guestClassChoice=role;
+      else if(id===2)guestClassChoice=role;
+      else if(id>=3&&id<=5)extraControls[id-3].role=role;
     },
     start(){
       if(!['menu','dead','victory'].includes(state))return;
       runSeed=Math.floor(Math.random()*1000000);
       overallElapsed=0;developerSkipped=false;buildLevel(0);
-      state='playing';
+      countdownRemaining=5;
+      state='countdown';
     },
     next(){
       if(state!=='leveldone')return;
       buildLevel(levelIndex+1);state='playing';
     },
     restart(){if(state==='playing')buildLevel(levelIndex);},
+    status(){return state;},
     skip(fullStage=false){
       if(state==='playing'||state==='paused'||state==='leveldone')developerSkip(fullStage);
     },
@@ -67,17 +90,46 @@ const bridge=`
         const j=safeStick(stick);joystickMove.x=j.x;joystickMove.y=j.y;
       }else if(id===2&&guestPlayer){
         remoteKeys=safeKeys(keys);remoteStick=safeStick(stick);
+      }else if(id>=3&&id<=5&&extraPlayers[id-3]){
+        extraControls[id-3].keys=safeKeys(keys);
+        extraControls[id-3].stick=safeStick(stick);
       }
     },
     action:perform,
+    // Used only by local/CI engine tests. There is no WebSocket command for it.
+    testHit(id){
+      const hit=()=>{player.invincible=0;player.dashTime=0;damage();};
+      if(id===1)hit();
+      else if(id===2&&guestPlayer)asGuest(hit);
+      else if(id>=3&&id<=5)withExtra(id,hit);
+    },
     tick(dt){
       frameIndex++;
-      if(state==='playing')update(Math.min(.05,Math.max(0,dt)));
+      const step=Math.min(.05,Math.max(0,dt));
+      if(state==='countdown'){
+        countdownRemaining=Math.max(0,countdownRemaining-step);
+        if(countdownRemaining<=0){
+          // Holding movement before the countdown finishes must not give a
+          // player a head start. Inputs arriving afterwards control movement.
+          moveHeld=safeKeys();
+          remoteKeys=safeKeys();
+          joystickMove.x=0;joystickMove.y=0;
+          for(const controls of extraControls){
+            controls.keys=safeKeys();controls.stick={x:0,y:0};
+          }
+          state='playing';
+        }
+        return;
+      }
+      if(state==='playing')update(step);
     },
     snapshot(full){
       const value={
         state,levelIndex,runSeed,elapsed,overallElapsed,clock,alertLevel,
-        player,guestPlayer,cores,relay,exit,decoys,noiseEvents,skillWaves,survivor,technician,
+        countdownRemaining:state==='countdown'?countdownRemaining:0,
+        player,guestPlayer,players:[player.disconnected?null:player,guestPlayer,...extraPlayers],
+        playerRoles:[classChoice,guestClassChoice,...extraControls.map(c=>c.role)],
+        cores,relay,exit,decoys,noiseEvents,skillWaves,survivor,technician,
         classChoice,guestClassChoice,
         hollows:hollows.map(h=>({
           x:h.x,y:h.y,angle:h.angle,variant:h.variant,

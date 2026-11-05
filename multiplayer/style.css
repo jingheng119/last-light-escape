@@ -1012,3 +1012,144 @@
     font-size:18px;
   }
 }
+
+
+/* Five-player lobby — keeps the same Hollow Ward visual language. */
+.online-lobby{border:1px solid #3d756e;border-radius:16px;padding:20px;background:linear-gradient(145deg,#102830,#0b1b24);color:#d9fff5;margin:12px 0 20px}
+.lobby-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.lobby-eyebrow{font:700 11px monospace;letter-spacing:2px;color:#78dbcd}
+.lobby-heading h2{font-size:23px;margin:5px 0;color:#effff9}
+.lobby-heading p{color:#adc9cb;margin:0 0 14px;font-size:14px;line-height:1.5}
+.lobby-count{display:flex;gap:10px;align-items:center;color:#acd2cd;font:12px monospace}
+.online-lobby button{cursor:pointer;background:#195b56;color:#fff;border:1px solid #65bcae;padding:9px 14px;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600}
+.online-lobby button:hover:not(:disabled){background:#278175}
+.online-lobby button:disabled{opacity:.48;cursor:not-allowed}
+.online-lobby input{min-height:39px;max-width:100%;background:#0d242c;color:#fff;border:1px solid #477e80;padding:9px 12px;border-radius:8px}
+.online-lobby input:focus{outline:2px solid #6ce6c4;outline-offset:2px}
+.lobby-create,.room-search{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:11px 0}
+.lobby-create input{flex:1;min-width:160px}
+.lobby-create label,.room-search label,.available-title{font:700 11px monospace;color:#8fd9d2;letter-spacing:1px}
+.room-search input{width:145px}
+.available-title{display:flex;justify-content:space-between;gap:8px;margin:20px 0 10px}
+#roomListCaption{font-weight:400;letter-spacing:0;color:#9bb9b8}
+.room-directory{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:10px}
+.room-entry{border:1px solid #31575a;border-radius:11px;padding:12px;background:#102f37;display:flex;align-items:center;gap:12px;justify-content:space-between;min-width:0}
+.room-description{display:flex;flex-direction:column;gap:6px;min-width:0}
+.room-description strong{font-size:14px;color:#eefff7;overflow-wrap:anywhere}
+.room-description span{font:11px monospace;color:#a4cbca;line-height:1.4}
+.room-empty{margin:4px 0;padding:14px;border:1px dashed #3d706e;border-radius:10px;color:#9ec8c3;font-size:13px}
+.lobby-session-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.lobby-invite{color:#8ee8d0;overflow-wrap:anywhere;line-height:1.5;font-size:13px}
+.lobby-status{color:#b1d4d0;margin:11px 0 0}
+.lobby-ping{color:#b1d4d0;margin:6px 0 0;font:12px monospace}
+@media(max-width:600px){.online-lobby{padding:15px}.lobby-create,.room-search{align-items:stretch}.lobby-create label,.room-search label{width:100%}.lobby-create input,.room-search input{flex:1;width:auto}}
+
+
+/* Dedicated Lobby and Game routes: keep one persistent socket across screens. */
+#lobbyPage[hidden],#playPage[hidden],#roomBrowser[hidden],#roomSession[hidden]{display:none!important}
+.show-lobby .shell{max-width:1120px}
+.show-lobby .page-lobby{min-height:calc(100vh - 190px)}
+.show-lobby .online-lobby{margin:26px 0 52px;padding:28px;border-radius:20px;box-shadow:0 18px 75px #0005}
+.show-lobby .lobby-heading h2{font-size:clamp(26px,3vw,36px)}
+.show-lobby .lobby-heading p{max-width:620px}
+.show-lobby .room-directory{grid-template-columns:repeat(auto-fit,minmax(min(100%,315px),1fr));gap:14px}
+.show-lobby .room-entry{padding:18px}
+.show-lobby #roomSession{padding:24px 0 8px}
+.show-lobby .lobby-session-actions{display:flex;gap:9px;flex-wrap:wrap}
+.game-page-nav{display:flex;align-items:center;gap:16px;justify-content:space-between;
+  background:#0c242c;border:1px solid #356467;border-radius:12px;padding:13px 16px;margin:12px 0 16px;color:#ccf6ed}
+.game-page-nav button{background:#124c49;color:#dffff5;border:1px solid #489b8f;border-radius:8px;
+  padding:9px 13px;font-family:inherit;font-weight:700;cursor:pointer}
+.game-page-nav button:hover{background:#1b6c62}
+.game-room-details{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}
+.game-room-details strong{font-size:13px;letter-spacing:.5px}
+.game-room-details span{font:11px monospace;color:#83c9c5}
+.game-nav-leave{border-color:#806068!important;background:#382e38!important}
+.game-nav-leave:hover{background:#66404b!important}
+@media(max-width:650px){
+  .show-lobby .online-lobby{margin:16px 0 30px;padding:16px}
+  .game-page-nav{gap:9px;flex-wrap:wrap}
+  .game-room-details{order:-1;width:100%;justify-content:space-between}
+  .game-page-nav button{flex:1}
+}
+
+/* The lobby is an independent destination, not a game HUD wrapper. */
+.show-lobby .top-links{display:none}
+.show-lobby .site-footer{margin-top:24px}
+
+
+/* Server-synchronized 5–1 opening countdown, shared by all players. */
+.overlay.countdown-active .overlay-panel{border-color:#70dfc6;box-shadow:0 0 75px #33d9bd20}
+.overlay.countdown-active #overlayTitle{
+  font-size:clamp(90px,16vw,165px);line-height:1;font-variant-numeric:tabular-nums;
+  font-weight:900;color:#a2ffe3;text-shadow:0 0 35px #54d7b77e;margin:12px 0 20px
+}
+.overlay.countdown-active #overlayText{font-size:16px;letter-spacing:2px;font-weight:750;color:#d3faf1}
+.overlay.countdown-active .objectives,
+.overlay.countdown-active .role-selection,
+.overlay.countdown-active #primaryBtn{display:none!important}
+.overlay.countdown-active #overlayHint{letter-spacing:1px;margin-top:18px;color:#8dd9cc}
+
+
+/* Browse every room even while hosting or participating in a match. */
+#roomBrowser.has-active-room .lobby-create,
+#roomBrowser.has-active-room .room-search{display:none!important}
+.room-entry-current{border-color:#60d8bd;background:linear-gradient(135deg,#153e40,#103038)}
+.room-current-label{font:700 10px monospace;letter-spacing:1.4px;color:#7beccd}
+.room-entry-current button{background:#257768}
+.show-lobby #roomSession:not([hidden]){padding:12px 0 22px;border-bottom:1px solid #335960;margin-bottom:20px}
+
+
+/* Live five-player roster, player identity and pre-run class selection. */
+.lobby-profile{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;
+  padding:16px 0 20px;border-bottom:1px solid #35565b;margin-bottom:18px}
+.lobby-profile label{font:700 11px monospace;letter-spacing:1px;color:#8fe2d5}
+.lobby-profile label span{font-size:10px;letter-spacing:0;font-weight:400;color:#a6c7c8}
+.lobby-profile input{min-width:160px;flex:1}
+.lobby-profile select{background:#10343a;color:#e2fff5;border:1px solid #4c938b;
+  border-radius:8px;padding:10px 12px;min-height:40px;font:600 13px inherit}
+.lobby-profile select:disabled{opacity:.55;cursor:not-allowed}
+.lobby-profile-hint{color:#8aaeb0;font:11px monospace}
+.lobby-roster-heading{display:flex;justify-content:space-between;gap:10px;
+  align-items:center;margin:19px 0 11px;color:#a2ede0}
+.lobby-roster-heading strong{font:700 12px monospace;letter-spacing:2px}
+.lobby-roster-heading span{font:12px monospace;color:#92c9c7}
+.lobby-roster{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px}
+.roster-player{display:flex;gap:11px;align-items:center;min-height:72px;
+  padding:12px;background:#0f3039;border:1px solid #325d5c;border-radius:12px;min-width:0}
+.roster-player.is-self{border-color:#70e0c3;background:#15433f}
+.roster-player.is-empty{opacity:.60;border-style:dashed}
+.roster-slot{width:33px;height:33px;display:grid;place-items:center;flex:none;border-radius:9px;
+  color:#a9fbe9;background:#194c4b;font:700 12px monospace}
+.roster-details{min-width:0;display:flex;flex-direction:column;gap:6px}
+.roster-details strong{font-size:13px;overflow-wrap:anywhere}
+.roster-tags{display:flex;gap:5px;flex-wrap:wrap}
+.roster-tags span{font:700 10px monospace;letter-spacing:.5px;border-radius:5px;padding:3px 6px}
+.roster-role{background:#214d57;color:#c1f4f0}
+.roster-host{background:#5e4a23;color:#fff0ba}
+.roster-you{background:#236455;color:#b8ffec}
+@media(max-width:650px){.lobby-profile label{width:100%}.lobby-profile select,.lobby-profile input{flex:1;max-width:100%}}
+
+
+/* Minimal pre-game composition summary; player names appear in the game. */
+.lobby-class-summary{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:16px 0 6px;margin-top:14px;color:#b8e9e2}
+.lobby-class-summary>strong{font:700 11px monospace;letter-spacing:1.2px;color:#8fd4cb}
+.class-summary-item{display:inline-flex;align-items:center;gap:8px;border:1px solid #3d7772;
+  border-radius:9px;padding:9px 12px;background:#10343a;font:700 12px monospace}
+.class-summary-item b{color:#a8ffe7;font:700 16px monospace}
+.class-summary-total{margin-left:auto;color:#9fbfc1;font:12px monospace}
+@media(max-width:600px){.class-summary-total{margin-left:0;width:100%}}
+
+/* One pinned room card — no duplicate room entry or separate session banner. */
+#myRoomCard[hidden]{display:none!important}
+#myRoomCard.own-room-card{display:block;padding:19px 21px;margin:10px 0 25px;
+  border:1px solid #63d5bd;border-radius:14px;background:linear-gradient(135deg,#15403f,#0c2b35)}
+.own-room-main{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.own-room-main .room-description{flex:1;min-width:190px}
+.own-room-main .room-description strong{font-size:18px}
+.own-room-main .lobby-invite{margin:7px 0 0;color:#84d9d0;font:12px/1.6 monospace;overflow-wrap:anywhere}
+.own-room-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+#myRoomCard .lobby-class-summary{padding:13px 0 0;margin-top:15px;border-top:1px solid #366662}
+#myRoomCard .room-current-label{align-self:flex-start}
+@media(max-width:600px){#myRoomCard.own-room-card{padding:15px}.own-room-actions{width:100%}.own-room-actions button{flex:1}}

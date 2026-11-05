@@ -45,15 +45,34 @@ try{
   }
   assert(ready,'Server did not start: '+logs);
   const one=await open(),two=await open();
-  one.send(JSON.stringify({type:'create'}));
+  one.send(JSON.stringify({type:'create',nickname:'Captain Aurora'}));
   const joined=await waitFor(one,m=>m.type==='joined');
   assert.equal(joined.id,1);
+  const hostRoster=await waitFor(one,m=>m.type==='roster'&&m.players?.length===1);
+  assert.equal(hostRoster.players[0].name,'Captain Aurora');
+  assert.equal(hostRoster.players[0].role,'scout');
+  assert.equal(hostRoster.players[0].host,true);
   one.send(JSON.stringify({type:'start'}));
-  await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='playing');
+  const countdown=await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='countdown');
+  assert.equal(Math.ceil(countdown.snapshot.countdownRemaining),5);
+  one.send(JSON.stringify({type:'action',name:'dash',direction:{x:1,y:0}}));
+  await sleep(200);
+  const starting=await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='countdown'&&m.snapshot.countdownRemaining<4.9);
+  assert.equal(starting.snapshot.player.dashCooldown,0);
+  await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='playing',9000);
 
-  two.send(JSON.stringify({type:'join',code:joined.code}));
+  two.send(JSON.stringify({type:'join',code:joined.code,nickname:'Second Survivor'}));
   const joinedTwo=await waitFor(two,m=>m.type==='joined');
   assert.equal(joinedTwo.id,2);
+  two.send(JSON.stringify({type:'profile',nickname:'<Medic> Teammate'}));
+  const edited=await waitFor(one,m=>m.type==='roster'&&
+    m.players?.find(p=>p.id===2)?.name==='Medic Teammate');
+  assert.equal(edited.players.find(p=>p.id===2).name,'Medic Teammate');
+  // Class is frozen during a live game. New names can still be updated.
+  two.send(JSON.stringify({type:'role',role:'medic'}));
+  await sleep(150);
+  const current=wsMessages.get(one).filter(m=>m.type==='roster').at(-1);
+  assert.equal(current.players.find(p=>p.id===2).role,'scout');
   const snap=await waitFor(two,m=>m.type==='snapshot'&&
     m.snapshot.state==='playing'&&m.snapshot.guestPlayer);
   assert.equal(snap.snapshot.player.hp,3);
@@ -63,11 +82,35 @@ try{
   two.send(JSON.stringify({type:'action',name:'dash',direction:{x:1,y:0}}));
   await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.guestPlayer?.dashCooldown>0);
 
+  // Live lobby must list the room, then accept exactly five players.
+  const catalog=await open();
+  catalog.send(JSON.stringify({type:'list'}));
+  const listing=await waitFor(catalog,m=>m.type==='rooms'&&m.rooms.some(x=>x.code===joined.code));
+  assert(listing.rooms.find(x=>x.code===joined.code).capacity===5);
+  for(let id=3;id<=5;id++){
+    const newcomer=await open();
+    newcomer.send(JSON.stringify({type:'join',code:joined.code}));
+    const received=await waitFor(newcomer,m=>m.type==='joined');
+    assert.equal(received.id,id);
+    const snap=await waitFor(newcomer,m=>m.type==='snapshot'&&
+      m.snapshot.players?.filter(Boolean).length===id);
+    assert.equal(snap.snapshot.players.filter(Boolean).length,id);
+    newcomer.send(JSON.stringify({type:'action',name:'dash',direction:{x:1,y:0}}));
+    await waitFor(newcomer,m=>m.type==='snapshot'&&m.snapshot.players?.[id-1]?.dashCooldown>0);
+  }
+  const overflow=await open();
+  overflow.send(JSON.stringify({type:'join',code:joined.code}));
+  await waitFor(overflow,m=>m.type==='error'&&m.message==='Room is full');
   one.close();
   await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.player.hp===0&&
     m.snapshot.guestPlayer.hp>0);
+  const transferred=await waitFor(two,m=>m.type==='roster'&&m.hostId===2);
+  assert.equal(transferred.players.find(p=>p.id===2).host,true);
+  assert.equal(transferred.players.find(p=>p.id===2).name,'Medic Teammate');
+  two.send(JSON.stringify({type:'skip',fullStage:true}));
+  await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.levelIndex===9);
 
-  console.log('PASS: dedicated room serves two players, authoritative dash, and survives creator departure');
+  console.log('PASS: five-player rooms, live lobby, sixth-player rejection, authoritative dash and host departure');
 }finally{
   for(const socket of sockets)try{socket.close();}catch{}
   processServer.kill('SIGTERM');
