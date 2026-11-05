@@ -1531,5 +1531,5 @@
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
   // Expose read-only diagnostics for smoke tests, not used by gameplay.
-  window.__lastLightDiagnostics=()=>({state,level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp,characterClass:classChoice,survivorRescued:survivor.rescued,abilityCooldown:player.abilityCooldown});
+  window.__lastLightDiagnostics=()=>({state,level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp,playerPosition:{x:player.x,y:player.y},allyPosition:guestPlayer?{x:guestPlayer.x,y:guestPlayer.y}:null,dashCooldown:player.dashCooldown,characterClass:classChoice,survivorRescued:survivor.rescued,abilityCooldown:player.abilityCooldown});
 })();
