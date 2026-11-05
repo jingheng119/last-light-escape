@@ -209,7 +209,11 @@ try{
   assert.equal(markers.dead.length,1,'Fallen offscreen soul remains trackable');
   assert.equal(markers.dead[0].dead,true);
   for(const m of markers.offscreen){
-    assert(m.x>=14&&m.x<=978&&m.y>=84&&m.y<=624,
+    // Edge clipping uses floating-point projection, which can yield
+    // 83.99999999999997 instead of 84 exactly. Allow subpixel tolerance.
+    const tolerance=.001;
+    assert(m.x>=14-tolerance&&m.x<=978+tolerance&&
+      m.y>=84-tolerance&&m.y<=624+tolerance,
       'Teammate arrow must stay inside the updated near-edge HUD margins: '+JSON.stringify(m));
   }
   assert(await first.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
