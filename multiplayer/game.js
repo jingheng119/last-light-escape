@@ -1258,6 +1258,88 @@
     ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.fillStyle='#a5ffe3';ctx.beginPath();ctx.moveTo(19,0);ctx.lineTo(-7,-8);ctx.lineTo(-2,0);ctx.lineTo(-7,8);ctx.closePath();ctx.fill();ctx.restore();
     ctx.fillStyle='#7aadb0';ctx.font='10px monospace';ctx.textAlign='left';ctx.fillText(`${Math.round(dist(player,target))}m away`,W-158,60);
   }
+  // World-to-screen teammate tracking. The server already broadcasts all
+  // player positions and souls, so these markers need no additional packets.
+  function getTeammateIndicators(){
+    if(roomRole==='none'||!remotePlayers.length||!grid)return [];
+    const view={left:35,top:103,right:W-35,bottom:H-76};
+    const center={x:W/2,y:H/2};
+    const markers=[];
+    for(const teammate of remotePlayers){
+      if(!teammate||!Number.isFinite(teammate.x)||!Number.isFinite(teammate.y))continue;
+      const screenX=(teammate.x*TILE-camera.x)*CAMERA_ZOOM;
+      const screenY=(teammate.y*TILE-camera.y)*CAMERA_ZOOM;
+      // Only mark teammates who are genuinely outside the game viewport,
+      // not those merely hidden by darkness or close to the HUD edge.
+      if(screenX>=0&&screenX<=W&&screenY>=0&&screenY<=H)continue;
+      const dx=screenX-center.x,dy=screenY-center.y;
+      if(!dx&&!dy)continue;
+      const factor=Math.min(
+        dx>0?(view.right-center.x)/dx:dx<0?(view.left-center.x)/dx:Infinity,
+        dy>0?(view.bottom-center.y)/dy:dy<0?(view.top-center.y)/dy:Infinity
+      );
+      markers.push({
+        slot:teammate.slot,dead:teammate.hp<=0,
+        name:(roomIdentity.get(teammate.slot)?.name||'Survivor '+teammate.slot).slice(0,12),
+        color:colorForPlayer(teammate.slot),
+        x:center.x+dx*factor,y:center.y+dy*factor,
+        angle:Math.atan2(dy,dx),
+        edge:Math.abs(center.x+dx*factor-view.left)<1?'left':
+          Math.abs(center.x+dx*factor-view.right)<1?'right':
+          dy<0?'top':'bottom'
+      });
+    }
+    // Spread nearby arrows on the same edge so up to four remain distinct.
+    for(const edge of ['left','right','top','bottom']){
+      const group=markers.filter(m=>m.edge===edge)
+        .sort((a,b)=>edge==='left'||edge==='right'?a.y-b.y:a.x-b.x);
+      const vertical=edge==='left'||edge==='right';
+      const axis=vertical?'y':'x';
+      const min=vertical?view.top:view.left,max=vertical?view.bottom:view.right;
+      const spacing=42;
+      for(let i=0;i<group.length;i++){
+        const desired=group[i][axis];
+        group[i][axis]=Math.max(min+i*spacing,Math.min(max-(group.length-1-i)*spacing,desired));
+        if(i&&group[i][axis]<group[i-1][axis]+spacing)
+          group[i][axis]=group[i-1][axis]+spacing;
+      }
+      if(group.length&&group[group.length-1][axis]>max){
+        const shift=group[group.length-1][axis]-max;
+        for(const m of group)m[axis]-=shift;
+      }
+    }
+    return markers;
+  }
+  function drawTeammateIndicators(){
+    for(const m of getTeammateIndicators()){
+      ctx.save();
+      ctx.translate(m.x,m.y);
+      ctx.fillStyle='rgba(5,22,29,.87)';
+      ctx.strokeStyle=m.color;
+      ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(0,0,18,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.save();
+      ctx.rotate(m.angle);
+      ctx.fillStyle=m.color;
+      ctx.beginPath();ctx.moveTo(12,0);ctx.lineTo(-4,-8);ctx.lineTo(-1,0);
+      ctx.lineTo(-4,8);ctx.closePath();ctx.fill();
+      ctx.restore();
+      // Fallen teammates keep their color, plus a persistent soul marker.
+      if(m.dead){
+        ctx.fillStyle='#e8fdff';
+        ctx.beginPath();ctx.arc(0,0,4.5,Math.PI,0);
+        ctx.lineTo(4.5,5);ctx.lineTo(-4.5,5);ctx.closePath();ctx.fill();
+      }
+      ctx.font='bold 10px monospace';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.lineWidth=3;ctx.strokeStyle='#06161c';
+      const label=m.dead?'SOUL · '+m.name:m.name;
+      const textY=m.y<130?31:-30;
+      ctx.strokeText(label,0,textY);
+      ctx.fillStyle=m.color;ctx.fillText(label,0,textY);
+      ctx.restore();
+    }
+  }
   function drawInteractPrompts(){ctx.font='bold 11px monospace';ctx.textAlign='center';
     let message='';
     const fallen=remotePlayers.find(p=>p.hp<=0&&dist(player,p)<=REVIVE_RADIUS&&clearLine(player,p));
@@ -1353,7 +1435,7 @@
     drawItems();drawHollows();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();
     ctx.restore();
     // Fixed screen-space HUD must never drift with the camera.
-    drawDirectionalHUD();drawInteractPrompts();
+    drawDirectionalHUD();drawInteractPrompts();drawTeammateIndicators();
     if(alertLevel>0&&state==='playing'){
       ctx.fillStyle=alertLevel===2?'#e44d6411':'#ffc17c07';
       ctx.fillRect(0,0,W,H);
@@ -1797,5 +1879,5 @@
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
   // Expose read-only diagnostics for smoke tests, not used by gameplay.
-  window.__lastLightDiagnostics=()=>({state,roomPlayerId,roomRole,roomCount,visibleTeammates:remotePlayers.length,level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp,playerPosition:{x:player.x,y:player.y},allyPosition:guestPlayer?{x:guestPlayer.x,y:guestPlayer.y}:null,dashCooldown:player.dashCooldown,characterClass:classChoice,survivorRescued:survivor.rescued,abilityCooldown:player.abilityCooldown});
+  window.__lastLightDiagnostics=()=>({state,roomPlayerId,roomRole,roomCount,visibleTeammates:remotePlayers.length,teammateIndicators:getTeammateIndicators().map(m=>({slot:m.slot,dead:m.dead,x:m.x,y:m.y,angle:m.angle,edge:m.edge})),level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp,playerPosition:{x:player.x,y:player.y},allyPosition:guestPlayer?{x:guestPlayer.x,y:guestPlayer.y}:null,dashCooldown:player.dashCooldown,characterClass:classChoice,survivorRescued:survivor.rescued,abilityCooldown:player.abilityCooldown});
 })();
