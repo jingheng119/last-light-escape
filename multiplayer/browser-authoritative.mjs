@@ -96,6 +96,15 @@ try{
     'A full five-player room must not admit a sixth player');
 
   await first.locator('#primaryBtn').click();
+  for(const page of players){
+    await page.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='countdown',
+      null,{timeout:7000});
+    assert(await page.locator('#overlay').isVisible(),
+      'Countdown must appear for every connected player');
+    assert.equal((await page.locator('#overlayTitle').textContent()).trim(),'5');
+    assert(await page.locator('#primaryBtn').isHidden(),
+      'The start button must not cover the countdown');
+  }
   await sleep(600);
   console.log('After Start:',JSON.stringify({
     first:await first.evaluate(()=>({diagnostics:window.__lastLightDiagnostics?.(),status:document.querySelector('#roomStatus')?.textContent,overlay:document.querySelector('#overlay')?.className})),
