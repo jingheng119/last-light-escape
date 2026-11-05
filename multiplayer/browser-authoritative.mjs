@@ -121,9 +121,13 @@ try{
     [...document.querySelectorAll('.room-entry')].some(e=>e.textContent.includes(b)),
     [room,otherRoom],{timeout:9000});
   assert(await first.locator('#roomList').isVisible(),'Host must still see room browser');
-  assert(await first.locator('#roomSession').isVisible(),'Host must see their room summary');
-  assert.equal(await first.locator('.room-entry').count(),2);
-  assert(await first.locator('.room-entry').filter({hasText:room}).getByText('YOUR ROOM').isVisible());
+  assert(await first.locator('#myRoomCard').isVisible(),'Host must see pinned own-room card');
+  assert.equal(await first.locator('#roomList .room-entry').count(),1,
+    'Own room must not be repeated in Available Rooms');
+  assert.equal(await first.locator('#myRoomCard').getByText('YOUR ROOM').count(),1);
+  assert(await first.locator('#myRoomCard').textContent().then(t=>t.includes(room)));
+  assert(await first.locator('#myRoomCard #returnToGame').isVisible());
+  assert(await first.locator('#myRoomCard #leaveRoom').isVisible());
   await first.waitForFunction(()=>document.querySelector('#rosterCount')?.textContent==='5 / 5 players',
     null,{timeout:7000});
   assert.equal(await first.locator('#medicCount').textContent(),'1');
