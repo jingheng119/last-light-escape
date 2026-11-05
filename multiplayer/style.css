@@ -1129,3 +1129,14 @@
 .roster-host{background:#5e4a23;color:#fff0ba}
 .roster-you{background:#236455;color:#b8ffec}
 @media(max-width:650px){.lobby-profile label{width:100%}.lobby-profile select,.lobby-profile input{flex:1;max-width:100%}}
+
+
+/* Minimal pre-game composition summary; player names appear in the game. */
+.lobby-class-summary{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:16px 0 6px;margin-top:14px;color:#b8e9e2}
+.lobby-class-summary>strong{font:700 11px monospace;letter-spacing:1.2px;color:#8fd4cb}
+.class-summary-item{display:inline-flex;align-items:center;gap:8px;border:1px solid #3d7772;
+  border-radius:9px;padding:9px 12px;background:#10343a;font:700 12px monospace}
+.class-summary-item b{color:#a8ffe7;font:700 16px monospace}
+.class-summary-total{margin-left:auto;color:#9fbfc1;font:12px monospace}
+@media(max-width:600px){.class-summary-total{margin-left:0;width:100%}}
