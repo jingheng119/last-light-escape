@@ -191,6 +191,7 @@
       // Wall contact is resolved by the server's axis-by-axis collision.
       action.direction=magnitude>.08?{x:vx/magnitude,y:vy/magnitude}:{x:facing.x,y:facing.y};
     }
+    if(name==='dash'&&touch)action.touch=true;
     sendRoom(action);
     return true;
   }
@@ -665,6 +666,9 @@
     updateUI();
   }
   function dash(directionOverride=null,touch=false){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('dash',touch))return;if(state!=='playing'||player.hp<=0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
+    // Keep the mobile collision radius for the whole dash, even if the
+    // joystick's next input packet arrives after the DASH action.
+    player.dashTouch=touch===true;
     const vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     if(directionOverride&&Number.isFinite(directionOverride.x)&&Number.isFinite(directionOverride.y)&&Math.hypot(directionOverride.x,directionOverride.y)>.1){
@@ -815,7 +819,8 @@
       player.dashTime=Math.max(0,player.dashTime-dt);
       const touchDash=Math.hypot(joystickMove.x,joystickMove.y)>.08;
       const beforeX=player.x,beforeY=player.y;
-      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,touchDash?.18:.21,.32);
+      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,
+        player.dashTouch||touchDash?.18:.21,.32);
       // When dashing diagonally into a wall, the open axis should keep
       // moving along the wall. Stop only when both axes are blocked.
       // Straight-on wall collisions still end the dash immediately.
