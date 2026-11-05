@@ -1428,8 +1428,9 @@
   function applySnapshot(d){
     if(roomRole==='none'||!d)return;
     if(!Number.isInteger(d.levelIndex)||d.levelIndex<0||d.levelIndex>=CONFIGS.length)return;
-    if(lastLevel!==d.levelIndex){
-      // Wait for the full map for this floor rather than showing an old maze.
+    if(lastLevel!==d.levelIndex||runSeed!==d.runSeed){
+      // A fresh run can restart on the SAME floor with a new maze seed.
+      // Do not apply movement or objectives until the matching map arrives.
       if(!Array.isArray(d.grid)||!Array.isArray(d.cells))return;
       lastLevel=d.levelIndex;runSeed=d.runSeed;buildLevel(d.levelIndex);
     }
@@ -1492,10 +1493,12 @@
       hollows=d.hollows;
     }
     decoys=d.decoys;
-    noiseEvents=d.noiseEvents;skillWaves=d.skillWaves;survivor=d.survivor;technician=d.technician;
+    noiseEvents=Array.isArray(d.noiseEvents)?d.noiseEvents:[];
+    skillWaves=d.skillWaves||[];survivor=d.survivor;technician=d.technician;
     elapsed=d.elapsed;overallElapsed=d.overallElapsed;clock=d.clock;alertLevel=d.alertLevel;
     state=d.state;
     if(state==='playing')hideOverlay();
+    else if(state==='menu'&&previous!=='menu')setOverlay('THE HOLLOW WARD','Ready to begin a new run.','START GAME');
     else if(state!=='menu'&&state!==previous)
       setOverlay(d.overlay?.title||'WAIT FOR HOST',d.overlay?.text||'The host controls stage progression.','WAIT FOR HOST');
     // UI updates are costly when snapshots arrive 20 times per second.
