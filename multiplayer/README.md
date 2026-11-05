@@ -1,47 +1,51 @@
-# Last Light — unified game rooms (development prototype)
+# Last Light — online multiplayer trial
 
-The same original Hollow Ward game engine now powers a room with either one or two human players. **The public single-player website on main is unchanged.** This is a development integration, not yet a tested public multiplayer release.
+This branch contains the **original full game** with room-based 1–2 player online co-op. The single-player public GitHub Pages website on `main` is unchanged.
 
-## Local test
+## Play locally
 
-1. In the repository root on the feature/multiplayer-phase1 branch: `git pull`.
-2. In the multiplayer folder: `npm install` (only needed once or if dependencies change).
-3. Start: `node --watch server.js`.
-4. In Chrome visit http://localhost:3001.
-5. Click **Create room**, then **START GAME**. This is a single-player room using the original game, not a separate mode.
-6. To invite another player, open another browser tab, enter the six-character code, and click **Join room**. Both tabs should show the original game's maze, Hollows, survivor, power cores and relay.
-7. Try WASD, dash, decoy, ability, and interaction on each tab. The host controls floor transitions.
+```cmd
+git pull
+cd multiplayer
+npm install
+npm start
+```
 
-`git pull` in the repository root obtains future updates; refresh both browser tabs after changes. Node watch restarts automatically when the watched server source changes. If the server stops, restart it.
+Open `http://localhost:3001/`, create a room, start, then share the room code with a second player on the **same network**. For online players, deploy below.
 
-## Current architecture
+## Deploy online with Render
 
-- Original game reused as `multiplayer/game.js`; original graphics, stages, enemy AI, audio and abilities retained.
-- Each room starts with 1 player. A second player can join the room using a code.
-- Room host runs the full game simulation. The WebSocket server forwards the second player's input to the host and relays snapshots back.
-- Remote player actions and movement are simulated inside the same original game simulation, rather than in a separate simplified maze.
+A `render.yaml` Blueprint is included at the repository root. It declares one **Free** Node.js web service in **Singapore**, running the multiplayer app from `multiplayer/`.
 
-## Important limitations
+1. Log in to https://dashboard.render.com/ using your own account.
+2. Choose **New → Blueprint**, connect GitHub if prompted, and select `jingheng119/last-light-escape`.
+3. In Render's branch selection, select **`feature/multiplayer-phase1`**, not `main`. Confirm it finds the root `render.yaml`.
+4. Review the service **last-light-online-trial**, region **Singapore**, plan **Free**. Approve/deploy the Blueprint. No custom domain is needed.
+5. After status is **Live**, click the public `https://<your-assigned-name>.onrender.com` URL shown by Render. Do **not** assume the name until Render supplies it.
+6. Player 1 opens the service URL, clicks **Create room**, and starts the game.
+7. Share the complete invite link shown by the game with player 2, who opens it on another computer/network and clicks **Join room**. Alternatively, share the six-character room code.
+8. Test player movement, shared objectives, soul revival, elevator rules, and the victory screen.
+9. Subsequent commits to `feature/multiplayer-phase1` should trigger Render redeployment if auto-deploy remains enabled. Your local `git pull` is not required to update Render.
 
-This is **host-authoritative**, not yet a secure dedicated game server. It depends on the host browser remaining active. The client-trusted simulation is vulnerable to cheating and unsuitable for competitive leaderboards. Hosting the relay in the cloud would not remove this dependency.
+You can alternatively create a **Web Service** manually, using these settings: repository `jingheng119/last-light-escape`; branch `feature/multiplayer-phase1`; root directory `multiplayer`; runtime Node; build command `npm install --omit=dev`; start command `npm start`; region Singapore; instance Free; health check path `/health`.
 
-No registrations, persistent saves, lobby matchmaking, robust reconnect, touch input verification, network prediction, interpolation, dedicated authoritative simulation or production hardening yet. The prototype now relays each player's Scout/Medic role selection. Multiplayer balance, stage progression and abilities still need hands-on testing. We should subsequently move the simulation into a shared server-side engine while retaining this same room model.
+**Free hosting behavior:** Render can spin down after 15 minutes with no inbound HTTP request or WebSocket messages. Waking it can take roughly a minute. Active two-player sessions send messages, so they generally remain active, but platform restarts, deploys, or disconnections can still end a session. Render has usage quotas, and free infrastructure is not for production. Check the dashboard before adding a payment method.
 
-## Next steps
+**Architecture caveat:** A hosted room relay lets two people play over the internet but is **not yet a fully server-authoritative multiplayer game**. The player who created the room still runs the actual game physics, Hollows, Dashers, and objectives in their browser. The host must keep the browser running. The Render server provides HTTPS/WSS, room lookup, forwarding, and state delivery. We must extract and move simulation to the Node server before promising host-independent rooms, reliable reconnection, anti-cheat, or persistent matches.
 
-1. Test two players on the original Hollow Ward UI and fix any observed bugs.
-2. Add per-player roles, better ally-follow behavior, revives, and reconnection.
-3. Move authority into a cloud game server, then deploy it on always-on infrastructure.
-4. Add secure accounts and stored progress.
+## Gameplay
 
-## Team elimination rule (latest)
+- One-player rooms use the complete original game.
+- Two players share enemies, objectives, floor progression, and victory.
+- Both living players must reach the elevator, but eliminated players do not block progression.
+- A defeated player's soul remains at the death location. A living teammate can stand nearby for five consecutive seconds to revive them with one heart.
+- Only when every player has zero hearts does the entire room lose.
 
-- With one player, losing the third heart ends the run.
-- With two players, a player at zero hearts is eliminated, cannot move or use skills, and watches the living teammate.
-- Game over occurs only after both players reach zero hearts.
-- A living teammate may finish the floor by completing objectives and reaching the elevator; the eliminated player is not required to stand at the exit.
-- An eliminated player returns with one heart at the start of the next floor.
-- On losing all hearts, a player's soul stays at the exact position of the final hit.
-- The other living player can stand within 1.5 maze tiles of the soul with clear line of sight for 5 continuous seconds to revive them with 1 heart. Moving out of range resets the countdown.
-- A soul and circular revival progress indicator appear in the game, with a brief grace period after revival.
-- If both players are down, the room ends as before.
+## Troubleshooting
+
+- **Build fails:** verify the branch is `feature/multiplayer-phase1` and Render's root directory is `multiplayer`.
+- **Page loads but assets don't:** check `/game.js`, `/style.css`, and `/favicon.svg` at your Render URL.
+- **Both players cannot join:** make sure they use the **same Render URL**, not one player on localhost. Rooms exist only within the same server process.
+- **A cold-start delay:** this is a known Free tier limitation.
+- **The host leaves:** the room closes. This is expected in the current prototype.
+- **Unexpected game changes during a deployment:** restart the room after a new release; mid-session updates are not hot-swappable.
