@@ -595,6 +595,7 @@
     ui.roleLocked.hidden=choosing;
     ui.roleLabel.firstChild.textContent=choosing?'CHOOSE YOUR ROLE ':'YOUR ROLE ';
     ui.lockedRoleText.textContent=classChoice==='medic'?'MEDIC · HEALING BURST':'SCOUT · STUN SHOCKWAVE';
+    if($('#lobbyClass'))$('#lobbyClass').value=classChoice;
     document.querySelectorAll('.role-option').forEach(card=>{
       const selected=card.dataset.role===classChoice;
       card.classList.toggle('is-selected',selected);
@@ -1591,7 +1592,67 @@
     const status=$('#roomStatus'),invite=$('#roomInvite'),
       create=$('#createRoom'),join=$('#joinRoom'),code=$('#joinRoomCode'),
       roomName=$('#roomName'),directory=$('#roomList'),roomBrowser=$('#roomBrowser'),
-      roomSession=$('#roomSession'),roomCountLabel=$('#roomCount');
+      roomSession=$('#roomSession'),roomCountLabel=$('#roomCount'),
+      nicknameInput=$('#playerNickname'),lobbyClass=$('#lobbyClass'),
+      roster=$('#lobbyRoster');
+    nicknameInput.value=sessionStorage.getItem('lastLightNickname')||'';
+    let savedPlayers=[];
+    const nameForServer=()=>nicknameInput.value.trim().slice(0,20);
+    const joinRequest=code=>sendRoom({type:'join',code,nickname:nameForServer()});
+    const renderRoster=players=>{
+      savedPlayers=players;
+      roster.replaceChildren();
+      $('#rosterCount').textContent=players.length+' / 5 SURVIVORS';
+      const occupied=new Map(players.map(person=>[person.id,person]));
+      for(let slot=1;slot<=5;slot++){
+        const person=occupied.get(slot);
+        const card=document.createElement('div');
+        card.className='roster-player'+(person?' is-occupied':' is-empty')+
+          (person?.id===roomPlayerId?' is-self':'');
+        const number=document.createElement('span');
+        number.className='roster-slot';number.textContent='P'+slot;
+        const details=document.createElement('div');details.className='roster-details';
+        const name=document.createElement('strong');
+        name.textContent=person?person.name:'Waiting for survivor…';
+        details.appendChild(name);
+        const tags=document.createElement('div');tags.className='roster-tags';
+        if(person){
+          const role=document.createElement('span');
+          role.className='roster-role';role.textContent=person.role==='medic'?'✚ MEDIC':'◇ SCOUT';
+          tags.appendChild(role);
+          if(person.host){
+            const host=document.createElement('span');
+            host.className='roster-host';host.textContent='HOST';
+            tags.appendChild(host);
+          }
+          if(person.id===roomPlayerId){
+            const me=document.createElement('span');
+            me.className='roster-you';me.textContent='YOU';tags.appendChild(me);
+          }
+        }
+        details.appendChild(tags);card.append(number,details);roster.appendChild(card);
+      }
+    };
+    nicknameInput.addEventListener('change',()=>{
+      nicknameInput.value=nameForServer();
+      sessionStorage.setItem('lastLightNickname',nicknameInput.value);
+      if(roomRole!=='none')sendRoom({type:'profile',nickname:nicknameInput.value});
+    });
+    nicknameInput.addEventListener('blur',()=>{
+      if(roomRole!=='none'){
+        nicknameInput.value=nameForServer();
+        sessionStorage.setItem('lastLightNickname',nicknameInput.value);
+        sendRoom({type:'profile',nickname:nicknameInput.value});
+      }
+    });
+    lobbyClass.addEventListener('change',()=>{
+      if(!['menu','dead','victory'].includes(state)){
+        lobbyClass.value=classChoice;return;
+      }
+      classChoice=lobbyClass.value==='medic'?'medic':'scout';
+      refreshRoleSelection();
+      if(roomRole!=='none')sendRoom({type:'role',role:classChoice});
+    });
     const setJoined=joined=>{
       // A host still needs to browse other active rooms. Keep the directory
       // visible; only hide room creation / code-entry while already joined.
@@ -1604,6 +1665,8 @@
       join.disabled=joined;
       code.disabled=joined;
       // Refresh labels such as YOUR ROOM and JOIN (after leaving).
+      if(joined)renderRoster(savedPlayers);
+      else{savedPlayers=[];roster.replaceChildren();}
       sendRoom({type:'list'});
     };
     const drawRooms=rooms=>{
@@ -1641,7 +1704,7 @@
           button.textContent=!entry.joinable?'Full':roomRole!=='none'?'Leave to join':'Join room';
           button.disabled=!entry.joinable||roomRole!=='none';
           button.title=roomRole!=='none'?'Leave your current room before joining another':'';
-          button.addEventListener('click',()=>sendRoom({type:'join',code:entry.code}));
+          button.addEventListener('click',()=>joinRequest(entry.code));
         }
         card.append(description,button);directory.appendChild(card);
       }
@@ -1667,6 +1730,8 @@
       if(m.type==='joined'){
         roomPlayerId=m.id;roomRole=m.host?'host':'guest';roomCount=1;
         code.value=m.code;showNetworkStatus();
+        nicknameInput.value=nicknameInput.value.trim().slice(0,20);
+        sessionStorage.setItem('lastLightNickname',nicknameInput.value);
         const url=new URL(location.origin);
         url.pathname='/play';url.searchParams.set('room',m.code);
         invite.textContent='ROOM '+m.code+' · Invite link: '+url.href;
@@ -1682,10 +1747,12 @@
       }else if(m.type==='roster'&&roomPlayerId){
         roomCount=m.count;
         roomRole=m.hostId===roomPlayerId?'host':'guest';
+        if(Array.isArray(m.players))renderRoster(m.players);
         showNetworkStatus();
         status.textContent=roomCount+' / 5 players connected'+
           (roomRole==='host'?' · You are the host':'');
         $('#gameRoomCount').textContent=roomCount+' / 5 SURVIVORS';
+        lobbyClass.disabled=!['menu','dead','victory'].includes(state);
         if(state==='menu'){
           ui.button.firstChild.textContent=roomRole==='host'?'START GAME ':'WAIT FOR HOST ';
         }else if(state==='leveldone'){
@@ -1708,14 +1775,15 @@
     });
     create.addEventListener('click',()=>{
       if(roomRole!=='none')return;
-      sendRoom({type:'create',name:roomName.value.trim()||'Hollow Ward'});
+      sendRoom({type:'create',name:roomName.value.trim()||'Hollow Ward',
+        nickname:nameForServer()});
     });
     join.addEventListener('click',()=>{
       const value=code.value.trim().toUpperCase();
       if(!/^[0-9A-F]{6}$/.test(value)){
         status.textContent='Enter a valid six-character room code.';return;
       }
-      sendRoom({type:'join',code:value});
+      joinRequest(value);
     });
     $('#refreshRooms').addEventListener('click',()=>sendRoom({type:'list'}));
     $('#leaveRoom').addEventListener('click',()=>sendRoom({type:'leave'}));
@@ -1730,7 +1798,7 @@
       code.value=invited.toUpperCase();
       // A direct game-room invite opens the game page after joining, while
       // retaining the same live session used for in-app lobby navigation.
-      roomSocket.addEventListener('open',()=>sendRoom({type:'join',code:invited.toUpperCase()}),{once:true});
+      roomSocket.addEventListener('open',()=>joinRequest(invited.toUpperCase()),{once:true});
     }
     setJoined(false);
     showPage('lobby',false);
