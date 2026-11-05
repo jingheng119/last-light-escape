@@ -550,6 +550,7 @@
   function startGame(){if(roomRole==='none'){notify('Create a room first.');return;}unlockGameAudio();sendRoom({type:'start'});return;developerSkipped=false;runSeed=Math.floor(Math.random()*1000000);overallElapsed=0;buildLevel(0);state='playing';hideOverlay();notify('Rescue the survivor, collect cores, and reach the elevator.');beep(560,.16);}
   function advance() {
     if(roomRole!=='none'){
+      unlockGameAudio();
       if(state==='menu'||state==='victory'||state==='dead')sendRoom({type:'start'});
       else if(state==='leveldone')sendRoom({type:'next'});
       else if(state==='paused')sendRoom({type:'pause'});
