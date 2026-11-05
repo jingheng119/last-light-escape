@@ -63,11 +63,30 @@ try{
   two.send(JSON.stringify({type:'action',name:'dash',direction:{x:1,y:0}}));
   await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.guestPlayer?.dashCooldown>0);
 
+  // Live lobby must list the room, then accept exactly five players.
+  const catalog=await open();
+  catalog.send(JSON.stringify({type:'list'}));
+  const listing=await waitFor(catalog,m=>m.type==='rooms'&&m.rooms.some(x=>x.code===joined.code));
+  assert(listing.rooms.find(x=>x.code===joined.code).capacity===5);
+  for(let id=3;id<=5;id++){
+    const newcomer=await open();
+    newcomer.send(JSON.stringify({type:'join',code:joined.code}));
+    const received=await waitFor(newcomer,m=>m.type==='joined');
+    assert.equal(received.id,id);
+    const snap=await waitFor(newcomer,m=>m.type==='snapshot'&&
+      m.snapshot.players?.filter(Boolean).length===id);
+    assert.equal(snap.snapshot.players.filter(Boolean).length,id);
+    newcomer.send(JSON.stringify({type:'action',name:'dash',direction:{x:1,y:0}}));
+    await waitFor(newcomer,m=>m.type==='snapshot'&&m.snapshot.players?.[id-1]?.dashCooldown>0);
+  }
+  const overflow=await open();
+  overflow.send(JSON.stringify({type:'join',code:joined.code}));
+  await waitFor(overflow,m=>m.type==='error'&&m.message==='Room is full');
   one.close();
   await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.player.hp===0&&
     m.snapshot.guestPlayer.hp>0);
 
-  console.log('PASS: dedicated room serves two players, authoritative dash, and survives creator departure');
+  console.log('PASS: five-player rooms, live lobby, sixth-player rejection, authoritative dash and host departure');
 }finally{
   for(const socket of sockets)try{socket.close();}catch{}
   processServer.kill('SIGTERM');
