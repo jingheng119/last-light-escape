@@ -106,3 +106,33 @@ live without creating another network channel.
 
 The Chromium test verifies the class-only lobby summaries and confirms the
 canvas draws actual player nicknames during a real five-person match.
+
+## Automatic player reconnection (experimental)
+
+A browser that reloads or temporarily loses its WebSocket can reclaim its
+**original player slot** for up to **90 seconds** (provided the same Render
+process and room remain alive). The server issues a cryptographically random
+256-bit bearer token when a player joins, and rotates it on every successful
+reconnection. It is returned only to that player, never to public room lists,
+the roster, or the invitation link.
+
+The token and room code are held in that browser tab's `sessionStorage`,
+which survives refreshes but is not a permanent account. A new tab or different
+device does not automatically gain the same player identity.
+
+During temporary disconnection the server reserves the seat and freezes that
+player's input, making their character inactive in Hollow targeting, soul
+revival and elevator checks. Other connected survivors can keep playing. The
+original character object (health, position, class, cooldowns, objectives and
+current floor) is restored on reconnect. Active host leadership transfers to a
+remaining player if necessary; the returning creator does not evict that host.
+
+A deliberate **Leave room** removes the reservation immediately. A stolen
+token is sufficient to take over its player slot, so never publish or put
+reconnection tokens in URLs. After 90 seconds, or if Render restarts, the token
+expires and the player can manually join a room again as a new character.
+No database-backed persistence or cross-device restoration is implemented.
+
+Run `npm test` for server-side token validation, anti-replay and socket
+takeover checks. The Chromium test verifies real page-refresh recovery
+without spawning another survivor.

@@ -57,6 +57,29 @@ const bridge=`
       if(player.hp<=0){player.hp=1;player.invincible=2.5;player.x=1.5;player.y=1.5;}
       roomCount=allPlayers().length;
     },
+    // Temporary network loss keeps the ORIGINAL character object, hearts,
+    // coordinates, role and cooldowns intact. Only inputs are reset.
+    suspend(id){
+      if(id===1){player.disconnected=true;moveHeld=safeKeys();joystickMove.x=0;joystickMove.y=0;}
+      else if(id===2&&guestPlayer){
+        guestPlayer.disconnected=true;
+        remoteKeys=safeKeys();remoteStick={x:0,y:0};
+      }else if(id>=3&&id<=5&&extraPlayers[id-3]){
+        extraPlayers[id-3].disconnected=true;
+        extraControls[id-3].keys=safeKeys();
+        extraControls[id-3].stick={x:0,y:0};
+      }
+      roomCount=allPlayers().length;
+    },
+    resume(id){
+      const character=id===1?player:id===2?guestPlayer:extraPlayers[id-3];
+      if(!character)return false;
+      character.disconnected=false;
+      // Do not heal or teleport a returning soul.
+      character.dashTime=0;
+      roomCount=allPlayers().length;
+      return true;
+    },
     role(id,value){
       const role=value==='medic'?'medic':'scout';
       if(id===1)classChoice=role;
@@ -127,7 +150,7 @@ const bridge=`
       const value={
         state,levelIndex,runSeed,elapsed,overallElapsed,clock,alertLevel,
         countdownRemaining:state==='countdown'?countdownRemaining:0,
-        player,guestPlayer,players:[player.disconnected?null:player,guestPlayer,...extraPlayers],
+        player,guestPlayer,players:[player.disconnected?null:player,guestPlayer?.disconnected?null:guestPlayer,...extraPlayers.map(p=>p?.disconnected?null:p)],
         playerRoles:[classChoice,guestClassChoice,...extraControls.map(c=>c.role)],
         cores,relay,exit,decoys,noiseEvents,skillWaves,survivor,technician,
         classChoice,guestClassChoice,

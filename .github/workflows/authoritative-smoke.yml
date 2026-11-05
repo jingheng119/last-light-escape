@@ -1,9 +1,9 @@
 name: Authoritative multiplayer smoke
 on:
   push:
-    branches: [feature/server-authoritative, feature/five-player-lobby]
+    branches: [feature/server-authoritative, feature/five-player-lobby, feature/player-reconnection]
   pull_request:
-    branches: [feature/multiplayer-phase1, feature/server-authoritative]
+    branches: [feature/multiplayer-phase1, feature/server-authoritative, feature/five-player-lobby]
   workflow_dispatch:
 jobs:
   smoke:

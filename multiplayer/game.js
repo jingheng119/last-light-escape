@@ -774,7 +774,7 @@
     // The soul artwork stays visible; only show a timer during an active revive.
     if(progress>0)ctx.fillText('REVIVING '+(REVIVE_SECONDS-(soul.reviveProgress||0)).toFixed(1)+'s',x,y-28);
   }
-  function damage(){if(player.hp<=0||player.invincible>0||player.dashTime>0||state!=='playing')return;
+  function damage(){if(player.hp<=0||player.disconnected||player.invincible>0||player.dashTime>0||state!=='playing')return;
     player.hp--;player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
     // On the final hit, keep the soul at the exact place the player fell.
     // Surviving players are still teleported to start as in the original game.
@@ -798,7 +798,7 @@
     updateUI();
   }
   function updatePlayer(dt){
-    if(player.hp<=0)return;
+    if(player.hp<=0||player.disconnected)return;
     player.invincible=Math.max(0,player.invincible-dt);player.dashCooldown=Math.max(0,player.dashCooldown-dt);
     player.abilityCooldown=Math.max(0,player.abilityCooldown-dt);
     player.decoyCooldown=Math.max(0,player.decoyCooldown-dt);
@@ -824,7 +824,7 @@
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
   function checkGhostContact(){
-    if(state!=='playing'||player.hp<=0||player.invincible>0||player.dashTime>0)return;
+    if(state!=='playing'||player.hp<=0||player.disconnected||player.invincible>0||player.dashTime>0)return;
     // Hollows follow tile-centre paths; allow contact at their visible edge,
     // including when the player is stationary off-centre inside the same tile.
     // Require a clear path to avoid hitting through a wall.
@@ -1701,6 +1701,21 @@
       rosterCountLabel=$('#rosterCount');
     nicknameInput.value=sessionStorage.getItem('lastLightNickname')||'';
     let savedPlayers=[];
+    const SESSION_KEY='lastLightPlayerSession';
+    let reconnectAttempts=0,reconnectTimer=null;
+    let invited=new URLSearchParams(location.search).get('room');
+    const readSession=()=>{
+      try{
+        const value=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
+        return value&&/^[0-9A-F]{6}$/.test(value.code)&&
+          /^[0-9a-f]{64}$/.test(value.token)?value:null;
+      }catch{return null;}
+    };
+    const saveSession=(code,token)=>{
+      if(/^[0-9A-F]{6}$/.test(code)&&/^[0-9a-f]{64}$/.test(token))
+        sessionStorage.setItem(SESSION_KEY,JSON.stringify({code,token}));
+    };
+    const clearSession=()=>sessionStorage.removeItem(SESSION_KEY);
     const nameForServer=()=>nicknameInput.value.trim().slice(0,20);
     const joinRequest=code=>sendRoom({type:'join',code,nickname:nameForServer()});
     const renderRoster=players=>{
@@ -1781,16 +1796,34 @@
         card.append(description,button);directory.appendChild(card);
       }
     };
-    roomSocket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
-    roomSocket.addEventListener('open',()=>{
-      status.textContent='Connected · Choose an available room or create one.';
+    const connectSocket=()=>{
+      if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
+      const socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
+      roomSocket=socket;
+    socket.addEventListener('open',()=>{
+      if(socket!==roomSocket)return;
+      reconnectAttempts=0;
       sendRoom({type:'list'});sendRoom({type:'ping',at:performance.now()});
+      const saved=readSession();
+      if(saved){
+        status.textContent='Restoring your last room and character…';
+        sendRoom({type:'resume',code:saved.code,token:saved.token});
+      }else if(invited&&/^[0-9A-F]{6}$/i.test(invited)){
+        joinRequest(invited.toUpperCase());
+        invited=null;
+      }else{
+        status.textContent='Connected · Choose an available room or create one.';
+      }
     });
-    roomSocket.addEventListener('close',()=>{
-      status.textContent='Disconnected from server. Refresh to reconnect.';
-      roomRole='none';roomPlayerId=0;setJoined(false);showPage('lobby',false);
+    socket.addEventListener('close',()=>{
+      if(socket!==roomSocket)return;
+      status.textContent='Connection interrupted. Reconnecting automatically…';
+      $('#gameRoomCount').textContent='RECONNECTING…';
+      const delay=Math.min(8000,600*Math.pow(2,Math.min(4,reconnectAttempts++)));
+      reconnectTimer=setTimeout(connectSocket,delay);
     });
-    roomSocket.addEventListener('message',event=>{
+    socket.addEventListener('message',event=>{
+      if(socket!==roomSocket)return;
       let m;try{m=JSON.parse(event.data);}catch{return;}
       if(m.type==='pong'&&typeof m.at==='number'){
         const ms=Math.max(0,performance.now()-m.at);
@@ -1798,10 +1831,17 @@
         showNetworkStatus();
       }
       if(m.type==='error')status.textContent=m.message;
+      if(m.type==='resume-error'){
+        clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
+        setJoined(false);state='menu';showPage('lobby',true);
+        status.textContent=m.message+'. Please join a room again.';
+      }
       if(m.type==='rooms'&&Array.isArray(m.rooms))drawRooms(m.rooms);
       if(m.type==='joined'){
         roomPlayerId=m.id;roomRole=m.host?'host':'guest';roomCount=1;
+        if(m.reconnectToken)saveSession(m.code,m.reconnectToken);
         code.value=m.code;showNetworkStatus();
+        if(m.resumed&&typeof m.nickname==='string')nicknameInput.value=m.nickname;
         nicknameInput.value=nicknameInput.value.trim().slice(0,20);
         sessionStorage.setItem('lastLightNickname',nicknameInput.value);
         const url=new URL(location.origin);
@@ -1810,11 +1850,12 @@
         $('#currentRoomName').textContent=(m.name||'Hollow Ward')+' · ROOM '+m.code;
         setJoined(true);showPage('play');
         sendRoom({type:'list'});
-        status.textContent=m.host?'Room created. Press START GAME to begin!':'Room joined. Waiting for host.';
+        status.textContent=m.resumed?'Reconnected to your original character.':
+          m.host?'Room created. Press START GAME to begin!':'Room joined. Waiting for host.';
         // The browser requires a gesture for audio; don't initialize it during
         // an unsolicited network message. The player can enable it by clicking.
-        sendRoom({type:'role',role:classChoice});
-        if(roomRole==='guest')
+        if(!m.resumed)sendRoom({type:'role',role:classChoice});
+        if(roomRole==='guest'&&!m.resumed)
           setOverlay('JOINED THE WARD','Waiting for the room host to start.','WAIT FOR HOST');
       }else if(m.type==='roster'&&roomPlayerId){
         roomCount=m.count;
@@ -1833,7 +1874,7 @@
             'WAIT FOR HOST ';
         }
       }else if(m.type==='left'){
-        roomRole='none';roomPlayerId=0;roomCount=0;
+        clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
         guestPlayer=null;remotePlayers=[];
         lastLevel=-1;guestPreviousHP=null;
         setJoined(false);
@@ -1845,6 +1886,8 @@
         showNetworkStatus();sendRoom({type:'list'});
       }else if(m.type==='snapshot'&&roomRole!=='none')applySnapshot(m.snapshot);
     });
+    };
+    connectSocket();
     create.addEventListener('click',()=>{
       if(roomRole!=='none')return;
       sendRoom({type:'create',name:roomName.value.trim()||'Hollow Ward',
@@ -1858,20 +1901,13 @@
       joinRequest(value);
     });
     $('#refreshRooms').addEventListener('click',()=>sendRoom({type:'list'}));
-    $('#leaveRoom').addEventListener('click',()=>sendRoom({type:'leave'}));
-    $('#leaveGameRoom').addEventListener('click',()=>sendRoom({type:'leave'}));
+    $('#leaveRoom').addEventListener('click',()=>{clearSession();sendRoom({type:'leave'});});
+    $('#leaveGameRoom').addEventListener('click',()=>{clearSession();sendRoom({type:'leave'});});
     $('#backToLobby').addEventListener('click',()=>showPage('lobby'));
     $('#returnToGame').addEventListener('click',()=>showPage('play'));
     window.addEventListener('popstate',()=>{
       showPage(location.pathname==='/play'?'play':'lobby',false);
     });
-    const invited=new URLSearchParams(location.search).get('room');
-    if(invited&&/^[0-9A-F]{6}$/i.test(invited)){
-      code.value=invited.toUpperCase();
-      // A direct game-room invite opens the game page after joining, while
-      // retaining the same live session used for in-app lobby navigation.
-      roomSocket.addEventListener('open',()=>joinRequest(invited.toUpperCase()),{once:true});
-    }
     setJoined(false);
     showPage('lobby',false);
   }
