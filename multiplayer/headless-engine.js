@@ -28,19 +28,34 @@ const bridge=`
     };
     if(id===1)run();
     else if(id===2&&guestPlayer)asGuest(run);
+    else if(id>=3&&id<=5)withExtra(id,run);
   };
   buildLevel(0);
   globalThis.__roomEngine={
-    join(){
-      if(!guestPlayer){roomCount=2;newGuest();}
+    join(id){
+      if(id===2&&!guestPlayer)newGuest();
+      else if(id>=3&&id<=5&&!extraPlayers[id-3])
+        extraPlayers[id-3]=structuredClone(player);
+      roomCount=allPlayers().length;
     },
-    leave(){guestPlayer=null;roomCount=1;remoteKeys=safeKeys();},
-    hostLeft(){player.hp=0;moveHeld=safeKeys();roomCount=1;},
-    rejoinHost(){if(player.hp<=0){player.hp=1;player.invincible=2.5;player.x=1.5;player.y=1.5;}roomCount=2;},
+    leave(id){
+      if(id===1){player.hp=0;moveHeld=safeKeys();}
+      else if(id===2){guestPlayer=null;remoteKeys=safeKeys();}
+      else if(id>=3&&id<=5){
+        extraPlayers[id-3]=null;
+        extraControls[id-3].keys=safeKeys();
+      }
+      roomCount=allPlayers().length;
+    },
+    rejoinHost(){
+      if(player.hp<=0){player.hp=1;player.invincible=2.5;player.x=1.5;player.y=1.5;}
+      roomCount=allPlayers().length;
+    },
     role(id,value){
       const role=value==='medic'?'medic':'scout';
       if(id===1)classChoice=role;
-      else guestClassChoice=role;
+      else if(id===2)guestClassChoice=role;
+      else if(id>=3&&id<=5)extraControls[id-3].role=role;
     },
     start(){
       if(!['menu','dead','victory'].includes(state))return;
@@ -53,6 +68,7 @@ const bridge=`
       buildLevel(levelIndex+1);state='playing';
     },
     restart(){if(state==='playing')buildLevel(levelIndex);},
+    status(){return state;},
     skip(fullStage=false){
       if(state==='playing'||state==='paused'||state==='leveldone')developerSkip(fullStage);
     },
@@ -67,6 +83,9 @@ const bridge=`
         const j=safeStick(stick);joystickMove.x=j.x;joystickMove.y=j.y;
       }else if(id===2&&guestPlayer){
         remoteKeys=safeKeys(keys);remoteStick=safeStick(stick);
+      }else if(id>=3&&id<=5&&extraPlayers[id-3]){
+        extraControls[id-3].keys=safeKeys(keys);
+        extraControls[id-3].stick=safeStick(stick);
       }
     },
     action:perform,
@@ -77,7 +96,9 @@ const bridge=`
     snapshot(full){
       const value={
         state,levelIndex,runSeed,elapsed,overallElapsed,clock,alertLevel,
-        player,guestPlayer,cores,relay,exit,decoys,noiseEvents,skillWaves,survivor,technician,
+        player,guestPlayer,players:[player,guestPlayer,...extraPlayers],
+        playerRoles:[classChoice,guestClassChoice,...extraControls.map(c=>c.role)],
+        cores,relay,exit,decoys,noiseEvents,skillWaves,survivor,technician,
         classChoice,guestClassChoice,
         hollows:hollows.map(h=>({
           x:h.x,y:h.y,angle:h.angle,variant:h.variant,
