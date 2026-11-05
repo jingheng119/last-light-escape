@@ -1614,7 +1614,7 @@
     const status=$('#roomStatus'),invite=$('#roomInvite'),
       create=$('#createRoom'),join=$('#joinRoom'),code=$('#joinRoomCode'),
       roomName=$('#roomName'),directory=$('#roomList'),roomBrowser=$('#roomBrowser'),
-      roomSession=$('#roomSession'),roomCountLabel=$('#roomCount'),
+      myRoomCard=$('#myRoomCard'),roomCountLabel=$('#roomCount'),
       nicknameInput=$('#playerNickname'),lobbyClass=$('#lobbyClass'),
       rosterCountLabel=$('#rosterCount');
     nicknameInput.value=sessionStorage.getItem('lastLightNickname')||'';
@@ -1655,7 +1655,7 @@
       // visible; only hide room creation / code-entry while already joined.
       roomBrowser.hidden=false;
       roomBrowser.classList.toggle('has-active-room',joined);
-      roomSession.hidden=!joined;
+      myRoomCard.hidden=!joined;
       $('#leaveRoom').disabled=!joined;
       $('#returnToGame').disabled=!joined;
       create.disabled=joined;
@@ -1671,13 +1671,15 @@
     const drawRooms=rooms=>{
       directory.replaceChildren();
       roomCountLabel.textContent=rooms.length+' '+(rooms.length===1?'room':'rooms');
-      if(!rooms.length){
+      // Our room already has its pinned card above the list: never duplicate it.
+      const others=rooms.filter(entry=>!(roomRole!=='none'&&entry.code===code.value));
+      if(!others.length){
         const p=document.createElement('p');
         p.className='room-empty';
-        p.textContent='No rooms yet. Create one and invite your friends!';
+        p.textContent=roomRole!=='none'?'No other rooms available.':'No rooms yet. Create one and invite your friends!';
         directory.appendChild(p);return;
       }
-      for(const entry of rooms){
+      for(const entry of others){
         const card=document.createElement('div');
         card.className='room-entry';
         const description=document.createElement('div');
@@ -1690,21 +1692,10 @@
         description.append(title,metadata);
         const button=document.createElement('button');
         button.type='button';
-        const ownRoom=roomRole!=='none'&&entry.code===code.value;
-        if(ownRoom){
-          card.classList.add('room-entry-current');
-          const current=document.createElement('span');
-          current.className='room-current-label';
-          current.textContent='YOUR ROOM';
-          description.appendChild(current);
-          button.textContent='Return to game';
-          button.addEventListener('click',()=>showPage('play'));
-        }else{
-          button.textContent=!entry.joinable?'Full':roomRole!=='none'?'Leave to join':'Join room';
-          button.disabled=!entry.joinable||roomRole!=='none';
-          button.title=roomRole!=='none'?'Leave your current room before joining another':'';
-          button.addEventListener('click',()=>joinRequest(entry.code));
-        }
+        button.textContent=!entry.joinable?'Full':roomRole!=='none'?'Leave to join':'Join room';
+        button.disabled=!entry.joinable||roomRole!=='none';
+        button.title=roomRole!=='none'?'Leave your current room before joining another':'';
+        button.addEventListener('click',()=>joinRequest(entry.code));
         card.append(description,button);directory.appendChild(card);
       }
     };
