@@ -47,14 +47,14 @@
   let roomTiles = new Set(), noiseEvents = [], survivor = null, technician = null;
   let runSeed=0;
   let roomRole='none',roomSocket=null,roomCount=0,guestPlayer=null,lastSync=0,lastInput=0,lastLevel=-1;
-  let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0};
+  let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout';
   const sendRoom=m=>{if(roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify(m));};
   function newGuest(){guestPlayer=structuredClone(player);guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.trail=[];}
   function asGuest(fn){
     if(!guestPlayer)return;
-    const own=player,keys=moveHeld,jx=joystickMove.x,jy=joystickMove.y;
-    player=guestPlayer;moveHeld=remoteKeys;joystickMove.x=remoteStick.x;joystickMove.y=remoteStick.y;
-    try{fn();}finally{guestPlayer=player;player=own;moveHeld=keys;joystickMove.x=jx;joystickMove.y=jy;}
+    const own=player,keys=moveHeld,jx=joystickMove.x,jy=joystickMove.y,ownClass=classChoice;
+    player=guestPlayer;moveHeld=remoteKeys;joystickMove.x=remoteStick.x;joystickMove.y=remoteStick.y;classChoice=guestClassChoice;
+    try{fn();}finally{guestPlayer=player;player=own;moveHeld=keys;joystickMove.x=jx;joystickMove.y=jy;classChoice=ownClass;}
   }
   function guestAction(name){if(roomRole!=='guest')return false;sendRoom({type:'action',name});return true;}
 
@@ -537,9 +537,11 @@
     updateUI();
   }
   function followAlly(ally,dt){
-    if(!ally||!ally.rescued||ally.extracted||dist(ally,player)<1.05)return;
+    if(!ally)return;
+    const target=guestPlayer&&dist(ally,guestPlayer)<dist(ally,player)?guestPlayer:player;
+    if(!ally.rescued||ally.extracted||dist(ally,target)<1.05)return;
     ally.repath-=dt;
-    if(ally.repath<=0){ally.followPath=pathTo(ally,player);ally.followIndex=0;ally.repath=.32;}
+    if(ally.repath<=0){ally.followPath=pathTo(ally,target);ally.followIndex=0;ally.repath=.32;}
     if(ally.followIndex<ally.followPath.length){
       const stepTo=ally.followPath[ally.followIndex],d=dist(ally,stepTo);
       if(d<.08)ally.followIndex++;
@@ -1094,6 +1096,7 @@
       if(state!=='menu'&&state!=='dead'&&state!=='victory')return;
       classChoice=card.dataset.role==='medic'?'medic':'scout';
       refreshRoleSelection();
+      if(roomRole==='guest')sendRoom({type:'role',role:classChoice});
     });
   });
   refreshRoleSelection();
@@ -1230,6 +1233,7 @@
         invite.textContent='ROOM '+m.code+' · Invite link: '+url.href;
         create.disabled=true;join.disabled=true;code.disabled=true;
         status.textContent=m.host?'Room created. Press START GAME to begin!':'Room joined. Waiting for host.';
+        if(roomRole==='guest'){unlockGameAudio();sendRoom({type:'role',role:classChoice});}
         if(roomRole==='guest')setOverlay('JOINED THE WARD','Waiting for the host. Once the game begins, move and use abilities as usual.','WAIT FOR HOST');
       }else if(m.type==='roster'){
         roomCount=m.count;
@@ -1245,6 +1249,8 @@
         setOverlay('ROOM CLOSED','The host has disconnected. Refresh the browser.','ROOM CLOSED');
       }else if(m.type==='remoteInput'&&roomRole==='host'){
         remoteKeys=m.keys;remoteStick=m.joystick||{x:0,y:0};
+      }else if(m.type==='remoteRole'&&roomRole==='host'){
+        guestClassChoice=m.role==='medic'?'medic':'scout';
       }else if(m.type==='remoteAction'&&roomRole==='host'){
         const actions={dash,decoy:triggerDecoy,interact,ability:activateAbility};
         if(actions[m.name])asGuest(actions[m.name]);
