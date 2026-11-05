@@ -91,7 +91,7 @@ const bridge=`
 })();`;
 const codeText=original.slice(0,cut)+bridge;
 const fakeElement=()=>({
-  textContent:'',dataset:{},children:[{textContent:''},{textContent:''}],
+  textContent:'',dataset:{},getContext:()=>({}),children:[{textContent:''},{textContent:''}],
   firstChild:{textContent:''},
   classList:{add(){},remove(){},toggle(){},contains(){return false;}},
   style:{setProperty(){},getPropertyValue(){return '';}},
