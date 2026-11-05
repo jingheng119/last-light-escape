@@ -114,15 +114,23 @@
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
   function newGuest(){guestPlayer=structuredClone(player);guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.trail=[];}
+  let extraContextGuest=null;
   function allPlayers(){
-    // During a temporary asGuest context, player and guestPlayer exchange roles.
-    return [...new Set([player,guestPlayer,...extraPlayers].filter(p=>p&&!p.disconnected))];
+    // A player action temporarily swaps the global 'player' reference.
+    // Preserve the host AND the original second player when actions or
+    // collisions are evaluated for slots 2–5. Otherwise the second player's
+    // death can incorrectly appear to be the last survivor.
+    const originalHost=guestContextHost||player;
+    const originalSecond=extraContextGuest||guestPlayer;
+    return [...new Set([originalHost,originalSecond,...extraPlayers]
+      .filter(p=>p&&!p.disconnected))];
   }
   function withExtra(slot,fn){
     const i=slot-3,extra=extraPlayers[i];
     if(!extra)return;
     const originalGuest=guestPlayer,originalKeys=remoteKeys,originalStick=remoteStick,
-      originalRole=guestClassChoice;
+      originalRole=guestClassChoice,previousExtraContext=extraContextGuest;
+    extraContextGuest=originalGuest;
     guestPlayer=extra;
     remoteKeys=extraControls[i]?.keys||{up:false,down:false,left:false,right:false};
     remoteStick=extraControls[i]?.stick||{x:0,y:0};
@@ -131,6 +139,7 @@
     finally{
       extraPlayers[i]=guestPlayer;guestPlayer=originalGuest;remoteKeys=originalKeys;
       remoteStick=originalStick;guestClassChoice=originalRole;
+      extraContextGuest=previousExtraContext;
     }
   }
   let extraControls=[0,1,2].map(()=>({
