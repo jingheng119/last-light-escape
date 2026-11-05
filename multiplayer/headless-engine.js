@@ -19,10 +19,10 @@ const bridge=`
     x:Number.isFinite(value.x)?clamp(value.x,-1,1):0,
     y:Number.isFinite(value.y)?clamp(value.y,-1,1):0
   });
-  const perform=(id,action,direction)=>{
+  const perform=(id,action,direction,touch=false)=>{
     if(state!=='playing')return;
     const run=()=>{
-      if(action==='dash')dash(direction);
+      if(action==='dash')dash(direction,touch);
       else if(action==='decoy')triggerDecoy();
       else if(action==='interact')interact();
       else if(action==='ability')activateAbility();
