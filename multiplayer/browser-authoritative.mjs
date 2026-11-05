@@ -78,6 +78,12 @@ try{
   p2=await second.evaluate(()=>window.__lastLightDiagnostics());
   assert(delta(p1.playerPosition,p2.allyPosition)<.24);
   assert(delta(p2.playerPosition,p1.allyPosition)<.24);
+  // Regression: the inactive soul has no floating "SOUL · REVIVE" text,
+  // and hosts get an actionable next-floor button when the level clears.
+  const gameSource=await (await fetch('http://127.0.0.1:'+port+'/game.js')).text();
+  assert(!gameSource.includes(":'SOUL · REVIVE',x,y-28"),'Inactive soul label must be hidden');
+  assert(gameSource.includes("button=levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO':'ENTER NEXT FLOOR'"),
+    'Host floor-clear button must allow progression');
   if(problems.length)throw new Error('Browser JS errors: '+problems.join(' | '));
   console.log('PASS: Both real browsers leave Start menu, render shared room and accept inputs.');
 }catch(e){
