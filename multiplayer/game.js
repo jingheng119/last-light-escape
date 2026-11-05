@@ -709,7 +709,8 @@
       ctx.beginPath();ctx.arc(x,y,18,-Math.PI/2,-Math.PI/2+progress*Math.PI*2);ctx.stroke();
     }
     ctx.font='bold 10px monospace';ctx.fillStyle='#e6fbff';ctx.textAlign='center';
-    ctx.fillText(progress>0?'REVIVING '+(REVIVE_SECONDS-(soul.reviveProgress||0)).toFixed(1)+'s':'SOUL · REVIVE',x,y-28);
+    // The soul artwork stays visible; only show a timer during an active revive.
+    if(progress>0)ctx.fillText('REVIVING '+(REVIVE_SECONDS-(soul.reviveProgress||0)).toFixed(1)+'s',x,y-28);
   }
   function damage(){if(player.hp<=0||player.invincible>0||player.dashTime>0||state!=='playing')return;
     player.hp--;player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
@@ -1461,8 +1462,20 @@
     state=d.state;
     if(state==='playing')hideOverlay();
     else if(state==='menu'&&previous!=='menu')setOverlay('THE HOLLOW WARD','Ready to begin a new run.','START GAME');
-    else if(state!=='menu'&&state!==previous)
-      setOverlay(d.overlay?.title||'WAIT FOR HOST',d.overlay?.text||'The host controls stage progression.','WAIT FOR HOST');
+    else if(state!=='menu'&&state!==previous){
+      // The server owns floor progression, but only the room creator can
+      // advance. Show that player the actual action instead of WAIT FOR HOST.
+      const host=roomRole==='host';
+      let button='WAIT FOR HOST';
+      if(host){
+        if(state==='leveldone')
+          button=levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO':'ENTER NEXT FLOOR';
+        else if(state==='paused')button='RESUME GAME';
+        else if(state==='dead'||state==='victory')button='PLAY AGAIN';
+      }
+      setOverlay(d.overlay?.title||'THE HOLLOW WARD',
+        d.overlay?.text||'Waiting for the next floor.',button);
+    }
     // UI updates are costly when snapshots arrive 20 times per second.
     const now=performance.now();
     if(now-lastGuestUIAt>120||previous!==state){
