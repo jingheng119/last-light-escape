@@ -50,6 +50,7 @@
   let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout',guestContextHost=null;
   let localDashUntil=0,localDashDir=null,hostInputClock=0,hostLastGuestInput=0;
   let guestPreviousHP=null,guestWasPlaying=false;
+  let clientToastUntil=0,clientHitFlashUntil=0;
   let hollowVisualSample=0,hollowVisualVelocity=[];
   function guestInputPacket(){
     const packet={type:'input',keys:moveHeld,joystick:joystickMove};
@@ -114,23 +115,19 @@
   }
   function guestAction(name){
     if(roomRole==='none')return false;
-    // Give the local player immediate visual dash feedback; host remains
-    // authoritative and may correct an invalid/cooldown dash.
-    if(name==='dash'&&state==='playing'&&player?.hp>0&&player.dashCooldown<=0){
-      let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
-      let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
-      const m=Math.hypot(vx,vy);
-      player.dashDir=m>.01?{x:vx/m,y:vy/m}:{...player.facing};
-      player.dashTime=.24;
-      player.dashCooldown=3.5*cooldownFactor();
-      localDashUntil=performance.now()+240;
-      localDashDir={...player.dashDir};
-      beep(220,.17,'sawtooth',.019);
-    }
+    // The authoritative server owns movement and dash activation. Do NOT
+    // move the character or start a local dash before server confirmation:
+    // that created visible desync around walls and Hollow collisions.
     const action={type:'action',name};
-    if(name==='dash'&&player?.dashDir)action.direction={...player.dashDir};
-    if(player&&state==='playing')action.pos={x:player.x,y:player.y};
-    sendRoom(action);return true;
+    if(name==='dash'){
+      const vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
+      const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
+      const magnitude=Math.hypot(vx,vy);
+      const facing=player?.facing||{x:1,y:0};
+      action.direction=magnitude>.08?{x:vx/magnitude,y:vy/magnitude}:{x:facing.x,y:facing.y};
+    }
+    sendRoom(action);
+    return true;
   }
 
   // Temporary developer shortcut. Skipped runs never enter the best-time record.
@@ -518,7 +515,12 @@
     if(alertLevel===2&&previousThreat<2)beep(380,.12,'square',.017);
     previousThreat=alertLevel;
   }
-  function notify(msg,seconds=2.7) {ui.toast.textContent=msg;toastUntil=clock+seconds;ui.toast.classList.add('show');}
+  function notify(msg,seconds=2.7) {
+    ui.toast.textContent=msg;
+    toastUntil=clock+seconds;
+    if(roomRole!=='none')clientToastUntil=performance.now()+seconds*1000;
+    ui.toast.classList.add('show');
+  }
   function refreshRoleSelection(){
     // Only the initial/new-run menu permits choosing a class. Paused and
     // cleared floors display the locked role instead of editable choices.
@@ -1092,18 +1094,7 @@
     for(const d of decoys){const x=d.x*TILE,y=d.y*TILE,rad=(d.age*50)%80;ctx.strokeStyle=`rgba(244,191,101,${Math.min(.7,d.life/5)})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(x,y,Math.max(0,rad-24),0,Math.PI*2);ctx.stroke();diamond(x,y,7,'#ffd179');}
   }
   function drawHollows(){for(let i=0;i<hollows.length;i++){const h=hollows[i];
-    let hx=h.x,hy=h.y;
-    // Hollow visuals advance a fraction of a second beyond their most recent
-    // network sample; host-only collision rules are unchanged.
-    if(roomRole!=='none'&&state==='playing'&&h.stunned<=0){
-      const velocity=hollowVisualVelocity[i];
-      if(velocity){
-        const seconds=Math.max(0,Math.min(.12,(performance.now()-hollowVisualSample)/1000));
-        const xx=h.x+velocity.x*seconds,yy=h.y+velocity.y*seconds;
-        if(canStand(xx,yy,.13)&&clearLine(h,{x:xx,y:yy})){hx=xx;hy=yy;}
-      }
-    }
-    let x=hx*TILE,y=hy*TILE,red=h.mode==='chase'&&!(h.stunned>0);
+    let x=h.x*TILE,y=h.y*TILE,red=h.mode==='chase'&&!(h.stunned>0);
     const hunter=h.variant==='hunter',dasher=h.variant==='dasher';
     const glow=h.stunned>0?'#6dbeff3f':hunter?'#fa4c8c48':dasher?'#edaa3540':red?'#ff465b35':'#fa8f6a16';
     halo(x,y,hunter?70:dasher?52:red?62:38,glow);ctx.save();ctx.translate(x,y);
@@ -1285,11 +1276,20 @@
   function tick(timestamp){
     const dt=Math.min(.045,Math.max(0,(timestamp-lastFrame)/1000||0));
     lastFrame=timestamp;frameIndex++;
-    // Guest responds immediately to input, without waiting for the round trip
-    // via Singapore and the host browser; the next snapshot reconciles it.
-    if(roomRole!=='none')predictGuestMovement(dt);
-    // Rendering stays on animation frames; room physics continues in the
-    // simulation timer even when the host tab is in the background.
+    // Rendering follows the authoritative server positions. Client prediction
+    // is intentionally disabled to avoid walking/dashing through the server's
+    // true walls or away from the real Hollow collision hitbox.
+    if(roomRole!=='none'){
+      const now=performance.now();
+      if(clientToastUntil&&now>=clientToastUntil){
+        clientToastUntil=0;ui.toast.classList.remove('show');
+      }
+      if(clientHitFlashUntil){
+        const left=Math.max(0,(clientHitFlashUntil-now)/450);
+        ui.flash.style.opacity=(left*.18).toFixed(2);
+        if(left<=0)clientHitFlashUntil=0;
+      }
+    }
     updateMusic();
     if(state==='playing')updateCamera(dt);
     draw();
@@ -1438,60 +1438,22 @@
     if(Array.isArray(d.grid))grid=d.grid;
     if(Array.isArray(d.cells))cells=d.cells;
     if(Array.isArray(d.roomTiles))roomTiles=new Set(d.roomTiles);
-    // In an active remote session, never drag a moving character backwards
-    // 20 times per second toward an old host snapshot. Use immediate client
-    // movement with maze collisions, then reconcile during idle periods.
+    // One true position, generated by the dedicated room simulation.
+    // Never overwrite incoming server coordinates with client estimates.
     const authoritative=roomRole==='host'?d.player:(d.guestPlayer||d.player);
     if(!authoritative)return;
-    const predicted=player;
-    const moving=Object.values(moveHeld).some(Boolean)||Math.hypot(joystickMove.x,joystickMove.y)>.08;
-    if(predicted&&lastLevel===d.levelIndex&&
-       predicted.hp>0&&authoritative.hp>0&&state==='playing'&&d.state==='playing'){
-      const error=Math.hypot(predicted.x-authoritative.x,predicted.y-authoritative.y);
-      const sudden=error>3.3;
-      if(!sudden){
-        if(moving||predicted.dashTime>0){
-          // Remote input may still be in flight. Snapshots remain authoritative
-          // for lives and skills, but not for in-flight visual positioning.
-          authoritative.x=predicted.x;
-          authoritative.y=predicted.y;
-        }else{
-          const factor=error>.5?.16:.045;
-          authoritative.x=predicted.x+(authoritative.x-predicted.x)*factor;
-          authoritative.y=predicted.y+(authoritative.y-predicted.y)*factor;
-        }
-        if(predicted.dashTime>0&&authoritative.dashTime>0)
-          authoritative.dashTime=Math.max(predicted.dashTime,authoritative.dashTime);
-      }
-    }
-    // Retain the predicted dash for its short visual window, rather than
-    // repeatedly resetting it with snapshots from before the host received it.
-    if(localDashUntil>performance.now()&&authoritative.hp>0&&d.state==='playing'){
-      authoritative.dashDir={...localDashDir};
-      authoritative.dashTime=Math.max(authoritative.dashTime,(localDashUntil-performance.now())/1000);
-    }
     if(guestPreviousHP!==null&&authoritative.hp<guestPreviousHP){
-      hitFlash=.45;
+      clientHitFlashUntil=performance.now()+450;
       beep(100,.24,'sawtooth',.038);
-      notify(authoritative.hp>0?'A HOLLOW HIT YOU!':'SIGNAL LOST — WAIT FOR RESCUE',2);
-      localDashUntil=0;
+      notify(authoritative.hp>0?'A HOLLOW HIT YOU!':'SIGNAL LOST — WAIT FOR RESCUE',1.5);
     }
     guestPreviousHP=authoritative.hp;
     player=authoritative;
     guestPlayer=roomRole==='host'?d.guestPlayer:(d.guestPlayer?d.player:null);
     cores=d.cores;relay=d.relay;exit=d.exit;
-    if(Array.isArray(d.hollows)){
-      const now=performance.now(),dt=(now-hollowVisualSample)/1000;
-      hollowVisualVelocity=d.hollows.map((h,i)=>{
-        const before=hollows?.[i];
-        if(!before||dt<=.015||dt>.6)return {x:0,y:0};
-        const vx=(h.x-before.x)/dt,vy=(h.y-before.y)/dt;
-        const speed=Math.hypot(vx,vy);
-        return speed>9?{x:0,y:0}:{x:vx,y:vy};
-      });
-      hollowVisualSample=now;
-      hollows=d.hollows;
-    }
+    // Hollows must be drawn where the server checks their collisions.
+    // No visual extrapolation that can put their sprites ahead of the hitbox.
+    if(Array.isArray(d.hollows))hollows=d.hollows;
     decoys=d.decoys;
     noiseEvents=Array.isArray(d.noiseEvents)?d.noiseEvents:[];
     skillWaves=d.skillWaves||[];survivor=d.survivor;technician=d.technician;
