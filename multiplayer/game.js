@@ -46,9 +46,18 @@
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
   let roomTiles = new Set(), noiseEvents = [], survivor = null, technician = null;
   let runSeed=0;
-  let roomRole='none',roomSocket=null,roomCount=0,guestPlayer=null,lastSync=0,lastInput=0,lastLevel=-1,lastSentStaticLevel=-1,lastFullSnapshot=0;
+  let roomRole='none',roomSocket=null,roomCount=0,guestPlayer=null,lastSync=0,lastInput=0,lastLevel=-1,lastSentStaticLevel=-1,lastFullSnapshot=0,remotePingAt=0,remotePingMs=null,lastGuestUIAt=0;
   let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout',guestContextHost=null;
   const sendRoom=m=>{if(roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify(m));};
+  function showNetworkStatus(){
+    const status=$('#networkStatus');
+    if(!status)return;
+    const label=remotePingMs===null?'measuring…':Math.round(remotePingMs)+' ms';
+    const healthy=remotePingMs!==null&&remotePingMs<180;
+    status.textContent=(roomRole==='host'?'HOST':'PLAYER 2')+' · SERVER '+label+
+      (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
+    status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
+  }
   function newGuest(){guestPlayer=structuredClone(player);guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.trail=[];}
   function asGuest(fn){
     if(!guestPlayer)return;
@@ -1209,6 +1218,9 @@
     const now=performance.now();
     const dt=Math.min(.10,Math.max(0,(now-simulationLast)/1000));
     simulationLast=now;
+    if(roomRole!=='none'&&now-remotePingAt>2000){
+      remotePingAt=now;sendRoom({type:'ping',at:now});
+    }
     if(roomRole==='host'){
       // Catch up safely after the tab was suspended, without huge physics jumps.
       const steps=Math.max(1,Math.ceil(dt/.035));
@@ -1348,8 +1360,12 @@
     const full=lastSentStaticLevel!==levelIndex||performance.now()-lastFullSnapshot>5000;
     const snapshot={
       state,levelIndex,runSeed,elapsed,overallElapsed,clock,alertLevel,
-      player,guestPlayer,cores,relay,exit,hollows,decoys,noiseEvents,
-      skillWaves,survivor,technician,
+      player,guestPlayer,cores,relay,exit,
+      // Only visual, mutable Hollow fields are needed by the remote renderer.
+      // Paths/targets/home and navigation arrays remain inside the host AI.
+      hollows:hollows.map(h=>({x:h.x,y:h.y,angle:h.angle,variant:h.variant,
+        mode:h.mode,stunned:h.stunned,wobble:h.wobble,dashTime:h.dashTime})),
+      decoys,skillWaves,survivor,technician,
       overlay:{title:ui.title.textContent,text:ui.text.textContent}
     };
     if(full){
@@ -1370,21 +1386,28 @@
     if(Array.isArray(d.grid))grid=d.grid;
     if(Array.isArray(d.cells))cells=d.cells;
     if(Array.isArray(d.roomTiles))roomTiles=new Set(d.roomTiles);
-    // Preserve the locally predicted position instead of snapping backwards
-    // to every delayed host snapshot. Correct small errors smoothly, while
-    // teleport/death/floor transitions snap immediately to host authority.
+    // In an active remote session, never drag a moving character backwards
+    // 20 times per second toward an old host snapshot. Use immediate client
+    // movement with maze collisions, then reconcile during idle periods.
     const authoritative=d.guestPlayer||d.player;
     if(!authoritative)return;
     const predicted=player;
+    const moving=Object.values(moveHeld).some(Boolean)||Math.hypot(joystickMove.x,joystickMove.y)>.08;
     if(d.guestPlayer&&predicted&&lastLevel===d.levelIndex&&
        predicted.hp>0&&authoritative.hp>0&&state==='playing'&&d.state==='playing'){
       const error=Math.hypot(predicted.x-authoritative.x,predicted.y-authoritative.y);
-      if(error<1.65){
-        const factor=error>.7?.30:.12;
-        authoritative.x=predicted.x+(authoritative.x-predicted.x)*factor;
-        authoritative.y=predicted.y+(authoritative.y-predicted.y)*factor;
-        // The client display predicts dash timing; other combat state is
-        // authoritative from the host.
+      const sudden=error>3.3;
+      if(!sudden){
+        if(moving||predicted.dashTime>0){
+          // Remote input may still be in flight. Snapshots remain authoritative
+          // for lives and skills, but not for in-flight visual positioning.
+          authoritative.x=predicted.x;
+          authoritative.y=predicted.y;
+        }else{
+          const factor=error>.5?.16:.045;
+          authoritative.x=predicted.x+(authoritative.x-predicted.x)*factor;
+          authoritative.y=predicted.y+(authoritative.y-predicted.y)*factor;
+        }
         if(predicted.dashTime>0&&authoritative.dashTime>0)
           authoritative.dashTime=Math.max(predicted.dashTime,authoritative.dashTime);
       }
@@ -1398,18 +1421,31 @@
     if(state==='playing')hideOverlay();
     else if(state!=='menu'&&state!==previous)
       setOverlay(d.overlay?.title||'WAIT FOR HOST',d.overlay?.text||'The host controls stage progression.','WAIT FOR HOST');
-    updateUI();updateCamera(.05);
+    // UI updates are costly when snapshots arrive 20 times per second.
+    const now=performance.now();
+    if(now-lastGuestUIAt>120||previous!==state){
+      lastGuestUIAt=now;updateUI();
+    }
+    // Smooth camera motion in the render loop, not per network packet.
   }
   function connectRoom(){
     const status=$('#roomStatus'),invite=$('#roomInvite'),create=$('#createRoom'),join=$('#joinRoom'),code=$('#joinRoomCode');
     roomSocket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
-    roomSocket.addEventListener('open',()=>{status.textContent='Connected. Create a room to play solo or invite a teammate.';});
+    roomSocket.addEventListener('open',()=>{
+      status.textContent='Connected. Create a room to play solo or invite a teammate.';
+      sendRoom({type:'ping',at:performance.now()});
+    });
     roomSocket.addEventListener('close',()=>{status.textContent='Disconnected from room server. Refresh to reconnect.';roomRole='none';});
     roomSocket.addEventListener('message',event=>{
       let m;try{m=JSON.parse(event.data);}catch{return;}
+      if(m.type==='pong'&&typeof m.at==='number'){
+        const ms=Math.max(0,performance.now()-m.at);
+        remotePingMs=remotePingMs===null?ms:remotePingMs*.72+ms*.28;
+        showNetworkStatus();
+      }
       if(m.type==='error')status.textContent=m.message;
       if(m.type==='joined'){
-        roomRole=m.host?'host':'guest';roomCount=m.host?1:2;
+        roomRole=m.host?'host':'guest';roomCount=m.host?1:2;showNetworkStatus();
         code.value=m.code;
         const url=new URL(location.href);url.searchParams.set('room',m.code);
         invite.textContent='ROOM '+m.code+' · Invite link: '+url.href;
