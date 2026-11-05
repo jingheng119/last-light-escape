@@ -43,7 +43,7 @@ const bridge=`
       roomCount=allPlayers().length;
     },
     leave(id){
-      if(id===1){player.hp=0;moveHeld=safeKeys();}
+      if(id===1){player.hp=0;player.disconnected=true;moveHeld=safeKeys();}
       else if(id===2){guestPlayer=null;remoteKeys=safeKeys();}
       else if(id>=3&&id<=5){
         extraPlayers[id-3]=null;
@@ -52,6 +52,7 @@ const bridge=`
       roomCount=allPlayers().length;
     },
     rejoinHost(){
+      player.disconnected=false;
       if(player.hp<=0){player.hp=1;player.invincible=2.5;player.x=1.5;player.y=1.5;}
       roomCount=allPlayers().length;
     },
@@ -100,7 +101,7 @@ const bridge=`
     snapshot(full){
       const value={
         state,levelIndex,runSeed,elapsed,overallElapsed,clock,alertLevel,
-        player,guestPlayer,players:[player,guestPlayer,...extraPlayers],
+        player,guestPlayer,players:[player.disconnected?null:player,guestPlayer,...extraPlayers],
         playerRoles:[classChoice,guestClassChoice,...extraControls.map(c=>c.role)],
         cores,relay,exit,decoys,noiseEvents,skillWaves,survivor,technician,
         classChoice,guestClassChoice,
