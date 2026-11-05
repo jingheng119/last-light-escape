@@ -95,6 +95,29 @@ try{
   assert(await sixth.locator('.room-entry').filter({hasText:room}).locator('button').isDisabled(),
     'A full five-player room must not admit a sixth player');
 
+  // A second host creates another public room. The first host must STILL
+  // see both rooms in the lobby, with the current one marked YOUR ROOM.
+  await sixth.locator('#roomName').fill('Second Host Room');
+  await sixth.locator('#createRoom').click();
+  await sixth.waitForFunction(()=>window.__lastLightDiagnostics?.().roomPlayerId===1,null,{timeout:9000});
+  const otherRoom=await sixth.locator('#joinRoomCode').inputValue();
+  assert.notEqual(otherRoom,room,'Separate hosts must create separate rooms');
+  await first.locator('#backToLobby').click();
+  await first.waitForFunction(([a,b])=>
+    [...document.querySelectorAll('.room-entry')].some(e=>e.textContent.includes(a))&&
+    [...document.querySelectorAll('.room-entry')].some(e=>e.textContent.includes(b)),
+    [room,otherRoom],{timeout:9000});
+  assert(await first.locator('#roomList').isVisible(),'Host must still see room browser');
+  assert(await first.locator('#roomSession').isVisible(),'Host must see their room summary');
+  assert.equal(await first.locator('.room-entry').count(),2);
+  assert(await first.locator('.room-entry').filter({hasText:room}).getByText('YOUR ROOM').isVisible());
+  assert(await first.locator('.room-entry').filter({hasText:otherRoom}).isVisible());
+  assert(await first.locator('.room-entry').filter({hasText:otherRoom}).locator('button').isDisabled(),
+    'Other rooms should remain visible but not joinable until current room is left');
+  await first.locator('.room-entry').filter({hasText:room}).locator('button').click();
+  assert.equal(new URL(first.url()).pathname,'/play');
+  assert.equal((await first.evaluate(()=>window.__lastLightDiagnostics())).roomPlayerId,1);
+
   await first.locator('#primaryBtn').click();
   for(const page of players){
     await page.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='countdown',
