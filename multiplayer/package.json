@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server-authoritative.js",
-    "test": "node smoke-authoritative.mjs"
+    "test": "node smoke-authoritative.mjs && node integration-authoritative.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"
