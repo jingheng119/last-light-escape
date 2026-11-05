@@ -498,6 +498,14 @@
     if(!soundEnabled)return;
     try {audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const osc=audioCtx.createOscillator(),g=audioCtx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,audioCtx.currentTime);g.gain.setValueAtTime(volume,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+duration);osc.connect(g).connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+duration);}catch(e){}
   }
+  // One short cue per server-confirmed countdown number, not per render
+  // frame or snapshot. A brighter final tone signals the start is imminent.
+  function countdownBeep(number){
+    if(!soundEnabled||activePage!=='play'||number<1||number>5)return;
+    const frequency=[0,880,740,660,587,523][number];
+    beep(frequency,number===1?.32:.16,number===1?'triangle':'sine',
+      number===1?.065:.045);
+  }
   // Original generative dark-ambient score. All notes are composed here and
   // synthesized locally; no third-party recordings or background downloads.
   // Stage I is restrained and ominous; Stage II adds brighter circuitry and
@@ -1695,6 +1703,7 @@
       const number=Math.max(1,Math.ceil(d.countdownRemaining||0));
       if(number!==lastCountdownNumber||previous!=='countdown'){
         lastCountdownNumber=number;
+        countdownBeep(number);
         setOverlay(''+number,'GET READY · THE WARD OPENS SOON','STARTING…',
           'ALL SURVIVORS BEGIN TOGETHER');
       }
