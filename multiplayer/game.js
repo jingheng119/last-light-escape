@@ -176,30 +176,6 @@
       moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.18:.21,.30);
     }
   }
-  // A mobile dash into a wall used to spend its cooldown but stop at once.
-  // If the intended path is blocked, prefer the opposite open corridor,
-  // then an open side corridor. The maze collision checks still apply.
-  // This only applies to touchscreen dash taps, not keyboard dashes.
-  function touchDashDirection(x,y){
-    const length=Math.hypot(x,y);
-    const facing=length>.08?{x:x/length,y:y/length}:
-      (player?.facing||{x:1,y:0});
-    if(!player||!grid)return facing;
-    const choices=[
-      facing,
-      {x:-facing.x,y:-facing.y},
-      {x:-facing.y,y:facing.x},
-      {x:facing.y,y:-facing.x}
-    ];
-    for(const direction of choices){
-      // Check a short segment so an edge-adjacent character can escape
-      // even when the joystick is still pointing into the wall.
-      if(canStand(player.x+direction.x*.24,
-                  player.y+direction.y*.24,.21))
-        return direction;
-    }
-    return facing;
-  }
   function guestAction(name,touch=false){
     if(roomRole==='none')return false;
     // The authoritative server owns movement and dash activation. Do NOT
@@ -211,8 +187,9 @@
       const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
       const magnitude=Math.hypot(vx,vy);
       const facing=player?.facing||{x:1,y:0};
-      action.direction=touch?touchDashDirection(vx,vy):
-        magnitude>.08?{x:vx/magnitude,y:vy/magnitude}:{x:facing.x,y:facing.y};
+      // Preserve the exact joystick heading, including diagonal input.
+      // Wall contact is resolved by the server's axis-by-axis collision.
+      action.direction=magnitude>.08?{x:vx/magnitude,y:vy/magnitude}:{x:facing.x,y:facing.y};
     }
     sendRoom(action);
     return true;
@@ -837,8 +814,14 @@
     if(player.dashTime>0){
       player.dashTime=Math.max(0,player.dashTime-dt);
       const touchDash=Math.hypot(joystickMove.x,joystickMove.y)>.08;
+      const beforeX=player.x,beforeY=player.y;
       const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,touchDash?.18:.21,.32);
-      if(hitWall)player.dashTime=0; // Return joystick control immediately on collision.
+      // When dashing diagonally into a wall, the open axis should keep
+      // moving along the wall. Stop only when both axes are blocked.
+      // Straight-on wall collisions still end the dash immediately.
+      const diagonal=Math.abs(player.dashDir.x)>.08&&Math.abs(player.dashDir.y)>.08;
+      const stuck=Math.hypot(player.x-beforeX,player.y-beforeY)<.001;
+      if(hitWall&&(!diagonal||stuck))player.dashTime=0;
       if(Math.random()<.8)player.trail.push({x:player.x,y:player.y,life:.36});
     }
     else if(vx||vy){
