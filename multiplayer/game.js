@@ -71,6 +71,9 @@
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
   const cooldownFactor=()=>technician?.rescued?TECHNICIAN_COOLDOWN_FACTOR:1;
   const alliesReady=()=>survivor.rescued&&dist(survivor,exit)<2.0&&(!technician||(technician.rescued&&dist(technician,exit)<2.0));
+  // A room with one player has one exit requirement; a room with two
+  // players requires BOTH survivors to reach the elevator together.
+  const playersAtExit=()=>dist(player,exit)<1.1&&(!guestPlayer||dist(guestPlayer,exit)<1.1);
   let skillWaves = [];
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
@@ -514,8 +517,8 @@
     }
     if(dist(player,relay)<1.55){if(!relay.active){relay.active=true;notify('Relay activated! Emergency elevator online if all cores are found.');beep(740,.21);beep(920,.23);}else notify('Relay already active.');updateUI();return;}
     if(dist(player,exit)<1.45){
-      if(cores.every(c=>c.collected)&&relay.active&&alliesReady())completeLevel();
-      else notify(!survivor.rescued?'RESCUE THE SURVIVOR FIRST':technician&&!technician.rescued?'RESCUE THE TECHNICIAN FIRST':!alliesReady()?'WAIT FOR BOTH ALLIES':'ELEVATOR LOCKED — collect cores and activate the relay.');
+      if(cores.every(c=>c.collected)&&relay.active&&alliesReady()&&playersAtExit())completeLevel();
+      else notify(!survivor.rescued?'RESCUE THE SURVIVOR FIRST':technician&&!technician.rescued?'RESCUE THE TECHNICIAN FIRST':!alliesReady()?'WAIT FOR BOTH ALLIES':!cores.every(c=>c.collected)||!relay.active?'ELEVATOR LOCKED — collect cores and activate the relay.':'WAIT FOR YOUR TEAMMATE AT THE ELEVATOR');
       return;
     }
     notify('Get closer to an ally, relay, or elevator.');
@@ -779,7 +782,7 @@
     ambientAudio();
     for(const d of decoys){d.life-=dt;d.age+=dt;}decoys=decoys.filter(d=>d.life>0);
     noiseEvents=noiseEvents.filter(n=>n.expires>clock);
-    if((dist(player,exit)<.58||(guestPlayer&&dist(guestPlayer,exit)<.58))&&relay.active&&cores.every(c=>c.collected)&&alliesReady())completeLevel();
+    if(playersAtExit()&&relay.active&&cores.every(c=>c.collected)&&alliesReady())completeLevel();
     if(frameIndex%8===0)updateUI();
   }
   function roundedRect(x,y,w,h,r,fill){ctx.fillStyle=fill;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
@@ -974,7 +977,7 @@
     ctx.fillStyle='#7aadb0';ctx.font='10px monospace';ctx.textAlign='left';ctx.fillText(`${Math.round(dist(player,target))}m away`,W-158,60);
   }
   function drawInteractPrompts(){ctx.font='bold 11px monospace';ctx.textAlign='center';
-    let message='';if(!survivor.rescued&&dist(player,survivor)<1.5)message='[ E ] RESCUE SURVIVOR';else if(technician&&!technician.rescued&&dist(player,technician)<1.5)message='[ E ] RESCUE TECHNICIAN';else if(dist(player,relay)<1.55&&!relay.active)message='[ E ] ACTIVATE RELAY';else if(dist(player,exit)<1.5)message=relay.active&&cores.every(c=>c.collected)&&alliesReady()?'[ E ] ESCAPE':'ELEVATOR / ALLIES NOT READY';
+    let message='';if(!survivor.rescued&&dist(player,survivor)<1.5)message='[ E ] RESCUE SURVIVOR';else if(technician&&!technician.rescued&&dist(player,technician)<1.5)message='[ E ] RESCUE TECHNICIAN';else if(dist(player,relay)<1.55&&!relay.active)message='[ E ] ACTIVATE RELAY';else if(dist(player,exit)<1.5)message=relay.active&&cores.every(c=>c.collected)&&alliesReady()?(playersAtExit()?'[ E ] ESCAPE':'WAIT FOR TEAMMATE'):'ELEVATOR / ALLIES NOT READY';
     if(message){roundedRect(W/2-111,H-54,222,30,7,'#071c23e8');ctx.strokeStyle='#43786e';ctx.strokeRect(W/2-111,H-54,222,30);ctx.fillStyle='#d4fff2';ctx.fillText(message,W/2,H-35);}
   }
   function drawSkillWaves(){
