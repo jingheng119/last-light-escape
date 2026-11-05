@@ -7,8 +7,8 @@
   <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/style.css?v=separate-lobby-game-2" />
-  <script src="/game.js?v=separate-lobby-game-1" defer></script>
+  <link rel="stylesheet" href="/style.css?v=nickname-roster-1" />
+  <script src="/game.js?v=nickname-roster-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -32,12 +32,27 @@
         </div>
         <div class="lobby-count"><span id="roomCount">0 rooms</span><button type="button" id="refreshRooms">↻ Refresh</button></div>
       </div>
+      <div class="lobby-profile">
+        <label for="playerNickname">YOUR NICKNAME <span>· Shown to teammates</span></label>
+        <input id="playerNickname" maxlength="20" autocomplete="nickname" placeholder="Enter a survivor name" aria-label="Your player nickname" />
+        <label for="lobbyClass">YOUR CLASS</label>
+        <select id="lobbyClass" aria-label="Choose player class">
+          <option value="scout">Scout · Stun shockwave</option>
+          <option value="medic">Medic · Healing burst</option>
+        </select>
+        <span class="lobby-profile-hint">Role is locked while a run is active.</span>
+      </div>
       <div id="roomSession" hidden>
         <div class="lobby-session-row">
           <strong id="currentRoomName">YOUR ROOM</strong>
           <div class="lobby-session-actions"><button type="button" id="returnToGame">Return to game</button><button type="button" id="leaveRoom">Leave room</button></div>
         </div>
         <p id="roomInvite" class="lobby-invite"></p>
+        <div class="lobby-roster-heading">
+          <strong>YOUR TEAM</strong>
+          <span id="rosterCount">0 / 5 SURVIVORS</span>
+        </div>
+        <div id="lobbyRoster" class="lobby-roster" aria-live="polite"></div>
       </div>
       <div id="roomBrowser">
         <div class="lobby-create">
