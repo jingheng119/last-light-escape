@@ -183,6 +183,35 @@ try{
     const details=await page.evaluate(()=>window.__lastLightDiagnostics());
     assert.equal(details.visibleTeammates,4,'Every player sees four teammates');
   }
+  // Deterministic geometry check for the colored edge indicators.
+  // Four distant teammates must create four markers, one of which is a
+  // persistent soul; a teammate next to us must NOT produce an edge arrow.
+  const markers=await first.evaluate(()=>{
+    const p=window.__lastLightDiagnostics().playerPosition;
+    const far=[
+      {slot:2,x:p.x-500,y:p.y,hp:3},
+      {slot:3,x:p.x+500,y:p.y,hp:3},
+      {slot:4,x:p.x,y:p.y-500,hp:3},
+      {slot:5,x:p.x,y:p.y+500,hp:0}
+    ];
+    return {
+      offscreen:window.__lastLightPreviewIndicators(far),
+      onscreen:window.__lastLightPreviewIndicators([
+        {slot:2,x:p.x,y:p.y,hp:3}
+      ]),
+      dead:window.__lastLightPreviewIndicators([{slot:5,x:p.x,y:p.y+500,hp:0}])
+    };
+  });
+  assert.equal(markers.offscreen.length,4,'Four offscreen teammates need four indicators');
+  assert.equal(new Set(markers.offscreen.map(m=>m.slot)).size,4);
+  assert.equal(new Set(markers.offscreen.map(m=>m.color)).size,4);
+  assert.equal(markers.onscreen.length,0,'Visible teammate must have no edge marker');
+  assert.equal(markers.dead.length,1,'Fallen offscreen soul remains trackable');
+  assert.equal(markers.dead[0].dead,true);
+  for(const m of markers.offscreen){
+    assert(m.x>=30&&m.x<=962&&m.y>=98&&m.y<=596,
+      'Teammate direction marker must stay inside the visible HUD margins');
+  }
   assert(await first.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
   assert(await second.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
   const hp1=await first.evaluate(()=>window.__lastLightDiagnostics().playerHP);
