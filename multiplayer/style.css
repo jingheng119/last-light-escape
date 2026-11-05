@@ -1076,3 +1076,16 @@
 /* The lobby is an independent destination, not a game HUD wrapper. */
 .show-lobby .top-links{display:none}
 .show-lobby .site-footer{margin-top:24px}
+
+
+/* Server-synchronized 5–1 opening countdown, shared by all players. */
+.overlay.countdown-active .overlay-panel{border-color:#70dfc6;box-shadow:0 0 75px #33d9bd20}
+.overlay.countdown-active #overlayTitle{
+  font-size:clamp(90px,16vw,165px);line-height:1;font-variant-numeric:tabular-nums;
+  font-weight:900;color:#a2ffe3;text-shadow:0 0 35px #54d7b77e;margin:12px 0 20px
+}
+.overlay.countdown-active #overlayText{font-size:16px;letter-spacing:2px;font-weight:750;color:#d3faf1}
+.overlay.countdown-active .objectives,
+.overlay.countdown-active .role-selection,
+.overlay.countdown-active #primaryBtn{display:none!important}
+.overlay.countdown-active #overlayHint{letter-spacing:1px;margin-top:18px;color:#8dd9cc}
