@@ -89,7 +89,7 @@
   function newGuest(){guestPlayer=structuredClone(player);guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.trail=[];}
   function allPlayers(){
     // During a temporary asGuest context, player and guestPlayer exchange roles.
-    return [...new Set([player,guestPlayer,...extraPlayers].filter(Boolean))];
+    return [...new Set([player,guestPlayer,...extraPlayers].filter(p=>p&&!p.disconnected))];
   }
   function withExtra(slot,fn){
     const i=slot-3,extra=extraPlayers[i];
@@ -296,6 +296,7 @@
     // Hearts carry across floors in the same run. A fresh run (floor 1)
     // always starts with three hearts. Only the Medic skill restores health.
     // A downed player returns with one heart at the start of the next floor.
+    const hostDisconnected=!!player?.disconnected;
     const carriedHealth=index>0&&player?Math.max(1,Math.min(3,player.hp)):3;
     const guestCarriedHealth=index>0&&guestPlayer?Math.max(1,Math.min(3,guestPlayer.hp)):3;
     const extraCarriedHealth=extraPlayers.map(p=>index>0&&p?Math.max(1,Math.min(3,p.hp)):3);
@@ -318,7 +319,7 @@
       const techSpot=selectSpot(reserved,13,distances,false);reserved.push(techSpot);
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
-    player={...TILE_CENTER(1,1),hp:carriedHealth,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
+    player={...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
     if(roomRole==='host'&&guestPlayer){newGuest();guestPlayer.hp=guestCarriedHealth;}
     for(let i=0;i<3;i++){
       if(extraActive[i]){
