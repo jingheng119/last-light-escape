@@ -45,9 +45,13 @@ try{
   }
   assert(ready,'Server did not start: '+logs);
   const one=await open(),two=await open();
-  one.send(JSON.stringify({type:'create'}));
+  one.send(JSON.stringify({type:'create',nickname:'Captain Aurora'}));
   const joined=await waitFor(one,m=>m.type==='joined');
   assert.equal(joined.id,1);
+  const hostRoster=await waitFor(one,m=>m.type==='roster'&&m.players?.length===1);
+  assert.equal(hostRoster.players[0].name,'Captain Aurora');
+  assert.equal(hostRoster.players[0].role,'scout');
+  assert.equal(hostRoster.players[0].host,true);
   one.send(JSON.stringify({type:'start'}));
   const countdown=await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='countdown');
   assert.equal(Math.ceil(countdown.snapshot.countdownRemaining),5);
@@ -57,9 +61,18 @@ try{
   assert.equal(starting.snapshot.player.dashCooldown,0);
   await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='playing',9000);
 
-  two.send(JSON.stringify({type:'join',code:joined.code}));
+  two.send(JSON.stringify({type:'join',code:joined.code,nickname:'Second Survivor'}));
   const joinedTwo=await waitFor(two,m=>m.type==='joined');
   assert.equal(joinedTwo.id,2);
+  two.send(JSON.stringify({type:'profile',nickname:'<Medic> Teammate'}));
+  const edited=await waitFor(one,m=>m.type==='roster'&&
+    m.players?.find(p=>p.id===2)?.name==='Medic Teammate');
+  assert.equal(edited.players.find(p=>p.id===2).name,'Medic Teammate');
+  // Class is frozen during a live game. New names can still be updated.
+  two.send(JSON.stringify({type:'role',role:'medic'}));
+  await sleep(150);
+  const current=wsMessages.get(one).filter(m=>m.type==='roster').at(-1);
+  assert.equal(current.players.find(p=>p.id===2).role,'scout');
   const snap=await waitFor(two,m=>m.type==='snapshot'&&
     m.snapshot.state==='playing'&&m.snapshot.guestPlayer);
   assert.equal(snap.snapshot.player.hp,3);
@@ -91,7 +104,9 @@ try{
   one.close();
   await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.player.hp===0&&
     m.snapshot.guestPlayer.hp>0);
-  await waitFor(two,m=>m.type==='roster'&&m.hostId===2);
+  const transferred=await waitFor(two,m=>m.type==='roster'&&m.hostId===2);
+  assert.equal(transferred.players.find(p=>p.id===2).host,true);
+  assert.equal(transferred.players.find(p=>p.id===2).name,'Medic Teammate');
   two.send(JSON.stringify({type:'skip',fullStage:true}));
   await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.levelIndex===9);
 
