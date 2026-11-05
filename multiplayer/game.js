@@ -1554,7 +1554,7 @@
           decoy:triggerDecoy,interact,ability:activateAbility
         };
         if(actions[m.name])asGuest(actions[m.name]);
-      }else if(m.type==='snapshot'&&roomRole==='guest')applySnapshot(m.snapshot);
+      }else if(m.type==='snapshot'&&roomRole!=='none')applySnapshot(m.snapshot);
     });
     create.addEventListener('click',()=>sendRoom({type:'create'}));
     join.addEventListener('click',()=>{
