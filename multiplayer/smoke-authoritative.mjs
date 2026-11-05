@@ -34,6 +34,28 @@ assert(state.elapsed>0);
 assert(state.player.hp>0);
 assert(state.hollows.length>0);
 
+// A player entering an in-progress run starts with three hearts even if
+// the host has taken damage. This must not heal the host or copy cooldowns.
+const lateRoom=createRoomEngine();
+lateRoom.start();
+for(let i=0;i<155;i++)lateRoom.tick(.033);
+const lateHost=lateRoom.snapshot(false).player;
+lateHost.hp=1;
+lateHost.dashCooldown=2.5;
+lateHost.abilityCooldown=4;
+lateRoom.join(2);
+const lateJoined=lateRoom.snapshot(false);
+assert.equal(lateJoined.players[0].hp,1,'Joining must not heal the host');
+assert.equal(lateJoined.players[1].hp,3,'Late joining slot 2 starts with full hearts');
+assert.equal(lateJoined.players[1].dashCooldown,0,'New teammate must not inherit host dash cooldown');
+assert.equal(lateJoined.players[1].abilityCooldown,0,'New teammate must not inherit host ability cooldown');
+for(let slot=3;slot<=5;slot++)lateRoom.join(slot);
+assert.deepEqual(lateRoom.snapshot(false).players.slice(1).map(p=>p.hp),[3,3,3,3],
+  'Every late-joining teammate starts with independent full hearts');
+lateRoom.snapshot(false).players[1].hp=2;
+assert.equal(lateRoom.snapshot(false).players[0].hp,1,
+  'Taking damage to a teammate must not change host hearts');
+
 game.join(2);
 game.join(3);
 game.join(4);
