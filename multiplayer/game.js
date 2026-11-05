@@ -46,7 +46,7 @@
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
   let roomTiles = new Set(), noiseEvents = [], survivor = null, technician = null;
   let runSeed=0;
-  let roomRole='none',roomSocket=null,roomCount=0,guestPlayer=null,lastSync=0,lastInput=0,lastLevel=-1;
+  let roomRole='none',roomSocket=null,roomCount=0,guestPlayer=null,lastSync=0,lastInput=0,lastLevel=-1,lastSentStaticLevel=-1,lastFullSnapshot=0;
   let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout',guestContextHost=null;
   const sendRoom=m=>{if(roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify(m));};
   function newGuest(){guestPlayer=structuredClone(player);guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.trail=[];}
@@ -1308,21 +1308,33 @@
   // Guests render synced state and send only controls and actions.
   function sendSnapshot(){
     if(roomRole!=='host'||!grid||!player)return;
-    sendRoom({type:'snapshot',snapshot:{
+    // Static map data changes only when the floor changes; sending it
+    // 20 times a second wastes bandwidth for remote internet players.
+    const full=lastSentStaticLevel!==levelIndex||performance.now()-lastFullSnapshot>5000;
+    const snapshot={
       state,levelIndex,runSeed,elapsed,overallElapsed,clock,alertLevel,
-      grid,cells,roomTiles:[...roomTiles],player,guestPlayer,
-      cores,relay,exit,hollows,decoys,noiseEvents,skillWaves,survivor,technician,
+      player,guestPlayer,cores,relay,exit,hollows,decoys,noiseEvents,
+      skillWaves,survivor,technician,
       overlay:{title:ui.title.textContent,text:ui.text.textContent}
-    }});
+    };
+    if(full){
+      snapshot.grid=grid;snapshot.cells=cells;snapshot.roomTiles=[...roomTiles];
+      lastSentStaticLevel=levelIndex;lastFullSnapshot=performance.now();
+    }
+    sendRoom({type:'snapshot',snapshot});
   }
   function applySnapshot(d){
-    if(roomRole!=='guest'||!d||!Array.isArray(d.grid)||!Array.isArray(d.cells))return;
+    if(roomRole!=='guest'||!d)return;
     if(!Number.isInteger(d.levelIndex)||d.levelIndex<0||d.levelIndex>=CONFIGS.length)return;
     if(lastLevel!==d.levelIndex){
+      // Wait for the full map for this floor rather than showing an old maze.
+      if(!Array.isArray(d.grid)||!Array.isArray(d.cells))return;
       lastLevel=d.levelIndex;runSeed=d.runSeed;buildLevel(d.levelIndex);
     }
     const previous=state;
-    grid=d.grid;cells=d.cells;roomTiles=new Set(d.roomTiles||[]);
+    if(Array.isArray(d.grid))grid=d.grid;
+    if(Array.isArray(d.cells))cells=d.cells;
+    if(Array.isArray(d.roomTiles))roomTiles=new Set(d.roomTiles);
     player=d.guestPlayer||d.player;
     guestPlayer=d.guestPlayer?d.player:null;
     if(!player)return;
