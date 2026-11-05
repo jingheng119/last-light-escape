@@ -48,6 +48,30 @@
   let runSeed=0;
   let roomRole='none',roomSocket=null,roomCount=0,guestPlayer=null,lastSync=0,lastInput=0,lastLevel=-1,lastSentStaticLevel=-1,lastFullSnapshot=0,remotePingAt=0,remotePingMs=null,lastGuestUIAt=0;
   let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout',guestContextHost=null;
+  let localDashUntil=0,localDashDir=null,hostInputClock=0,hostLastGuestInput=0;
+  let guestPreviousHP=null,guestWasPlaying=false;
+  let hollowVisualSample=0,hollowVisualVelocity=[];
+  function guestInputPacket(){
+    const packet={type:'input',keys:moveHeld,joystick:joystickMove};
+    if(player&&roomRole==='guest'&&state==='playing')
+      packet.pos={x:player.x,y:player.y};
+    return packet;
+  }
+  // Small, wall-validated correction lets host-side collisions and abilities
+  // stay close to where the remote player actually sees their character.
+  function reconcileRemotePosition(pos){
+    if(roomRole!=='host'||!guestPlayer||guestPlayer.hp<=0||state!=='playing')return;
+    if(!pos||!Number.isFinite(pos.x)||!Number.isFinite(pos.y))return;
+    if(!canStand(pos.x,pos.y,.21)||!clearLine(guestPlayer,pos))return;
+    const dx=pos.x-guestPlayer.x,dy=pos.y-guestPlayer.y,d=Math.hypot(dx,dy);
+    if(d<=.01||d>1.6)return;
+    const now=performance.now();
+    const delta=hostLastGuestInput?Math.min(.12,(now-hostLastGuestInput)/1000):.05;
+    hostLastGuestInput=now;
+    const maxStep=(guestPlayer.dashTime>0?9:3.5)*delta+.15;
+    const amount=Math.min(d,maxStep);
+    moveEntity(guestPlayer,dx/d*amount,dy/d*amount,.21);
+  }
   const sendRoom=m=>{if(roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify(m));};
   function showNetworkStatus(){
     const status=$('#networkStatus');
@@ -74,6 +98,10 @@
     const magnitude=Math.hypot(vx,vy);
     if(magnitude>1){vx/=magnitude;vy/=magnitude;}
     if(magnitude>.08)player.facing={x:vx/Math.hypot(vx,vy),y:vy/Math.hypot(vx,vy)};
+    if(performance.now()<localDashUntil&&localDashDir){
+      player.dashDir={...localDashDir};
+      player.dashTime=Math.max(player.dashTime,(localDashUntil-performance.now())/1000);
+    }
     if(player.dashTime>0){
       const step=Math.min(player.dashTime,dt);
       player.dashTime=Math.max(0,player.dashTime-step);
@@ -95,8 +123,14 @@
       player.dashDir=m>.01?{x:vx/m,y:vy/m}:{...player.facing};
       player.dashTime=.24;
       player.dashCooldown=3.5*cooldownFactor();
+      localDashUntil=performance.now()+240;
+      localDashDir={...player.dashDir};
+      beep(220,.17,'sawtooth',.019);
     }
-    sendRoom({type:'action',name});return true;
+    const action={type:'action',name};
+    if(name==='dash'&&player?.dashDir)action.direction={...player.dashDir};
+    if(player&&state==='playing')action.pos={x:player.x,y:player.y};
+    sendRoom(action);return true;
   }
 
   // Temporary developer shortcut. Skipped runs never enter the best-time record.
@@ -548,10 +582,13 @@
     notify('Sound decoy deployed — they heard it!');beep(850,.22,'square',.016);
     updateUI();
   }
-  function dash(){if(roomRole==='guest'&&player?.hp<=0)return;if(guestAction('dash'))return;if(state!=='playing'||player.hp<=0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
+  function dash(directionOverride=null){if(roomRole==='guest'&&player?.hp<=0)return;if(guestAction('dash'))return;if(state!=='playing'||player.hp<=0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
     const vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
-    if(vx||vy){const len=Math.hypot(vx,vy);player.dashDir={x:vx/len,y:vy/len};}else player.dashDir={...player.facing};
+    if(directionOverride&&Number.isFinite(directionOverride.x)&&Number.isFinite(directionOverride.y)&&Math.hypot(directionOverride.x,directionOverride.y)>.1){
+      const len=Math.hypot(directionOverride.x,directionOverride.y);
+      player.dashDir={x:directionOverride.x/len,y:directionOverride.y/len};
+    }else if(vx||vy){const len=Math.hypot(vx,vy);player.dashDir={x:vx/len,y:vy/len};}else player.dashDir={...player.facing};
     noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
     beep(220,.17,'sawtooth',.019);updateUI();
   }
@@ -1047,7 +1084,19 @@
     }
     for(const d of decoys){const x=d.x*TILE,y=d.y*TILE,rad=(d.age*50)%80;ctx.strokeStyle=`rgba(244,191,101,${Math.min(.7,d.life/5)})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(x,y,Math.max(0,rad-24),0,Math.PI*2);ctx.stroke();diamond(x,y,7,'#ffd179');}
   }
-  function drawHollows(){for(const h of hollows){let x=h.x*TILE,y=h.y*TILE,red=h.mode==='chase'&&!(h.stunned>0);
+  function drawHollows(){for(let i=0;i<hollows.length;i++){const h=hollows[i];
+    let hx=h.x,hy=h.y;
+    // Hollow visuals advance a fraction of a second beyond their most recent
+    // network sample; host-only collision rules are unchanged.
+    if(roomRole==='guest'&&state==='playing'&&h.stunned<=0){
+      const velocity=hollowVisualVelocity[i];
+      if(velocity){
+        const seconds=Math.max(0,Math.min(.12,(performance.now()-hollowVisualSample)/1000));
+        const xx=h.x+velocity.x*seconds,yy=h.y+velocity.y*seconds;
+        if(canStand(xx,yy,.13)&&clearLine(h,{x:xx,y:yy})){hx=xx;hy=yy;}
+      }
+    }
+    let x=hx*TILE,y=hy*TILE,red=h.mode==='chase'&&!(h.stunned>0);
     const hunter=h.variant==='hunter',dasher=h.variant==='dasher';
     const glow=h.stunned>0?'#6dbeff3f':hunter?'#fa4c8c48':dasher?'#edaa3540':red?'#ff465b35':'#fa8f6a16';
     halo(x,y,hunter?70:dasher?52:red?62:38,glow);ctx.save();ctx.translate(x,y);
@@ -1226,9 +1275,9 @@
       const steps=Math.max(1,Math.ceil(dt/.035));
       for(let i=0;i<steps;i++)update(dt/steps);
       if(now-lastSync>=50){lastSync=now;sendSnapshot();}
-    }else if(roomRole==='guest'&&now-lastInput>=50){
+    }else if(roomRole==='guest'&&now-lastInput>=35){
       lastInput=now;
-      sendRoom({type:'input',keys:moveHeld,joystick:joystickMove});
+      sendRoom(guestInputPacket());
     }
   },35);
   function tick(timestamp){
@@ -1247,12 +1296,12 @@
   const keyMap={w:'up',arrowup:'up',s:'down',arrowdown:'down',a:'left',arrowleft:'left',d:'right',arrowright:'right'};
   document.addEventListener('keydown', e => {
     const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k))e.preventDefault();
-    if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole==='guest')sendRoom({type:'input',keys:moveHeld,joystick:joystickMove});}
+    if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole==='guest')sendRoom(guestInputPacket());}
     if(e.repeat)return;
     if(k==='m'){if(roomRole==='host')developerSkip(e.shiftKey);return;}
     if(k===' ')dash();else if(k==='q')triggerDecoy();else if(k==='e')interact();else if(k==='f')activateAbility();else if(k==='p'||k==='escape')pause();else if(k==='enter'&&state!=='playing')advance();else if(k==='r'&&state==='playing'&&roomRole==='host'){buildLevel(levelIndex);notify('Floor restarted.');}
   });
-  document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir){moveHeld[dir]=false;if(roomRole==='guest')sendRoom({type:'input',keys:moveHeld,joystick:joystickMove});}});
+  document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir){moveHeld[dir]=false;if(roomRole==='guest')sendRoom(guestInputPacket());}});
   window.addEventListener('blur',()=>{moveHeld={up:false,down:false,left:false,right:false};if(state==='playing'&&roomRole==='none')pause();});
   $('#primaryBtn').addEventListener('click',advance);
   document.querySelectorAll('.role-option').forEach(card=>{
@@ -1412,9 +1461,35 @@
           authoritative.dashTime=Math.max(predicted.dashTime,authoritative.dashTime);
       }
     }
+    // Retain the predicted dash for its short visual window, rather than
+    // repeatedly resetting it with snapshots from before the host received it.
+    if(localDashUntil>performance.now()&&authoritative.hp>0&&d.state==='playing'){
+      authoritative.dashDir={...localDashDir};
+      authoritative.dashTime=Math.max(authoritative.dashTime,(localDashUntil-performance.now())/1000);
+    }
+    if(guestPreviousHP!==null&&authoritative.hp<guestPreviousHP){
+      hitFlash=.45;
+      beep(100,.24,'sawtooth',.038);
+      notify(authoritative.hp>0?'A HOLLOW HIT YOU!':'SIGNAL LOST — WAIT FOR RESCUE',2);
+      localDashUntil=0;
+    }
+    guestPreviousHP=authoritative.hp;
     player=authoritative;
     guestPlayer=d.guestPlayer?d.player:null;
-    cores=d.cores;relay=d.relay;exit=d.exit;hollows=d.hollows;decoys=d.decoys;
+    cores=d.cores;relay=d.relay;exit=d.exit;
+    if(Array.isArray(d.hollows)){
+      const now=performance.now(),dt=(now-hollowVisualSample)/1000;
+      hollowVisualVelocity=d.hollows.map((h,i)=>{
+        const before=hollows?.[i];
+        if(!before||dt<=.015||dt>.6)return {x:0,y:0};
+        const vx=(h.x-before.x)/dt,vy=(h.y-before.y)/dt;
+        const speed=Math.hypot(vx,vy);
+        return speed>9?{x:0,y:0}:{x:vx,y:vy};
+      });
+      hollowVisualSample=now;
+      hollows=d.hollows;
+    }
+    decoys=d.decoys;
     noiseEvents=d.noiseEvents;skillWaves=d.skillWaves;survivor=d.survivor;technician=d.technician;
     elapsed=d.elapsed;overallElapsed=d.overallElapsed;clock=d.clock;alertLevel=d.alertLevel;
     state=d.state;
@@ -1467,10 +1542,15 @@
         setOverlay('ROOM CLOSED','The host has disconnected. Refresh the browser.','ROOM CLOSED');
       }else if(m.type==='remoteInput'&&roomRole==='host'){
         remoteKeys=m.keys;remoteStick=m.joystick||{x:0,y:0};
+        reconcileRemotePosition(m.pos);
       }else if(m.type==='remoteRole'&&roomRole==='host'){
         guestClassChoice=m.role==='medic'?'medic':'scout';
       }else if(m.type==='remoteAction'&&roomRole==='host'){
-        const actions={dash,decoy:triggerDecoy,interact,ability:activateAbility};
+        reconcileRemotePosition(m.pos);
+        const actions={
+          dash:()=>dash(m.direction),
+          decoy:triggerDecoy,interact,ability:activateAbility
+        };
         if(actions[m.name])asGuest(actions[m.name]);
       }else if(m.type==='snapshot'&&roomRole==='guest')applySnapshot(m.snapshot);
     });
