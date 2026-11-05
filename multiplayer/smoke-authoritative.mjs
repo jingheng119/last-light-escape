@@ -9,8 +9,23 @@ assert.equal(state.hollows.length,3);
 game.role(1,'medic');
 game.start();
 state=game.snapshot(true);
-assert.equal(state.state,'playing');
+assert.equal(state.state,'countdown');
+assert.equal(Math.ceil(state.countdownRemaining),5);
 assert.equal(state.classChoice,'medic');
+const startPosition={x:state.player.x,y:state.player.y};
+game.input(1,{right:true},{x:0,y:0});
+game.action(1,'dash',{x:1,y:0});
+for(let i=0;i<120;i++)game.tick(.033);
+state=game.snapshot(false);
+assert.equal(state.state,'countdown');
+assert.equal(Math.ceil(state.countdownRemaining),2);
+assert.deepEqual({x:state.player.x,y:state.player.y},startPosition,
+  'No player may move during countdown');
+assert.equal(state.player.dashCooldown,0,'Dashing before countdown must be ignored');
+for(let i=0;i<34;i++)game.tick(.033);
+state=game.snapshot(false);
+assert.equal(state.state,'playing');
+assert.equal(state.player.dashCooldown,0);
 
 game.input(1,{right:true},{x:0,y:0});
 for(let i=0;i<12;i++)game.tick(.033);
@@ -88,6 +103,7 @@ assert.equal(game.snapshot(false).players.filter(Boolean).length,3);
 for(const downedSlot of [2,3,4,5]){
   const room=createRoomEngine();
   room.join(2);room.join(3);room.join(4);room.join(5);room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
   for(let hit=0;hit<3;hit++)room.testHit(downedSlot);
   const snap=room.snapshot(false);
   assert.equal(snap.state,'playing','Player '+downedSlot+' death must not end a living team run');
@@ -99,6 +115,7 @@ for(const downedSlot of [2,3,4,5]){
 }
 const duet=createRoomEngine();
 duet.join(2);duet.start();
+for(let i=0;i<155;i++)duet.tick(.033);
 for(let hit=0;hit<3;hit++)duet.testHit(2);
 assert.equal(duet.snapshot(false).state,'playing','Second player down, first alive');
 assert.equal(duet.snapshot(false).guestPlayer.hp,0);
