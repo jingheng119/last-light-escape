@@ -53,6 +53,27 @@ game.skip(true);
 state=game.snapshot(true);
 assert.equal(state.levelIndex,17);
 assert.equal(state.grid.length,41);
+assert.equal(state.players.filter(Boolean).length,5);
+// Five-player revival: a nearby teammate can restore a downed teammate.
+for(let slot=1;slot<=5;slot++)game.input(slot,{}, {x:0,y:0});
+for(const h of state.hollows)h.stunned=999;
+const soul=state.players[4],rescuer=state.players[3];
+soul.hp=0;soul.x=rescuer.x;soul.y=rescuer.y;
+for(let i=0;i<165;i++)game.tick(.033);
+state=game.snapshot(false);
+assert.equal(state.players[4].hp,1,'Teammates should revive a fifth player');
+// Every living player must reach the exit, not just the room creator.
+const exitSpot=state.exit;
+for(const p of state.players.filter(Boolean)){p.x=exitSpot.x;p.y=exitSpot.y;}
+state.players[4].x=1.5;state.players[4].y=1.5;
+state.relay.active=true;state.cores.forEach(c=>{c.collected=true;});
+state.survivor.rescued=true;state.survivor.x=exitSpot.x;state.survivor.y=exitSpot.y;
+state.technician.rescued=true;state.technician.x=exitSpot.x;state.technician.y=exitSpot.y;
+game.tick(.033);
+assert.equal(game.snapshot(false).state,'playing','Fifth player must be at elevator');
+state.players[4].x=exitSpot.x;state.players[4].y=exitSpot.y;
+game.tick(.033);
+assert.equal(game.snapshot(false).state,'victory','All five players should escape together');
 
 game.leave(1);
 state=game.snapshot(false);
