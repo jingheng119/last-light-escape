@@ -11,7 +11,7 @@ const MAX_ROOMS=16, MAX_PLAYERS=5;
 const rooms=new Map(),lobbyClients=new Set();
 const MIME={'/':'text/html; charset=utf-8','/game.js':'text/javascript; charset=utf-8',
   '/style.css':'text/css; charset=utf-8','/favicon.svg':'image/svg+xml'};
-const FILE={'/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg'};
+const FILE={'/':'index.html','/play':'index.html','/play/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg'};
 const send=(ws,m)=>{
   if(ws?.readyState===WebSocket.OPEN&&ws.bufferedAmount<192000)
     ws.send(JSON.stringify(m));
