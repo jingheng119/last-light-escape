@@ -54,12 +54,12 @@ state=game.snapshot(true);
 assert.equal(state.levelIndex,17);
 assert.equal(state.grid.length,41);
 
-game.hostLeft();
+game.leave(1);
 state=game.snapshot(false);
 assert.equal(state.player.hp,0);
 assert(state.guestPlayer.hp>0);
 game.leave(2);
 assert.equal(game.snapshot(false).guestPlayer,null);
-assert.equal(game.snapshot(false).players.filter(Boolean).length,4);
+assert.equal(game.snapshot(false).players.filter(Boolean).length,3);
 
-console.log('PASS: original game simulation runs server-side through Stage 2, with two independent players.');
+console.log('PASS: original game simulation runs server-side through Stage 2, with five independent players.');
