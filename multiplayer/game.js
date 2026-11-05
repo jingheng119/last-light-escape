@@ -542,9 +542,9 @@
       if(!musicBus||musicStage!==stage){
         stopMusic();
         musicBus=audioCtx.createGain();
-        // Keep music audible over the ambient effects without changing their volume.
-        // The score uses very soft tones, so boost its dedicated music bus only.
-        musicBus.gain.value=3.20;
+        // Use a normal master gain. Individual score voices are mixed
+        // audibly at the source, rather than amplifying a near-silent mix.
+        musicBus.gain.value=1.0;
         musicBus.connect(audioCtx.destination);
         musicStage=stage;musicStep=0;musicNextAt=audioCtx.currentTime+.07;
       }
@@ -555,16 +555,20 @@
         const beat=score.beat,step=musicStep++,t=musicNextAt;
         const group=Math.floor(step/8)%score.bass.length;
         if(step%8===0){
-          musicTone(score.bass[group],t,beat*7.9,'sine',.026,420);
-          musicTone(score.bass[group]*2,t+.04,beat*6.6,'triangle',.009,360);
+          // The low bass (49–65 Hz) is hard to hear on phone speakers.
+          // Give it audible harmonics without losing the dark foundation.
+          musicTone(score.bass[group],t,beat*7.9,'sine',.060,420);
+          musicTone(score.bass[group]*2,t+.04,beat*6.6,'triangle',.042,700);
+          musicTone(score.bass[group]*4,t+.08,beat*5.2,'sine',.020,1100);
         }
         // Soft pulsing rhythm that becomes more urgent when Hollows pursue.
-        const pulse=alertLevel===2?.016:alertLevel===1?.011:.007;
-        musicTone(stage===1?73.42:98,t,beat*.36,'sine',pulse,300);
+        const pulse=alertLevel===2?.045:alertLevel===1?.035:.025;
+        musicTone(stage===1?146.84:196,t,beat*.36,'triangle',pulse,620);
         if(step%4===2){
           const note=score.notes[(Math.floor(step/4)+group)%score.notes.length];
-          musicTone(note,t,beat*3.3,stage===1?'sine':'triangle',stage===1?.011:.013,880);
-          musicTone(note*.5,t+.12,beat*3.1,'sine',.006,440);
+          musicTone(note,t,beat*3.3,'triangle',stage===1?.065:.070,1250);
+          musicTone(note*2,t+.08,beat*2.6,'sine',.030,1800);
+          musicTone(note*.5,t+.12,beat*3.1,'sine',.018,560);
         }
         musicNextAt+=beat*(alertLevel===2?.88:1);
       }
