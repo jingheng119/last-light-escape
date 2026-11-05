@@ -34,8 +34,12 @@ const bridge=`
   globalThis.__roomEngine={
     join(id){
       if(id===2&&!guestPlayer)newGuest();
-      else if(id>=3&&id<=5&&!extraPlayers[id-3])
+      else if(id>=3&&id<=5&&!extraPlayers[id-3]){
         extraPlayers[id-3]=structuredClone(player);
+        extraPlayers[id-3].x=1.5;extraPlayers[id-3].y=1.5;
+        extraPlayers[id-3].hp=3;extraPlayers[id-3].dashTime=0;
+        extraPlayers[id-3].dashCooldown=0;extraPlayers[id-3].trail=[];
+      }
       roomCount=allPlayers().length;
     },
     leave(id){
