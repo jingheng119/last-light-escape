@@ -89,7 +89,7 @@
   function newGuest(){guestPlayer=structuredClone(player);guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.trail=[];}
   function allPlayers(){
     // During a temporary asGuest context, player and guestPlayer exchange roles.
-    return [player,guestPlayer,...extraPlayers].filter(Boolean);
+    return [...new Set([player,guestPlayer,...extraPlayers].filter(Boolean))];
   }
   function withExtra(slot,fn){
     const i=slot-3,extra=extraPlayers[i];
@@ -581,6 +581,7 @@
   function advance() {
     if(roomRole!=='none'){
       unlockGameAudio();
+      if(roomRole!=='host')return;
       if(state==='menu'||state==='victory'||state==='dead')sendRoom({type:'start'});
       else if(state==='leveldone')sendRoom({type:'next'});
       else if(state==='paused')sendRoom({type:'pause'});
@@ -1151,15 +1152,18 @@
     ctx.strokeStyle=player.dashTime>0?'#f0fffb':'#56bcaa';ctx.lineWidth=1.7;ctx.beginPath();ctx.arc(x,y,13,0,Math.PI*2);ctx.stroke();
   }
   function drawOtherPlayer(){
-    if(!guestPlayer)return;
-    const x=guestPlayer.x*TILE,y=guestPlayer.y*TILE;
-    if(guestPlayer.hp<=0){
-      drawSoul(guestPlayer);
-      return;
+    const palette=['#ffb46a','#99baff','#ed9de8','#f2d878'];
+    for(let i=0;i<remotePlayers.length;i++){
+      const teammate=remotePlayers[i];
+      if(!teammate)continue;
+      const x=teammate.x*TILE,y=teammate.y*TILE;
+      if(teammate.hp<=0){drawSoul(teammate);continue;}
+      const color=palette[i%palette.length];
+      halo(x,y,30,color+'36');
+      ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ffffff';ctx.font='bold 10px monospace';
+      ctx.textAlign='center';ctx.fillText('P'+(teammate.slot||i+2),x,y-17);
     }
-    halo(x,y,30,'#ffb46a36');
-    ctx.fillStyle='#ffb46a';ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#ffffff';ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText('ALLY',x,y-17);
   }
   function drawDarkness(){
     const c=darkCtx;
@@ -1169,7 +1173,17 @@
     const darkness=floorWithinStage<3?.63:floorWithinStage<6?.76:.90;
     c.fillStyle=`rgba(0,8,13,${darkness})`;c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
-    const lights=[...(player.hp>0?[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1}]:[]),...(guestPlayer?.hp>0?[{x:guestPlayer.x*TILE,y:guestPlayer.y*TILE,r:155,alpha:.90}]:[]),...(player.hp<=0?[{x:player.x*TILE,y:player.y*TILE,r:72,alpha:.58}]:[]),...(guestPlayer?.hp<=0?[{x:guestPlayer.x*TILE,y:guestPlayer.y*TILE,r:72,alpha:.58}]:[]),...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...(technician?[{x:technician.x*TILE,y:technician.y*TILE,r:68,alpha:.42}]:[]),...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
+    const lights=[
+      ...[player,...remotePlayers].filter(Boolean).map(p=>({
+        x:p.x*TILE,y:p.y*TILE,r:p.hp>0?(p===player?205:155):72,
+        alpha:p.hp>0?(p===player?1:.90):.58
+      })),
+      ...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),
+      {x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},
+      {x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},
+      ...(technician?[{x:technician.x*TILE,y:technician.y*TILE,r:68,alpha:.42}]:[]),
+      ...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))
+    ];
     for(const l of lights){const lx=l.x-camera.x,ly=l.y-camera.y;
       const g=c.createRadialGradient(lx,ly,0,lx,ly,l.r);g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(lx-l.r,ly-l.r,l.r*2,l.r*2);}
     c.globalCompositeOperation='source-over';
@@ -1185,10 +1199,11 @@
   }
   function drawInteractPrompts(){ctx.font='bold 11px monospace';ctx.textAlign='center';
     let message='';
-    if(player.hp>0&&guestPlayer?.hp<=0&&dist(player,guestPlayer)<=REVIVE_RADIUS&&clearLine(player,guestPlayer)){
-      message='REVIVING TEAMMATE · '+Math.max(0,REVIVE_SECONDS-(guestPlayer.reviveProgress||0)).toFixed(1)+'s';
-    }
-    if(player.hp<=0&&guestPlayer?.hp>0)message='SOUL DOWN · WAIT FOR TEAMMATE';
+    const fallen=remotePlayers.find(p=>p.hp<=0&&dist(player,p)<=REVIVE_RADIUS&&clearLine(player,p));
+    if(player.hp>0&&fallen)
+      message='REVIVING TEAMMATE · '+Math.max(0,REVIVE_SECONDS-(fallen.reviveProgress||0)).toFixed(1)+'s';
+    if(player.hp<=0&&remotePlayers.some(p=>p.hp>0))
+      message='SOUL DOWN · WAIT FOR TEAMMATE';
     if(!message){if(!survivor.rescued&&dist(player,survivor)<1.5)message='[ E ] RESCUE SURVIVOR';else if(technician&&!technician.rescued&&dist(player,technician)<1.5)message='[ E ] RESCUE TECHNICIAN';else if(dist(player,relay)<1.55&&!relay.active)message='[ E ] ACTIVATE RELAY';else if(dist(player,exit)<1.5)message=relay.active&&cores.every(c=>c.collected)&&alliesReady()?(playersAtExit()?'[ E ] ESCAPE':'WAIT FOR TEAMMATE'):'ELEVATOR / ALLIES NOT READY';
     }
     if(message){roundedRect(W/2-111,H-54,222,30,7,'#071c23e8');ctx.strokeStyle='#43786e';ctx.strokeRect(W/2-111,H-54,222,30);ctx.fillStyle='#d4fff2';ctx.fillText(message,W/2,H-35);}
@@ -1468,7 +1483,9 @@
     if(Array.isArray(d.roomTiles))roomTiles=new Set(d.roomTiles);
     // One true position, generated by the dedicated room simulation.
     // Never overwrite incoming server coordinates with client estimates.
-    const authoritative=roomRole==='host'?d.player:(d.guestPlayer||d.player);
+    // Every browser has its own assigned slot (1–5) in the SAME server room.
+    const occupants=Array.isArray(d.players)?d.players:[d.player,d.guestPlayer];
+    const authoritative=occupants[roomPlayerId-1];
     if(!authoritative)return;
     if(guestPreviousHP!==null&&authoritative.hp<guestPreviousHP){
       clientHitFlashUntil=performance.now()+450;
@@ -1477,7 +1494,12 @@
     }
     guestPreviousHP=authoritative.hp;
     player=authoritative;
-    guestPlayer=roomRole==='host'?d.guestPlayer:(d.guestPlayer?d.player:null);
+    remotePlayers=occupants.map((p,i)=>p&&i!==roomPlayerId-1?{...p,slot:i+1}:null).filter(Boolean);
+    guestPlayer=remotePlayers[0]||null;
+    if(Array.isArray(d.playerRoles)){
+      const actualRole=d.playerRoles[roomPlayerId-1];
+      if(actualRole==='medic'||actualRole==='scout')classChoice=actualRole;
+    }
     cores=d.cores;relay=d.relay;exit=d.exit;
     // Hollows must be drawn where the server checks their collisions.
     // No visual extrapolation that can put their sprites ahead of the hitbox.
