@@ -33,6 +33,8 @@ try{
     assert(await p.locator('#playPage').isHidden(),'Lobby must not show game canvas');
     assert(await p.locator('#lobbyPage').isVisible(),'Dedicated lobby page should be visible');
   }
+  await first.locator('#playerNickname').fill('Captain Light');
+  await first.locator('#lobbyClass').selectOption('medic');
   await first.locator('#createRoom').click();
   await first.waitForFunction(()=>window.__lastLightDiagnostics?.().roomPlayerId===1,null,{timeout:7000});
   assert.equal(new URL(first.url()).pathname,'/play');
@@ -43,11 +45,17 @@ try{
   assert.equal(new URL(first.url()).pathname,'/');
   assert(await first.locator('#playPage').isHidden());
   assert.equal((await first.evaluate(()=>window.__lastLightDiagnostics())).roomPlayerId,1);
+  await first.waitForFunction(()=>[...document.querySelectorAll('.roster-player')]
+    .some(el=>el.textContent.includes('Captain Light')&&el.textContent.includes('MEDIC')&&el.textContent.includes('HOST')),
+    null,{timeout:7000});
+  assert.equal(await first.locator('.roster-player').count(),5);
+  assert(await first.locator('.roster-player.is-self').getByText('YOU').isVisible());
   await first.locator('#returnToGame').click();
   assert.equal(new URL(first.url()).pathname,'/play');
   assert(await first.locator('#playPage').isVisible());
   const room=await first.locator('#joinRoomCode').inputValue();
   assert.match(room,/^[0-9A-F]{6}$/);
+  await second.locator('#playerNickname').fill('Shadow Runner');
   await second.locator('#joinRoomCode').fill(room);
   await second.locator('#joinRoom').click();
   await sleep(500);
@@ -61,6 +69,10 @@ try{
   await second.waitForFunction(()=>document.querySelector('#networkStatus')?.textContent?.includes('PLAYER 2'),null,{timeout:7000});
   assert.equal(new URL(second.url()).pathname,'/play');
   assert(await second.locator('#lobbyPage').isHidden());
+  await first.locator('#backToLobby').click();
+  await first.waitForFunction(()=>document.querySelector('#lobbyRoster')?.textContent?.includes('Shadow Runner'),
+    null,{timeout:7000});
+  await first.locator('#returnToGame').click();
   // Players 3–5 discover and join the room from the PUBLIC DIRECTORY,
   // without ever knowing or entering a room code.
   for(let id=3;id<=5;id++){
@@ -111,6 +123,8 @@ try{
   assert(await first.locator('#roomSession').isVisible(),'Host must see their room summary');
   assert.equal(await first.locator('.room-entry').count(),2);
   assert(await first.locator('.room-entry').filter({hasText:room}).getByText('YOUR ROOM').isVisible());
+  assert(await first.locator('#lobbyRoster').getByText('Shadow Runner').isVisible());
+  assert.equal(await first.locator('.roster-player').count(),5);
   assert(await first.locator('.room-entry').filter({hasText:otherRoom}).isVisible());
   assert(await first.locator('.room-entry').filter({hasText:otherRoom}).locator('button').isDisabled(),
     'Other rooms should remain visible but not joinable until current room is left');
