@@ -148,7 +148,8 @@ try{
     prototype.fillText=function(value,...args){
       const label=String(value);
       if(label.includes('Captain Light')||label.includes('Shadow Runner'))
-        window.__nameplateDraws.push(label);
+        window.__nameplateDraws.push({label,color:this.fillStyle,
+          font:this.font,shadow:this.shadowColor});
       return old.call(this,value,...args);
     };
   });
@@ -163,9 +164,14 @@ try{
       'The start button must not cover the countdown');
   }
   await first.waitForFunction(()=>
-    window.__nameplateDraws?.some(s=>s.includes('Captain Light (YOU)'))&&
-    window.__nameplateDraws?.some(s=>s.includes('Shadow Runner')),
+    window.__nameplateDraws?.some(s=>s.label==='Captain Light'&&s.color==='#76f2d1')&&
+    window.__nameplateDraws?.some(s=>s.label==='Shadow Runner'&&s.color==='#ffb36e'),
     null,{timeout:9000});
+  const names=await first.evaluate(()=>window.__nameplateDraws);
+  assert(!names.some(item=>item.label.includes('(YOU)')),
+    'Nameplates must not display YOU');
+  assert(new Set(names.map(item=>item.color)).size>=2,
+    'Each connected player must have a separate visible color');
   await sleep(600);
   console.log('After Start:',JSON.stringify({
     first:await first.evaluate(()=>({diagnostics:window.__lastLightDiagnostics?.(),status:document.querySelector('#roomStatus')?.textContent,overlay:document.querySelector('#overlay')?.className})),
