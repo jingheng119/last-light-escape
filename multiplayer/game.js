@@ -1262,7 +1262,9 @@
   // player positions and souls, so these markers need no additional packets.
   function getTeammateIndicators(teammates=remotePlayers){
     if(roomRole==='none'||!teammates.length||!grid)return [];
-    const view={left:14,top:84,right:W-14,bottom:H-48};
+    // Keep markers just inside the four game-window borders (the arrow tip
+    // extends up to 14 px, so 18 px prevents clipping).
+    const view={left:18,top:18,right:W-18,bottom:H-18};
     const center={x:W/2,y:H/2};
     const markers=[];
     for(const teammate of teammates){
