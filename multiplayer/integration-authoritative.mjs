@@ -101,16 +101,46 @@ try{
   const overflow=await open();
   overflow.send(JSON.stringify({type:'join',code:joined.code}));
   await waitFor(overflow,m=>m.type==='error'&&m.message==='Room is full');
+  const beforeDisconnect=wsMessages.get(two).filter(m=>m.type==='snapshot').at(-1).snapshot;
+  const originalHost=beforeDisconnect.players[0];
+  const hostRole=beforeDisconnect.playerRoles[0];
   one.close();
-  await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.player.hp===0&&
+  // A network interruption reserves the original character and slot, while
+  // control of the room immediately transfers to another online player.
+  await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.players?.[0]===null&&
     m.snapshot.guestPlayer.hp>0);
   const transferred=await waitFor(two,m=>m.type==='roster'&&m.hostId===2);
   assert.equal(transferred.players.find(p=>p.id===2).host,true);
   assert.equal(transferred.players.find(p=>p.id===2).name,'Medic Teammate');
+  const returning=await open();
+  returning.send(JSON.stringify({type:'resume',code:joined.code,token:joined.reconnectToken}));
+  const resumed=await waitFor(returning,m=>m.type==='joined'&&m.resumed===true);
+  assert.equal(resumed.id,1,'Reconnect must reclaim the original slot');
+  assert.equal(resumed.nickname,'Captain Aurora');
+  assert.equal(resumed.host,false,'Host should not steal back authority after transfer');
+  assert.match(resumed.reconnectToken,/^[a-f0-9]{64}$/);
+  assert.notEqual(resumed.reconnectToken,joined.reconnectToken);
+  const restored=await waitFor(returning,m=>m.type==='snapshot'&&m.snapshot.players?.[0]);
+  assert.equal(restored.snapshot.state,'playing');
+  assert.equal(restored.snapshot.playerRoles[0],hostRole);
+  assert.equal(restored.snapshot.players[0].hp,originalHost.hp,'Preserve hearts on resume');
+  assert.equal(restored.snapshot.players[0].x,originalHost.x,'Preserve x coordinate');
+  assert.equal(restored.snapshot.players[0].y,originalHost.y,'Preserve y coordinate');
+  const replay=await open();
+  replay.send(JSON.stringify({type:'resume',code:joined.code,token:joined.reconnectToken}));
+  await waitFor(replay,m=>m.type==='resume-error');
+  // Replacing an actively connected socket is legitimate for browser refresh.
+  const replacement=await open();
+  replacement.send(JSON.stringify({type:'resume',code:joined.code,token:resumed.reconnectToken}));
+  const takenOver=await waitFor(replacement,m=>m.type==='joined'&&m.resumed);
+  assert.equal(takenOver.id,1);
+  const replacementState=await waitFor(replacement,m=>m.type==='snapshot'&&m.snapshot.players?.[0]);
+  assert.equal(replacementState.snapshot.players[0].hp,originalHost.hp);
+
   two.send(JSON.stringify({type:'skip',fullStage:true}));
   await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.levelIndex===9);
 
-  console.log('PASS: five-player rooms, live lobby, sixth-player rejection, authoritative dash and host departure');
+  console.log('PASS: five-player multiplayer and 90-second session recovery preserving role, health, position and host handover');
 }finally{
   for(const socket of sockets)try{socket.close();}catch{}
   processServer.kill('SIGTERM');
