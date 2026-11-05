@@ -35,6 +35,7 @@ const bridge=`
       if(!guestPlayer){roomCount=2;newGuest();}
     },
     leave(){guestPlayer=null;roomCount=1;remoteKeys=safeKeys();},
+    hostLeft(){player.hp=0;moveHeld=safeKeys();roomCount=1;},
     role(id,value){
       const role=value==='medic'?'medic':'scout';
       if(id===1)classChoice=role;
