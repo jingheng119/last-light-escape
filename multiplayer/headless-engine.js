@@ -51,6 +51,7 @@ const bridge=`
       if(state!=='leveldone')return;
       buildLevel(levelIndex+1);state='playing';
     },
+    restart(){if(state==='playing')buildLevel(levelIndex);},
     skip(fullStage=false){
       if(state==='playing'||state==='paused'||state==='leveldone')developerSkip(fullStage);
     },
