@@ -48,6 +48,33 @@
   // Slots 3–5 are simulated on the server, with the same original rules.
   // Browser snapshots use remotePlayers to render every teammate.
   let extraPlayers=[null,null,null],remotePlayers=[],roomPlayerId=0;
+  // The two screens share a single live WebSocket connection. Switching
+  // screens never removes a player from their server-side room.
+  let activePage='lobby';
+  function showPage(target,push=true){
+    const page=target==='play'&&roomRole!=='none'?'play':'lobby';
+    activePage=page;
+    $('#lobbyPage').hidden=page!=='lobby';
+    $('#playPage').hidden=page!=='play';
+    document.body.classList.toggle('show-lobby',page==='lobby');
+    document.body.classList.toggle('show-play',page==='play');
+    const url=new URL(location.href);
+    url.pathname=page==='play'?'/play':'/';
+    if(page==='play')url.searchParams.set('room',$('#joinRoomCode').value.trim().toUpperCase());
+    else url.searchParams.delete('room');
+    // Keep invitations clean: unrelated query parameters are not propagated.
+    url.search='';
+    if(page==='play')url.searchParams.set('room',$('#joinRoomCode').value.trim().toUpperCase());
+    const next=url.pathname+url.search;
+    if(push&&location.pathname+location.search!==next)history.pushState({screen:page},'',next);
+    if(!push&&location.pathname+location.search!==next)history.replaceState({screen:page},'',next);
+    document.title=page==='lobby'?'Survivor Lobby — Last Light':'Last Light — The Hollow Ward';
+    if(page==='play'){
+      $('#gameRoomName').textContent=$('#currentRoomName').textContent;
+      $('#gameRoomCount').textContent=roomCount+' / 5 SURVIVORS';
+      requestAnimationFrame(()=>updateCamera(0,true));
+    }else stopMusic();
+  }
   let runSeed=0;
   let roomRole='none',roomSocket=null,roomCount=0,guestPlayer=null,lastSync=0,lastInput=0,lastLevel=-1,lastSentStaticLevel=-1,lastFullSnapshot=0,remotePingAt=0,remotePingMs=null,lastGuestUIAt=0;
   let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout',guestContextHost=null;
@@ -1334,13 +1361,16 @@
         if(left<=0)clientHitFlashUntil=0;
       }
     }
-    updateMusic();
-    if(state==='playing')updateCamera(dt);
-    draw();
+    if(activePage==='play'){
+      updateMusic();
+      if(state==='playing')updateCamera(dt);
+      draw();
+    }
     requestAnimationFrame(tick);
   }
   const keyMap={w:'up',arrowup:'up',s:'down',arrowdown:'down',a:'left',arrowleft:'left',d:'right',arrowright:'right'};
   document.addEventListener('keydown', e => {
+    if(activePage!=='play')return;
     const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k))e.preventDefault();
     if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole!=='none')sendRoom(guestInputPacket());}
     if(e.repeat)return;
@@ -1542,6 +1572,7 @@
       roomBrowser.hidden=joined;
       roomSession.hidden=!joined;
       $('#leaveRoom').disabled=!joined;
+      $('#returnToGame').disabled=!joined;
       create.disabled=joined;
       join.disabled=joined;
       code.disabled=joined;
@@ -1581,7 +1612,7 @@
     });
     roomSocket.addEventListener('close',()=>{
       status.textContent='Disconnected from server. Refresh to reconnect.';
-      roomRole='none';roomPlayerId=0;setJoined(false);
+      roomRole='none';roomPlayerId=0;setJoined(false);showPage('lobby',false);
     });
     roomSocket.addEventListener('message',event=>{
       let m;try{m=JSON.parse(event.data);}catch{return;}
@@ -1595,10 +1626,11 @@
       if(m.type==='joined'){
         roomPlayerId=m.id;roomRole=m.host?'host':'guest';roomCount=1;
         code.value=m.code;showNetworkStatus();
-        const url=new URL(location.href);url.searchParams.set('room',m.code);
+        const url=new URL(location.origin);
+        url.pathname='/play';url.searchParams.set('room',m.code);
         invite.textContent='ROOM '+m.code+' · Invite link: '+url.href;
         $('#currentRoomName').textContent=(m.name||'Hollow Ward')+' · ROOM '+m.code;
-        setJoined(true);
+        setJoined(true);showPage('play');
         status.textContent=m.host?'Room created. Press START GAME to begin!':'Room joined. Waiting for host.';
         // The browser requires a gesture for audio; don't initialize it during
         // an unsolicited network message. The player can enable it by clicking.
@@ -1611,6 +1643,7 @@
         showNetworkStatus();
         status.textContent=roomCount+' / 5 players connected'+
           (roomRole==='host'?' · You are the host':'');
+        $('#gameRoomCount').textContent=roomCount+' / 5 SURVIVORS';
         if(state==='menu'){
           ui.button.firstChild.textContent=roomRole==='host'?'START GAME ':'WAIT FOR HOST ';
         }else if(state==='leveldone'){
@@ -1625,8 +1658,7 @@
         setJoined(false);
         status.textContent='You left the room. Join another or create your own.';
         invite.textContent='';
-        const url=new URL(location.href);url.searchParams.delete('room');
-        history.replaceState(null,'',url);
+        showPage('lobby',true);
         state='menu';
         setOverlay('THE HOLLOW WARD','Choose a room to play with your team.','START GAME');
         showNetworkStatus();sendRoom({type:'list'});
@@ -1645,9 +1677,21 @@
     });
     $('#refreshRooms').addEventListener('click',()=>sendRoom({type:'list'}));
     $('#leaveRoom').addEventListener('click',()=>sendRoom({type:'leave'}));
+    $('#leaveGameRoom').addEventListener('click',()=>sendRoom({type:'leave'}));
+    $('#backToLobby').addEventListener('click',()=>showPage('lobby'));
+    $('#returnToGame').addEventListener('click',()=>showPage('play'));
+    window.addEventListener('popstate',()=>{
+      showPage(location.pathname==='/play'?'play':'lobby',false);
+    });
     const invited=new URLSearchParams(location.search).get('room');
-    if(invited&&/^[0-9A-F]{6}$/i.test(invited))code.value=invited.toUpperCase();
+    if(invited&&/^[0-9A-F]{6}$/i.test(invited)){
+      code.value=invited.toUpperCase();
+      // A direct game-room invite opens the game page after joining, while
+      // retaining the same live session used for in-app lobby navigation.
+      roomSocket.addEventListener('open',()=>sendRoom({type:'join',code:invited.toUpperCase()}),{once:true});
+    }
     setJoined(false);
+    showPage('lobby',false);
   }
   connectRoom();
   // Build the first level behind the menu so the player sees the environment before starting.
