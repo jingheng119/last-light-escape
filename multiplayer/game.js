@@ -176,7 +176,31 @@
       moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.18:.21,.30);
     }
   }
-  function guestAction(name){
+  // A mobile dash into a wall used to spend its cooldown but stop at once.
+  // If the intended path is blocked, prefer the opposite open corridor,
+  // then an open side corridor. The maze collision checks still apply.
+  // This only applies to touchscreen dash taps, not keyboard dashes.
+  function touchDashDirection(x,y){
+    const length=Math.hypot(x,y);
+    const facing=length>.08?{x:x/length,y:y/length}:
+      (player?.facing||{x:1,y:0});
+    if(!player||!grid)return facing;
+    const choices=[
+      facing,
+      {x:-facing.x,y:-facing.y},
+      {x:-facing.y,y:facing.x},
+      {x:facing.y,y:-facing.x}
+    ];
+    for(const direction of choices){
+      // Check a short segment so an edge-adjacent character can escape
+      // even when the joystick is still pointing into the wall.
+      if(canStand(player.x+direction.x*.24,
+                  player.y+direction.y*.24,.21))
+        return direction;
+    }
+    return facing;
+  }
+  function guestAction(name,touch=false){
     if(roomRole==='none')return false;
     // The authoritative server owns movement and dash activation. Do NOT
     // move the character or start a local dash before server confirmation:
@@ -187,7 +211,8 @@
       const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
       const magnitude=Math.hypot(vx,vy);
       const facing=player?.facing||{x:1,y:0};
-      action.direction=magnitude>.08?{x:vx/magnitude,y:vy/magnitude}:{x:facing.x,y:facing.y};
+      action.direction=touch?touchDashDirection(vx,vy):
+        magnitude>.08?{x:vx/magnitude,y:vy/magnitude}:{x:facing.x,y:facing.y};
     }
     sendRoom(action);
     return true;
@@ -662,7 +687,7 @@
     notify('Sound decoy deployed — they heard it!');beep(850,.22,'square',.016);
     updateUI();
   }
-  function dash(directionOverride=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('dash'))return;if(state!=='playing'||player.hp<=0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
+  function dash(directionOverride=null,touch=false){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('dash',touch))return;if(state!=='playing'||player.hp<=0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
     const vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     if(directionOverride&&Number.isFinite(directionOverride.x)&&Number.isFinite(directionOverride.y)&&Math.hypot(directionOverride.x,directionOverride.y)>.1){
@@ -1526,7 +1551,7 @@
       action();
     });
   }
-  bindGameAction('#touchDash',dash);
+  bindGameAction('#touchDash',()=>dash(null,true));
   bindGameAction('#touchInteract',interact);
   bindGameAction('#touchDecoy',triggerDecoy);
   bindGameAction('#touchAbility',activateAbility);
