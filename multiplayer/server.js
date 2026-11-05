@@ -76,7 +76,7 @@ wss.on('connection',(ws,req)=>{
       if(['dash','interact','decoy','ability'].includes(msg.name))
         send(room.players.get(1)?.ws,{type:'remoteAction',name:msg.name});
     }else if(msg.type==='snapshot'&&ws.playerId===1){
-      if(Date.now()-lastSnapshot<65)return;lastSnapshot=Date.now();
+      if(Date.now()-lastSnapshot<40)return;lastSnapshot=Date.now();
       if(!msg.snapshot||typeof msg.snapshot!=='object')return;
       room.lastSnapshot=msg.snapshot;
       send(room.players.get(2)?.ws,{type:'snapshot',snapshot:msg.snapshot});
