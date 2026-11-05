@@ -19,12 +19,25 @@ assert(state.elapsed>0);
 assert(state.player.hp>0);
 assert(state.hollows.length>0);
 
-game.join();
+game.join(2);
+game.join(3);
+game.join(4);
+game.join(5);
 game.role(2,'scout');
 game.input(2,{down:true},{x:0,y:0});
 for(let i=0;i<12;i++)game.tick(.033);
 state=game.snapshot(false);
 assert(state.guestPlayer);
+assert.equal(state.players.filter(Boolean).length,5,'Five players must have independent bodies');
+for(let slot=3;slot<=5;slot++){
+  game.role(slot,slot===4?'medic':'scout');
+  game.input(slot,{right:true},{x:0,y:0});
+  game.action(slot,'dash',{x:1,y:0});
+}
+state=game.snapshot(false);
+assert(state.players.slice(2).every(p=>p?.dashCooldown>0));
+assert.equal(state.playerRoles[3],'medic');
+
 game.action(1,'dash',{x:1,y:0});
 game.action(2,'dash',{x:0,y:1});
 state=game.snapshot(false);
@@ -45,7 +58,8 @@ game.hostLeft();
 state=game.snapshot(false);
 assert.equal(state.player.hp,0);
 assert(state.guestPlayer.hp>0);
-game.leave();
+game.leave(2);
 assert.equal(game.snapshot(false).guestPlayer,null);
+assert.equal(game.snapshot(false).players.filter(Boolean).length,4);
 
 console.log('PASS: original game simulation runs server-side through Stage 2, with two independent players.');
