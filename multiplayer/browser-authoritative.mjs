@@ -45,11 +45,12 @@ try{
   assert.equal(new URL(first.url()).pathname,'/');
   assert(await first.locator('#playPage').isHidden());
   assert.equal((await first.evaluate(()=>window.__lastLightDiagnostics())).roomPlayerId,1);
-  await first.waitForFunction(()=>[...document.querySelectorAll('.roster-player')]
-    .some(el=>el.textContent.includes('Captain Light')&&el.textContent.includes('MEDIC')&&el.textContent.includes('HOST')),
+  await first.waitForFunction(()=>document.querySelector('#medicCount')?.textContent==='1',
     null,{timeout:7000});
-  assert.equal(await first.locator('.roster-player').count(),5);
-  assert(await first.locator('.roster-player.is-self').getByText('YOU').isVisible());
+  assert.equal(await first.locator('#scoutCount').textContent(),'0');
+  assert.equal(await first.locator('#rosterCount').textContent(),'1 / 5 players');
+  assert.equal(await first.locator('#lobbyRoster').count(),0,
+    'The lobby must not display individual player names');
   await first.locator('#returnToGame').click();
   assert.equal(new URL(first.url()).pathname,'/play');
   assert(await first.locator('#playPage').isVisible());
@@ -70,8 +71,8 @@ try{
   assert.equal(new URL(second.url()).pathname,'/play');
   assert(await second.locator('#lobbyPage').isHidden());
   await first.locator('#backToLobby').click();
-  await first.waitForFunction(()=>document.querySelector('#lobbyRoster')?.textContent?.includes('Shadow Runner'),
-    null,{timeout:7000});
+  await first.waitForFunction(()=>document.querySelector('#scoutCount')?.textContent==='1'&&
+    document.querySelector('#medicCount')?.textContent==='1',null,{timeout:7000});
   await first.locator('#returnToGame').click();
   // Players 3–5 discover and join the room from the PUBLIC DIRECTORY,
   // without ever knowing or entering a room code.
@@ -123,8 +124,11 @@ try{
   assert(await first.locator('#roomSession').isVisible(),'Host must see their room summary');
   assert.equal(await first.locator('.room-entry').count(),2);
   assert(await first.locator('.room-entry').filter({hasText:room}).getByText('YOUR ROOM').isVisible());
-  assert(await first.locator('#lobbyRoster').getByText('Shadow Runner').isVisible());
-  assert.equal(await first.locator('.roster-player').count(),5);
+  await first.waitForFunction(()=>document.querySelector('#rosterCount')?.textContent==='5 / 5 players',
+    null,{timeout:7000});
+  assert.equal(await first.locator('#medicCount').textContent(),'1');
+  assert.equal(await first.locator('#scoutCount').textContent(),'4');
+  assert.equal(await first.locator('#lobbyRoster').count(),0);
   assert(await first.locator('.room-entry').filter({hasText:otherRoom}).isVisible());
   assert(await first.locator('.room-entry').filter({hasText:otherRoom}).locator('button').isDisabled(),
     'Other rooms should remain visible but not joinable until current room is left');
@@ -132,6 +136,18 @@ try{
   assert.equal(new URL(first.url()).pathname,'/play');
   assert.equal((await first.evaluate(()=>window.__lastLightDiagnostics())).roomPlayerId,1);
 
+  // Capture actual canvas player labels when the game starts.
+  await first.evaluate(()=>{
+    window.__nameplateDraws=[];
+    const prototype=CanvasRenderingContext2D.prototype;
+    const old=prototype.fillText;
+    prototype.fillText=function(value,...args){
+      const label=String(value);
+      if(label.includes('Captain Light')||label.includes('Shadow Runner'))
+        window.__nameplateDraws.push(label);
+      return old.call(this,value,...args);
+    };
+  });
   await first.locator('#primaryBtn').click();
   for(const page of players){
     await page.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='countdown',
@@ -142,6 +158,10 @@ try{
     assert(await page.locator('#primaryBtn').isHidden(),
       'The start button must not cover the countdown');
   }
+  await first.waitForFunction(()=>
+    window.__nameplateDraws?.some(s=>s.includes('Captain Light (YOU)'))&&
+    window.__nameplateDraws?.some(s=>s.includes('Shadow Runner')),
+    null,{timeout:9000});
   await sleep(600);
   console.log('After Start:',JSON.stringify({
     first:await first.evaluate(()=>({diagnostics:window.__lastLightDiagnostics?.(),status:document.querySelector('#roomStatus')?.textContent,overlay:document.querySelector('#overlay')?.className})),
