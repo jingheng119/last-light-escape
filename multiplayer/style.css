@@ -1140,3 +1140,16 @@
 .class-summary-item b{color:#a8ffe7;font:700 16px monospace}
 .class-summary-total{margin-left:auto;color:#9fbfc1;font:12px monospace}
 @media(max-width:600px){.class-summary-total{margin-left:0;width:100%}}
+
+/* One pinned room card — no duplicate room entry or separate session banner. */
+#myRoomCard[hidden]{display:none!important}
+#myRoomCard.own-room-card{display:block;padding:19px 21px;margin:10px 0 25px;
+  border:1px solid #63d5bd;border-radius:14px;background:linear-gradient(135deg,#15403f,#0c2b35)}
+.own-room-main{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.own-room-main .room-description{flex:1;min-width:190px}
+.own-room-main .room-description strong{font-size:18px}
+.own-room-main .lobby-invite{margin:7px 0 0;color:#84d9d0;font:12px/1.6 monospace;overflow-wrap:anywhere}
+.own-room-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+#myRoomCard .lobby-class-summary{padding:13px 0 0;margin-top:15px;border-top:1px solid #366662}
+#myRoomCard .room-current-label{align-self:flex-start}
+@media(max-width:600px){#myRoomCard.own-room-card{padding:15px}.own-room-actions{width:100%}.own-room-actions button{flex:1}}
