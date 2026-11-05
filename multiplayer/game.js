@@ -568,14 +568,71 @@
       }else setOverlay('FLOOR CLEARED',`You restored the relay, collected every core, and escaped ${CONFIGS[levelIndex].name.toLowerCase()} in ${formatTime(elapsed)}.`,'DESCEND DEEPER','THE NEXT FLOOR IS MORE DANGEROUS');
     }
   }
+  const REVIVE_SECONDS=5;
+  const REVIVE_RADIUS=1.5; // Measured in maze tiles, not pixels.
+  function updateSoulRevival(dt){
+    if(!guestPlayer||state!=='playing')return;
+    for(const [soul,rescuer] of [[player,guestPlayer],[guestPlayer,player]]){
+      if(soul.hp>0)continue;
+      // The count must be continuous. Walking out of range restarts it.
+      if(rescuer.hp<=0||dist(soul,rescuer)>REVIVE_RADIUS||!clearLine(soul,rescuer)){
+        soul.reviveProgress=0;
+        continue;
+      }
+      soul.reviveProgress=Math.min(REVIVE_SECONDS,(soul.reviveProgress||0)+dt);
+      if(soul.reviveProgress>=REVIVE_SECONDS){
+        soul.hp=1;
+        soul.invincible=2.5;
+        soul.dashTime=0;
+        soul.dashCooldown=0;
+        soul.reviveProgress=0;
+        soul.trail=[];
+        notify('SOUL REVIVED — ONE HEART RESTORED!',3);
+        beep(930,.35,'sine',.038);
+        updateUI();
+      }
+    }
+  }
+  function drawSoul(soul){
+    const x=soul.x*TILE,y=soul.y*TILE,progress=Math.min(1,(soul.reviveProgress||0)/REVIVE_SECONDS);
+    const bob=Math.sin(clock*3)*4;
+    halo(x,y,52,'#8ef5ff55');
+    ctx.save();
+    ctx.translate(x,y+bob);
+    ctx.globalAlpha=.75+.15*Math.sin(clock*4);
+    ctx.fillStyle='#a9f8ff';
+    ctx.beginPath();
+    ctx.arc(0,-5,9,Math.PI,0);
+    ctx.quadraticCurveTo(12,8,6,15);
+    ctx.quadraticCurveTo(3,10,0,14);
+    ctx.quadraticCurveTo(-3,10,-6,15);
+    ctx.quadraticCurveTo(-12,8,-9,-5);
+    ctx.fill();
+    ctx.fillStyle='#123742';
+    ctx.beginPath();ctx.arc(-3,-5,1.8,0,Math.PI*2);ctx.arc(3,-5,1.8,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle='#6b929d';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(x,y,18,0,Math.PI*2);ctx.stroke();
+    if(progress>0){
+      ctx.strokeStyle='#a9fff3';ctx.lineWidth=3.5;
+      ctx.beginPath();ctx.arc(x,y,18,-Math.PI/2,-Math.PI/2+progress*Math.PI*2);ctx.stroke();
+    }
+    ctx.font='bold 10px monospace';ctx.fillStyle='#e6fbff';ctx.textAlign='center';
+    ctx.fillText(progress>0?'REVIVING '+(REVIVE_SECONDS-(soul.reviveProgress||0)).toFixed(1)+'s':'SOUL · REVIVE',x,y-28);
+  }
   function damage(){if(player.hp<=0||player.invincible>0||player.dashTime>0||state!=='playing')return;
     player.hp--;player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
-    // Reposition player to start to prevent repeated contact hits.
-    player.x=1.5;player.y=1.5;player.dashTime=0;
-    hollows.forEach(h=>{h.mode='patrol';h.chaseUntil=0;h.path=[];h.repath=0;h.target=null;h.searchPoints=0;});
-    noiseEvents=[];
+    // On the final hit, keep the soul at the exact place the player fell.
+    // Surviving players are still teleported to start as in the original game.
+    player.dashTime=0;
+    if(player.hp>0){
+      player.x=1.5;player.y=1.5;
+      hollows.forEach(h=>{h.mode='patrol';h.chaseUntil=0;h.path=[];h.repath=0;h.target=null;h.searchPoints=0;});
+      noiseEvents=[];
+    }
     if(player.hp<=0){
       player.hp=0;
+      player.reviveProgress=0;
       if(!guestPlayer||guestPlayer.hp<=0){
         state='dead';
         setOverlay('SIGNAL LOST','All players have lost their hearts. Try again together.','TRY AGAIN','THE MAZE REMAINS THE SAME — YOU CAN LEARN IT');
@@ -798,6 +855,7 @@
     // Check AFTER ghosts move, including when the player is stationary.
     checkGhostContact();if(guestPlayer)asGuest(()=>checkGhostContact());
     if(state!=='playing')return;
+    updateSoulRevival(dt);
     ambientAudio();
     for(const d of decoys){d.life-=dt;d.age+=dt;}decoys=decoys.filter(d=>d.life>0);
     noiseEvents=noiseEvents.filter(n=>n.expires>clock);
@@ -959,9 +1017,7 @@
     ctx.restore();}}
   function drawPlayer(){
     if(player.hp<=0){
-      const x=player.x*TILE,y=player.y*TILE;
-      ctx.fillStyle='#7d858c';ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#f1f1f1';ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText('DOWN',x,y-18);
+      drawSoul(player);
       return;
     }
     for(const p of player.trail){ctx.fillStyle=`rgba(110,255,218,${p.life*.55})`;ctx.beginPath();ctx.arc(p.x*TILE,p.y*TILE,8,0,Math.PI*2);ctx.fill();}
@@ -977,8 +1033,7 @@
     if(!guestPlayer)return;
     const x=guestPlayer.x*TILE,y=guestPlayer.y*TILE;
     if(guestPlayer.hp<=0){
-      ctx.fillStyle='#7d858c';ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#eeeeee';ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText('DOWN',x,y-17);
+      drawSoul(guestPlayer);
       return;
     }
     halo(x,y,30,'#ffb46a36');
@@ -993,7 +1048,7 @@
     const darkness=floorWithinStage<3?.63:floorWithinStage<6?.76:.90;
     c.fillStyle=`rgba(0,8,13,${darkness})`;c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
-    const lights=[...(player.hp>0?[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1}]:[]),...(guestPlayer?.hp>0?[{x:guestPlayer.x*TILE,y:guestPlayer.y*TILE,r:155,alpha:.90}]:[]),...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...(technician?[{x:technician.x*TILE,y:technician.y*TILE,r:68,alpha:.42}]:[]),...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
+    const lights=[...(player.hp>0?[{x:player.x*TILE,y:player.y*TILE,r:205,alpha:1}]:[]),...(guestPlayer?.hp>0?[{x:guestPlayer.x*TILE,y:guestPlayer.y*TILE,r:155,alpha:.90}]:[]),...(player.hp<=0?[{x:player.x*TILE,y:player.y*TILE,r:72,alpha:.58}]:[]),...(guestPlayer?.hp<=0?[{x:guestPlayer.x*TILE,y:guestPlayer.y*TILE,r:72,alpha:.58}]:[]),...cores.filter(c=>!c.collected).map(c=>({x:c.x*TILE,y:c.y*TILE,r:72,alpha:.42})),{x:relay.x*TILE,y:relay.y*TILE,r:58,alpha:.30},{x:exit.x*TILE,y:exit.y*TILE,r:52,alpha:.30},...(technician?[{x:technician.x*TILE,y:technician.y*TILE,r:68,alpha:.42}]:[]),...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))];
     for(const l of lights){const lx=l.x-camera.x,ly=l.y-camera.y;
       const g=c.createRadialGradient(lx,ly,0,lx,ly,l.r);g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(lx-l.r,ly-l.r,l.r*2,l.r*2);}
     c.globalCompositeOperation='source-over';
@@ -1008,7 +1063,13 @@
     ctx.fillStyle='#7aadb0';ctx.font='10px monospace';ctx.textAlign='left';ctx.fillText(`${Math.round(dist(player,target))}m away`,W-158,60);
   }
   function drawInteractPrompts(){ctx.font='bold 11px monospace';ctx.textAlign='center';
-    let message='';if(!survivor.rescued&&dist(player,survivor)<1.5)message='[ E ] RESCUE SURVIVOR';else if(technician&&!technician.rescued&&dist(player,technician)<1.5)message='[ E ] RESCUE TECHNICIAN';else if(dist(player,relay)<1.55&&!relay.active)message='[ E ] ACTIVATE RELAY';else if(dist(player,exit)<1.5)message=relay.active&&cores.every(c=>c.collected)&&alliesReady()?(playersAtExit()?'[ E ] ESCAPE':'WAIT FOR TEAMMATE'):'ELEVATOR / ALLIES NOT READY';
+    let message='';
+    if(player.hp>0&&guestPlayer?.hp<=0&&dist(player,guestPlayer)<=REVIVE_RADIUS&&clearLine(player,guestPlayer)){
+      message='REVIVING TEAMMATE · '+Math.max(0,REVIVE_SECONDS-(guestPlayer.reviveProgress||0)).toFixed(1)+'s';
+    }
+    if(player.hp<=0&&guestPlayer?.hp>0)message='SOUL DOWN · WAIT FOR TEAMMATE';
+    if(!message){if(!survivor.rescued&&dist(player,survivor)<1.5)message='[ E ] RESCUE SURVIVOR';else if(technician&&!technician.rescued&&dist(player,technician)<1.5)message='[ E ] RESCUE TECHNICIAN';else if(dist(player,relay)<1.55&&!relay.active)message='[ E ] ACTIVATE RELAY';else if(dist(player,exit)<1.5)message=relay.active&&cores.every(c=>c.collected)&&alliesReady()?(playersAtExit()?'[ E ] ESCAPE':'WAIT FOR TEAMMATE'):'ELEVATOR / ALLIES NOT READY';
+    }
     if(message){roundedRect(W/2-111,H-54,222,30,7,'#071c23e8');ctx.strokeStyle='#43786e';ctx.strokeRect(W/2-111,H-54,222,30);ctx.fillStyle='#d4fff2';ctx.fillText(message,W/2,H-35);}
   }
   function drawSkillWaves(){
