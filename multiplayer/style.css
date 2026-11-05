@@ -1098,3 +1098,34 @@
 .room-current-label{font:700 10px monospace;letter-spacing:1.4px;color:#7beccd}
 .room-entry-current button{background:#257768}
 .show-lobby #roomSession:not([hidden]){padding:12px 0 22px;border-bottom:1px solid #335960;margin-bottom:20px}
+
+
+/* Live five-player roster, player identity and pre-run class selection. */
+.lobby-profile{display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;
+  padding:16px 0 20px;border-bottom:1px solid #35565b;margin-bottom:18px}
+.lobby-profile label{font:700 11px monospace;letter-spacing:1px;color:#8fe2d5}
+.lobby-profile label span{font-size:10px;letter-spacing:0;font-weight:400;color:#a6c7c8}
+.lobby-profile input{min-width:160px;flex:1}
+.lobby-profile select{background:#10343a;color:#e2fff5;border:1px solid #4c938b;
+  border-radius:8px;padding:10px 12px;min-height:40px;font:600 13px inherit}
+.lobby-profile select:disabled{opacity:.55;cursor:not-allowed}
+.lobby-profile-hint{color:#8aaeb0;font:11px monospace}
+.lobby-roster-heading{display:flex;justify-content:space-between;gap:10px;
+  align-items:center;margin:19px 0 11px;color:#a2ede0}
+.lobby-roster-heading strong{font:700 12px monospace;letter-spacing:2px}
+.lobby-roster-heading span{font:12px monospace;color:#92c9c7}
+.lobby-roster{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px}
+.roster-player{display:flex;gap:11px;align-items:center;min-height:72px;
+  padding:12px;background:#0f3039;border:1px solid #325d5c;border-radius:12px;min-width:0}
+.roster-player.is-self{border-color:#70e0c3;background:#15433f}
+.roster-player.is-empty{opacity:.60;border-style:dashed}
+.roster-slot{width:33px;height:33px;display:grid;place-items:center;flex:none;border-radius:9px;
+  color:#a9fbe9;background:#194c4b;font:700 12px monospace}
+.roster-details{min-width:0;display:flex;flex-direction:column;gap:6px}
+.roster-details strong{font-size:13px;overflow-wrap:anywhere}
+.roster-tags{display:flex;gap:5px;flex-wrap:wrap}
+.roster-tags span{font:700 10px monospace;letter-spacing:.5px;border-radius:5px;padding:3px 6px}
+.roster-role{background:#214d57;color:#c1f4f0}
+.roster-host{background:#5e4a23;color:#fff0ba}
+.roster-you{background:#236455;color:#b8ffec}
+@media(max-width:650px){.lobby-profile label{width:100%}.lobby-profile select,.lobby-profile input{flex:1;max-width:100%}}
