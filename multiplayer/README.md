@@ -90,3 +90,19 @@ and control characters on the server; browser display uses `textContent`.
 
 Run `npm test` and the Chromium GitHub Actions suite to check nickname
 updates, host handover, room roster rendering and live game behavior.
+
+## Minimal lobby team composition + player nameplates
+
+To keep the public lobby compact, the current room now displays only the
+number of **Scouts**, **Medics**, and connected players. The roster of
+individual player names is no longer displayed in the lobby. Nickname and
+class selection remain available before joining a room.
+
+Inside the game, each player sees their own nickname with **(YOU)** and all
+teammates' names above their player sprites. Names remain visible above
+fallen souls for identifying who needs revival. The authoritative roster
+still distributes nicknames and roles over WebSocket, so edits appear
+live without creating another network channel.
+
+The Chromium test verifies the class-only lobby summaries and confirms the
+canvas draws actual player nicknames during a real five-person match.
