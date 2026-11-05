@@ -41,4 +41,7 @@ No registrations, persistent saves, lobby matchmaking, robust reconnect, touch i
 - Game over occurs only after both players reach zero hearts.
 - A living teammate may finish the floor by completing objectives and reaching the elevator; the eliminated player is not required to stand at the exit.
 - An eliminated player returns with one heart at the start of the next floor.
-- Reviving teammates during a floor has not been implemented yet.
+- On losing all hearts, a player's soul stays at the exact position of the final hit.
+- The other living player can stand within 1.5 maze tiles of the soul with clear line of sight for 5 continuous seconds to revive them with 1 heart. Moving out of range resets the countdown.
+- A soul and circular revival progress indicator appear in the game, with a brief grace period after revival.
+- If both players are down, the room ends as before.
