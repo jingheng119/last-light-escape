@@ -210,7 +210,7 @@ try{
   assert.equal(markers.dead[0].dead,true);
   for(const m of markers.offscreen){
     assert(m.x>=14&&m.x<=978&&m.y>=84&&m.y<=624,
-      'Teammate arrow must stay inside the updated near-edge HUD margins');
+      'Teammate arrow must stay inside the updated near-edge HUD margins: '+JSON.stringify(m));
   }
   assert(await first.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
   assert(await second.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
