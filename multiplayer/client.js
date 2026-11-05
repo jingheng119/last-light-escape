@@ -4,7 +4,7 @@ const status = document.querySelector('#status');
 const roomLabel = document.querySelector('#room');
 const joinCode = document.querySelector('#code');
 const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
-let me = 0, players = [], joined = false;
+let me = 0, players = [], joined = false, maze = null, tileSize = 32;
 const keys = {up:false,down:false,left:false,right:false};
 const keyMap = {w:'up',arrowup:'up',s:'down',arrowdown:'down',a:'left',arrowleft:'left',d:'right',arrowright:'right'};
 const initialCode = new URLSearchParams(location.search).get('room');
@@ -17,6 +17,7 @@ ws.addEventListener('message', e => {
   if (m.type === 'error') status.textContent = m.message;
   if (m.type === 'joined') {
     me = m.id; joined = true;
+    maze = m.grid; tileSize = m.tile;
     roomLabel.textContent = m.code;
     const link = new URL(location.href); link.searchParams.set('room', m.code);
     document.querySelector('#invite').textContent = 'Invite link: ' + link.href;
@@ -45,9 +46,19 @@ addEventListener('blur', () => {for(const k of Object.keys(keys)) keys[k]=false;
 setInterval(() => {if (joined) send({type:'input',keys});},50);
 function draw() {
   ctx.fillStyle='#081923';ctx.fillRect(0,0,992,672);
-  ctx.strokeStyle='#183b44';
-  for(let x=0;x<=992;x+=48){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,672);ctx.stroke();}
-  for(let y=0;y<=672;y+=48){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(992,y);ctx.stroke();}
+  if (maze) {
+    // Both browsers draw the identical authoritative maze supplied by their room.
+    for(let row=0;row<maze.length;row++)for(let col=0;col<maze[row].length;col++){
+      const x=col*tileSize,y=row*tileSize;
+      if(maze[row][col]===1){
+        ctx.fillStyle='#152832';ctx.fillRect(x,y,tileSize,tileSize);
+        ctx.strokeStyle='#24414a';ctx.strokeRect(x+.5,y+.5,tileSize-1,tileSize-1);
+      }else{
+        ctx.fillStyle='#102c34';ctx.fillRect(x,y,tileSize,tileSize);
+        ctx.strokeStyle='#1a3a40';ctx.strokeRect(x+.5,y+.5,tileSize-1,tileSize-1);
+      }
+    }
+  }
   for(const p of players){
     const color = p.id === me ? '#79f3cc' : '#ffa96e';
     ctx.shadowColor=color;ctx.shadowBlur=20;ctx.fillStyle=color;
