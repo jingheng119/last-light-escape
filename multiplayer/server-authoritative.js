@@ -130,11 +130,11 @@ wss.on('connection',(ws,req)=>{
       room.engine.action(id,m.name,safeDirection(m.direction));
     else if(m.type==='role'&&['scout','medic'].includes(m.role))
       room.engine.role(id,m.role);
-    else if(m.type==='start'&&room.engine)room.engine.start();
-    else if(m.type==='next')room.engine.next();
-    else if(m.type==='restart'&&id===1)room.engine.restart();
-    else if(m.type==='skip'&&id===1)room.engine.skip(m.fullStage===true);
-    else if(m.type==='pause'&&id===1)room.engine.pause();
+    else if(m.type==='start'&&id===1){room.engine.start();publish(room,true);}
+    else if(m.type==='next'&&id===1){room.engine.next();publish(room,true);}
+    else if(m.type==='restart'&&id===1){room.engine.restart();publish(room,true);}
+    else if(m.type==='skip'&&id===1){room.engine.skip(m.fullStage===true);publish(room,true);}
+    else if(m.type==='pause'&&id===1){room.engine.pause();publish(room,true);}
   });
   ws.on('close',()=>leave(ws));
   ws.on('error',()=>leave(ws));
