@@ -1,0 +1,21 @@
+name: Authoritative multiplayer smoke
+on:
+  push:
+    branches: [feature/server-authoritative]
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: multiplayer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - run: node --check server-authoritative.js
+      - run: node --check headless-engine.js
+      - run: node --check game.js
+      - run: node smoke-authoritative.mjs
