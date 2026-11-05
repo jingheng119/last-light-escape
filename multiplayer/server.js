@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { WebSocketServer, WebSocket } from 'ws';
 
 const PORT=Number(process.env.PORT || 3001);
+const HOST=process.env.HOST || '0.0.0.0';
 const rooms=new Map();
 const send=(ws,obj)=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(obj));};
 function makeCode(){let code;do{code=randomBytes(3).toString('hex').toUpperCase();}while(rooms.has(code));return code;}
@@ -35,11 +36,14 @@ const mime={'index.html':'text/html; charset=utf-8','game.js':'text/javascript; 
 const paths={'/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg'};
 const server=http.createServer(async(req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
+  if(pathname==='/health'){
+    res.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+    res.end(JSON.stringify({status:'ok',rooms:rooms.size}));return;
+  }
   const file=paths[pathname];
   if(!file){res.writeHead(404);res.end('Not found');return;}
   try{
-    const location=file==='style.css'||file==='favicon.svg'?'../'+file:file;
-    const buffer=await readFile(new URL(location,import.meta.url));
+    const buffer=await readFile(new URL(file,import.meta.url));
     res.writeHead(200,{'content-type':mime[file],'cache-control':'no-store','x-content-type-options':'nosniff'});
     res.end(buffer);
   }catch(e){res.writeHead(500);res.end('Failed to load game asset');}
@@ -84,4 +88,4 @@ wss.on('connection',(ws,req)=>{
   });
   ws.on('close',()=>leave(ws));ws.on('error',()=>leave(ws));
 });
-server.listen(PORT,()=>console.log('Last Light unified rooms at http://localhost:'+PORT));
+server.listen(PORT,HOST,()=>console.log('Last Light online room relay listening on '+HOST+':'+PORT));
