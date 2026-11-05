@@ -539,7 +539,9 @@
       if(!musicBus||musicStage!==stage){
         stopMusic();
         musicBus=audioCtx.createGain();
-        musicBus.gain.value=1.30;
+        // Keep music audible over the ambient effects without changing their volume.
+        // The score uses very soft tones, so boost its dedicated music bus only.
+        musicBus.gain.value=3.20;
         musicBus.connect(audioCtx.destination);
         musicStage=stage;musicStep=0;musicNextAt=audioCtx.currentTime+.07;
       }
