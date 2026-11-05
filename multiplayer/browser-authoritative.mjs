@@ -66,11 +66,18 @@ try{
   for(let id=3;id<=5;id++){
     const page=await browser.newPage();players.push(page);
     page.on('pageerror',error=>problems.push('P'+id+': '+error.message));
-    await page.goto('http://127.0.0.1:'+port+'/');
-    await page.waitForFunction(room=>[...document.querySelectorAll('.room-entry')]
-      .some(e=>e.textContent.includes(room)),room,{timeout:9000});
-    await page.locator('.room-entry').filter({hasText:room}).locator('button').click();
+    if(id===3){
+      // Opening a shared /play invite should join the existing room directly,
+      // even on a fresh browser with no prior lobby socket.
+      await page.goto('http://127.0.0.1:'+port+'/play?room='+room);
+    }else{
+      await page.goto('http://127.0.0.1:'+port+'/');
+      await page.waitForFunction(room=>[...document.querySelectorAll('.room-entry')]
+        .some(e=>e.textContent.includes(room)),room,{timeout:9000});
+      await page.locator('.room-entry').filter({hasText:room}).locator('button').click();
+    }
     await page.waitForFunction(id=>window.__lastLightDiagnostics?.().roomPlayerId===id,id,{timeout:9000});
+    assert.equal(new URL(page.url()).pathname,'/play');
   }
   const sixth=await browser.newPage();
   await sixth.goto('http://127.0.0.1:'+port+'/');
