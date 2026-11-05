@@ -1,15 +1,17 @@
 // Dedicated authoritative rooms + public five-player lobby.
 import http from 'node:http';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createRoomEngine } from './headless-engine.js';
+import { makeMatchStore, buildMatchResult } from './match-store.js';
 
 const PORT=Number(process.env.PORT||3001);
 const HOST=process.env.HOST||'0.0.0.0';
 const MAX_ROOMS=16, MAX_PLAYERS=5;
 const RECONNECT_GRACE_MS=90000;
 const rooms=new Map(),lobbyClients=new Set();
+const matchStore=makeMatchStore();
 const MIME={'/':'text/html; charset=utf-8','/play':'text/html; charset=utf-8','/play/':'text/html; charset=utf-8','/game.js':'text/javascript; charset=utf-8',
   '/style.css':'text/css; charset=utf-8','/favicon.svg':'image/svg+xml'};
 const FILE={'/':'index.html','/play':'index.html','/play/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg'};
@@ -62,9 +64,21 @@ function notifyRoom(room){
   for(const ws of room.clients.values())send(ws,update);
   broadcastLobby();
 }
+function persistCompletedMatch(room){
+  if(!matchStore.enabled||room.matchRecorded||room.matchRecording||
+    Date.now()<(room.matchRetryAt||0))return;
+  const result=buildMatchResult(room);
+  if(!result)return;
+  room.matchRecording=true;
+  void matchStore.save(result).then(saved=>{
+    if(saved)room.matchRecorded=true;
+    else room.matchRetryAt=Date.now()+30000;
+  }).finally(()=>{room.matchRecording=false;});
+}
 function createRoom(name){
   const room={code:makeCode(),name:safeRoomName(name),engine:createRoomEngine(),
-    clients:new Map(),members:new Map(),hostId:1,ticks:0};
+    clients:new Map(),members:new Map(),hostId:1,ticks:0,
+    matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0};
   rooms.set(room.code,room);
   let last=performance.now();
   room.timer=setInterval(()=>{
@@ -73,6 +87,7 @@ function createRoom(name){
     try{
       if(!room.clients.size)return;
       room.engine.tick(dt);
+      persistCompletedMatch(room);
       if(++room.ticks%2===0)publish(room,room.ticks%150===0);
     }catch(error){
       console.error('Room simulation failed',room.code,error);
@@ -232,7 +247,14 @@ wss.on('connection',(ws,req)=>{
       if(member)member.name=ws.nickname;
       notifyRoom(room);
     }else if(id===room.hostId){
-      if(m.type==='start'){room.engine.start();publish(room,true);broadcastLobby();}
+      if(m.type==='start'){
+        const previous=room.engine.status();
+        room.engine.start();
+        if(room.engine.status()==='countdown'&&previous!=='countdown'){
+          room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;
+        }
+        publish(room,true);broadcastLobby();
+      }
       else if(m.type==='next'){room.engine.next();publish(room,true);broadcastLobby();}
       else if(m.type==='restart'){room.engine.restart();publish(room,true);}
       else if(m.type==='skip'){room.engine.skip(m.fullStage===true);publish(room,true);}
