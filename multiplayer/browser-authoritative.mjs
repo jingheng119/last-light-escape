@@ -76,6 +76,15 @@ try{
         .some(e=>e.textContent.includes(room)),room,{timeout:9000});
       await page.locator('.room-entry').filter({hasText:room}).locator('button').click();
     }
+    if(id===3){
+      await sleep(350);
+      console.log('DIRECT INVITE',JSON.stringify(await page.evaluate(()=>({
+        url:location.href,status:document.querySelector('#roomStatus')?.textContent,
+        roomId:window.__lastLightDiagnostics?.().roomPlayerId,
+        roomCode:document.querySelector('#joinRoomCode')?.value,
+        roomCount:document.querySelector('#roomCount')?.textContent
+      }))));
+    }
     await page.waitForFunction(id=>window.__lastLightDiagnostics?.().roomPlayerId===id,id,{timeout:9000});
     assert.equal(new URL(page.url()).pathname,'/play');
   }
