@@ -1184,6 +1184,82 @@
     }
   });
   document.addEventListener('fullscreenchange',syncFullscreenButton);
+  // Prototype authority: the host runs the full original game.
+  // Guests render synced state and send only controls and actions.
+  function sendSnapshot(){
+    if(roomRole!=='host'||!grid||!player)return;
+    sendRoom({type:'snapshot',snapshot:{
+      state,levelIndex,runSeed,elapsed,overallElapsed,clock,alertLevel,
+      grid,cells,roomTiles:[...roomTiles],player,guestPlayer,
+      cores,relay,exit,hollows,decoys,noiseEvents,skillWaves,survivor,technician,
+      overlay:{title:ui.title.textContent,text:ui.text.textContent}
+    }});
+  }
+  function applySnapshot(d){
+    if(roomRole!=='guest'||!d||!Array.isArray(d.grid)||!Array.isArray(d.cells))return;
+    if(!Number.isInteger(d.levelIndex)||d.levelIndex<0||d.levelIndex>=CONFIGS.length)return;
+    if(lastLevel!==d.levelIndex){
+      lastLevel=d.levelIndex;runSeed=d.runSeed;buildLevel(d.levelIndex);
+    }
+    const previous=state;
+    grid=d.grid;cells=d.cells;roomTiles=new Set(d.roomTiles||[]);
+    player=d.guestPlayer||d.player;
+    guestPlayer=d.guestPlayer?d.player:null;
+    if(!player)return;
+    cores=d.cores;relay=d.relay;exit=d.exit;hollows=d.hollows;decoys=d.decoys;
+    noiseEvents=d.noiseEvents;skillWaves=d.skillWaves;survivor=d.survivor;technician=d.technician;
+    elapsed=d.elapsed;overallElapsed=d.overallElapsed;clock=d.clock;alertLevel=d.alertLevel;
+    state=d.state;
+    if(state==='playing')hideOverlay();
+    else if(state!=='menu'&&state!==previous)
+      setOverlay(d.overlay?.title||'WAIT FOR HOST',d.overlay?.text||'The host controls stage progression.','WAIT FOR HOST');
+    updateUI();updateCamera(.05);
+  }
+  function connectRoom(){
+    const status=$('#roomStatus'),invite=$('#roomInvite'),create=$('#createRoom'),join=$('#joinRoom'),code=$('#joinRoomCode');
+    roomSocket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
+    roomSocket.addEventListener('open',()=>{status.textContent='Connected. Create a room to play solo or invite a teammate.';});
+    roomSocket.addEventListener('close',()=>{status.textContent='Disconnected from room server. Refresh to reconnect.';roomRole='none';});
+    roomSocket.addEventListener('message',event=>{
+      let m;try{m=JSON.parse(event.data);}catch{return;}
+      if(m.type==='error')status.textContent=m.message;
+      if(m.type==='joined'){
+        roomRole=m.host?'host':'guest';roomCount=m.host?1:2;
+        code.value=m.code;
+        const url=new URL(location.href);url.searchParams.set('room',m.code);
+        invite.textContent='ROOM '+m.code+' · Invite link: '+url.href;
+        create.disabled=true;join.disabled=true;code.disabled=true;
+        status.textContent=m.host?'Room created. Press START GAME to begin!':'Room joined. Waiting for host.';
+        if(roomRole==='guest')setOverlay('JOINED THE WARD','Waiting for the host. Once the game begins, move and use abilities as usual.','WAIT FOR HOST');
+      }else if(m.type==='roster'){
+        roomCount=m.count;
+        if(roomRole==='host'){
+          if(roomCount===2&&!guestPlayer){newGuest();notify('A second survivor has joined!');}
+          status.textContent=roomCount===2?'2 / 2 players connected':'1 / 2 players · solo room';
+        }
+      }else if(m.type==='playerleft'&&roomRole==='host'){
+        guestPlayer=null;remoteKeys={up:false,down:false,left:false,right:false};
+        status.textContent='Teammate disconnected. Solo room continues.';
+      }else if(m.type==='hostleft'){
+        roomRole='none';status.textContent='Host disconnected. Refresh to join again.';
+        setOverlay('ROOM CLOSED','The host has disconnected. Refresh the browser.','ROOM CLOSED');
+      }else if(m.type==='remoteInput'&&roomRole==='host'){
+        remoteKeys=m.keys;remoteStick=m.joystick||{x:0,y:0};
+      }else if(m.type==='remoteAction'&&roomRole==='host'){
+        const actions={dash,decoy:triggerDecoy,interact,ability:activateAbility};
+        if(actions[m.name])asGuest(actions[m.name]);
+      }else if(m.type==='snapshot'&&roomRole==='guest')applySnapshot(m.snapshot);
+    });
+    create.addEventListener('click',()=>sendRoom({type:'create'}));
+    join.addEventListener('click',()=>{
+      const value=code.value.trim().toUpperCase();
+      if(!/^[0-9A-F]{6}$/.test(value)){status.textContent='Enter a valid six-character room code.';return;}
+      sendRoom({type:'join',code:value});
+    });
+    const invited=new URLSearchParams(location.search).get('room');
+    if(invited&&/^[0-9A-F]{6}$/i.test(invited))code.value=invited.toUpperCase();
+  }
+  connectRoom();
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
   // Expose read-only diagnostics for smoke tests, not used by gameplay.
