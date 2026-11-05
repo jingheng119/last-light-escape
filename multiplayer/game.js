@@ -50,10 +50,11 @@
   let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout',guestContextHost=null;
   let localDashUntil=0,localDashDir=null,hostInputClock=0,hostLastGuestInput=0;
   let guestPreviousHP=null,guestWasPlaying=false;
+  let clientToastUntil=0,clientHitFlashUntil=0;
   let hollowVisualSample=0,hollowVisualVelocity=[];
   function guestInputPacket(){
     const packet={type:'input',keys:moveHeld,joystick:joystickMove};
-    if(player&&roomRole==='guest'&&state==='playing')
+    if(player&&roomRole!=='none'&&state==='playing')
       packet.pos={x:player.x,y:player.y};
     return packet;
   }
@@ -92,7 +93,7 @@
   // Only movement is predicted locally. Combat, pickups, health, objectives
   // and all victory conditions continue to come from the host's snapshots.
   function predictGuestMovement(dt){
-    if(roomRole!=='guest'||state!=='playing'||!player||player.hp<=0||!grid)return;
+    if(roomRole==='none'||state!=='playing'||!player||player.hp<=0||!grid)return;
     let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     const magnitude=Math.hypot(vx,vy);
@@ -113,24 +114,20 @@
     }
   }
   function guestAction(name){
-    if(roomRole!=='guest')return false;
-    // Give the local player immediate visual dash feedback; host remains
-    // authoritative and may correct an invalid/cooldown dash.
-    if(name==='dash'&&state==='playing'&&player?.hp>0&&player.dashCooldown<=0){
-      let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
-      let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
-      const m=Math.hypot(vx,vy);
-      player.dashDir=m>.01?{x:vx/m,y:vy/m}:{...player.facing};
-      player.dashTime=.24;
-      player.dashCooldown=3.5*cooldownFactor();
-      localDashUntil=performance.now()+240;
-      localDashDir={...player.dashDir};
-      beep(220,.17,'sawtooth',.019);
-    }
+    if(roomRole==='none')return false;
+    // The authoritative server owns movement and dash activation. Do NOT
+    // move the character or start a local dash before server confirmation:
+    // that created visible desync around walls and Hollow collisions.
     const action={type:'action',name};
-    if(name==='dash'&&player?.dashDir)action.direction={...player.dashDir};
-    if(player&&state==='playing')action.pos={x:player.x,y:player.y};
-    sendRoom(action);return true;
+    if(name==='dash'){
+      const vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
+      const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
+      const magnitude=Math.hypot(vx,vy);
+      const facing=player?.facing||{x:1,y:0};
+      action.direction=magnitude>.08?{x:vx/magnitude,y:vy/magnitude}:{x:facing.x,y:facing.y};
+    }
+    sendRoom(action);
+    return true;
   }
 
   // Temporary developer shortcut. Skipped runs never enter the best-time record.
@@ -518,7 +515,12 @@
     if(alertLevel===2&&previousThreat<2)beep(380,.12,'square',.017);
     previousThreat=alertLevel;
   }
-  function notify(msg,seconds=2.7) {ui.toast.textContent=msg;toastUntil=clock+seconds;ui.toast.classList.add('show');}
+  function notify(msg,seconds=2.7) {
+    ui.toast.textContent=msg;
+    toastUntil=clock+seconds;
+    if(roomRole!=='none')clientToastUntil=performance.now()+seconds*1000;
+    ui.toast.classList.add('show');
+  }
   function refreshRoleSelection(){
     // Only the initial/new-run menu permits choosing a class. Paused and
     // cleared floors display the locked role instead of editable choices.
@@ -547,15 +549,22 @@
     try{if(audioCtx.state==='suspended')audioCtx.resume();}catch(e){}
     nextAmbientAt=clock+.5;nextWarningAt=clock;
   }
-  function startGame(){if(roomRole!=='host'){notify('Create a room first.');return;}unlockGameAudio();developerSkipped=false;runSeed=Math.floor(Math.random()*1000000);overallElapsed=0;buildLevel(0);state='playing';hideOverlay();notify('Rescue the survivor, collect cores, and reach the elevator.');beep(560,.16);}
+  function startGame(){if(roomRole==='none'){notify('Create a room first.');return;}unlockGameAudio();sendRoom({type:'start'});return;developerSkipped=false;runSeed=Math.floor(Math.random()*1000000);overallElapsed=0;buildLevel(0);state='playing';hideOverlay();notify('Rescue the survivor, collect cores, and reach the elevator.');beep(560,.16);}
   function advance() {
-    if(roomRole!=='host'){notify('Only the room host can start or advance.');return;}
+    if(roomRole!=='none'){
+      unlockGameAudio();
+      if(state==='menu'||state==='victory'||state==='dead')sendRoom({type:'start'});
+      else if(state==='leveldone')sendRoom({type:'next'});
+      else if(state==='paused')sendRoom({type:'pause'});
+      return;
+    }
+    if(roomRole!=='host'){notify('Create a room first.');return;}
     unlockGameAudio();
     if(state==='menu'||state==='victory'||state==='dead'){startGame();return;}
     if(state==='leveldone') {buildLevel(levelIndex+1);state='playing';hideOverlay();notify('New floor. Stay quiet.');return;}
     if(state==='paused') {state='playing';hideOverlay();return;}
   }
-  function developerSkip(fullStage=false){if(roomRole!=='host')return;
+  function developerSkip(fullStage=false){if(roomRole==='host'){sendRoom({type:'skip',fullStage});return;}if(roomRole!=='host')return;
     if(state!=='playing'&&state!=='paused'&&state!=='leveldone')return;
     developerSkipped=true;
     // M advances one floor; Shift+M jumps from Stage I to Stage II,
@@ -570,8 +579,8 @@
     state='playing';hideOverlay();
     notify(fullStage?'DEV · Stage jump':'DEV · Floor skipped');
   }
-  function pause(){if(roomRole==='guest')return;if(state==='playing'){state='paused';setOverlay('BREATHING ROOM','The ward is silent. Your position is safe until you resume.','RESUME GAME');}else if(state==='paused'){unlockGameAudio();state='playing';hideOverlay();}}
-  function triggerDecoy(){if(roomRole==='guest'&&player?.hp<=0)return;if(guestAction('decoy'))return;
+  function pause(){if(roomRole!=='none'){if(roomRole==='host')sendRoom({type:'pause'});return;}if(state==='playing'){state='paused';setOverlay('BREATHING ROOM','The ward is silent. Your position is safe until you resume.','RESUME GAME');}else if(state==='paused'){unlockGameAudio();state='playing';hideOverlay();}}
+  function triggerDecoy(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('decoy'))return;
     if(state!=='playing'||player.hp<=0||player.decoys<=0||player.decoyCooldown>0)return;
     player.decoys--;const p={x:player.x+player.facing.x*3.3,y:player.y+player.facing.y*3.3};
     const nearest=cells.filter(c=>dist({x:c.x+.5,y:c.y+.5},p)<4).sort((a,b)=>dist({x:a.x+.5,y:a.y+.5},p)-dist({x:b.x+.5,y:b.y+.5},p))[0];
@@ -582,7 +591,7 @@
     notify('Sound decoy deployed — they heard it!');beep(850,.22,'square',.016);
     updateUI();
   }
-  function dash(directionOverride=null){if(roomRole==='guest'&&player?.hp<=0)return;if(guestAction('dash'))return;if(state!=='playing'||player.hp<=0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
+  function dash(directionOverride=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('dash'))return;if(state!=='playing'||player.hp<=0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
     const vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     if(directionOverride&&Number.isFinite(directionOverride.x)&&Number.isFinite(directionOverride.y)&&Math.hypot(directionOverride.x,directionOverride.y)>.1){
@@ -592,7 +601,7 @@
     noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
     beep(220,.17,'sawtooth',.019);updateUI();
   }
-  function interact(){if(roomRole==='guest'&&player?.hp<=0)return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0)return;
+  function interact(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0)return;
     if(!survivor.rescued&&dist(player,survivor)<1.5){survivor.rescued=true;survivor.repath=0;notify('SURVIVOR RESCUED — guide them to the elevator!');beep(730,.22);updateUI();return;}
     if(technician&&!technician.rescued&&dist(player,technician)<1.5){
       technician.rescued=true;technician.repath=0;
@@ -611,7 +620,7 @@
     }
     notify('Get closer to an ally, relay, or elevator.');
   }
-  function activateAbility(){if(roomRole==='guest'&&player?.hp<=0)return;if(guestAction('ability'))return;
+  function activateAbility(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability'))return;
     if(state!=='playing'||player.hp<=0||player.abilityCooldown>0)return;
     if(classChoice==='medic'){
       if(player.hp>=3){notify('Already at full health.');return;}
@@ -700,7 +709,8 @@
       ctx.beginPath();ctx.arc(x,y,18,-Math.PI/2,-Math.PI/2+progress*Math.PI*2);ctx.stroke();
     }
     ctx.font='bold 10px monospace';ctx.fillStyle='#e6fbff';ctx.textAlign='center';
-    ctx.fillText(progress>0?'REVIVING '+(REVIVE_SECONDS-(soul.reviveProgress||0)).toFixed(1)+'s':'SOUL · REVIVE',x,y-28);
+    // The soul artwork stays visible; only show a timer during an active revive.
+    if(progress>0)ctx.fillText('REVIVING '+(REVIVE_SECONDS-(soul.reviveProgress||0)).toFixed(1)+'s',x,y-28);
   }
   function damage(){if(player.hp<=0||player.invincible>0||player.dashTime>0||state!=='playing')return;
     player.hp--;player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
@@ -1085,18 +1095,7 @@
     for(const d of decoys){const x=d.x*TILE,y=d.y*TILE,rad=(d.age*50)%80;ctx.strokeStyle=`rgba(244,191,101,${Math.min(.7,d.life/5)})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(x,y,Math.max(0,rad-24),0,Math.PI*2);ctx.stroke();diamond(x,y,7,'#ffd179');}
   }
   function drawHollows(){for(let i=0;i<hollows.length;i++){const h=hollows[i];
-    let hx=h.x,hy=h.y;
-    // Hollow visuals advance a fraction of a second beyond their most recent
-    // network sample; host-only collision rules are unchanged.
-    if(roomRole==='guest'&&state==='playing'&&h.stunned<=0){
-      const velocity=hollowVisualVelocity[i];
-      if(velocity){
-        const seconds=Math.max(0,Math.min(.12,(performance.now()-hollowVisualSample)/1000));
-        const xx=h.x+velocity.x*seconds,yy=h.y+velocity.y*seconds;
-        if(canStand(xx,yy,.13)&&clearLine(h,{x:xx,y:yy})){hx=xx;hy=yy;}
-      }
-    }
-    let x=hx*TILE,y=hy*TILE,red=h.mode==='chase'&&!(h.stunned>0);
+    let x=h.x*TILE,y=h.y*TILE,red=h.mode==='chase'&&!(h.stunned>0);
     const hunter=h.variant==='hunter',dasher=h.variant==='dasher';
     const glow=h.stunned>0?'#6dbeff3f':hunter?'#fa4c8c48':dasher?'#edaa3540':red?'#ff465b35':'#fa8f6a16';
     halo(x,y,hunter?70:dasher?52:red?62:38,glow);ctx.save();ctx.translate(x,y);
@@ -1270,12 +1269,7 @@
     if(roomRole!=='none'&&now-remotePingAt>2000){
       remotePingAt=now;sendRoom({type:'ping',at:now});
     }
-    if(roomRole==='host'){
-      // Catch up safely after the tab was suspended, without huge physics jumps.
-      const steps=Math.max(1,Math.ceil(dt/.035));
-      for(let i=0;i<steps;i++)update(dt/steps);
-      if(now-lastSync>=50){lastSync=now;sendSnapshot();}
-    }else if(roomRole==='guest'&&now-lastInput>=35){
+    if(roomRole!=='none'&&now-lastInput>=35){
       lastInput=now;
       sendRoom(guestInputPacket());
     }
@@ -1283,11 +1277,20 @@
   function tick(timestamp){
     const dt=Math.min(.045,Math.max(0,(timestamp-lastFrame)/1000||0));
     lastFrame=timestamp;frameIndex++;
-    // Guest responds immediately to input, without waiting for the round trip
-    // via Singapore and the host browser; the next snapshot reconciles it.
-    if(roomRole==='guest')predictGuestMovement(dt);
-    // Rendering stays on animation frames; room physics continues in the
-    // simulation timer even when the host tab is in the background.
+    // Rendering follows the authoritative server positions. Client prediction
+    // is intentionally disabled to avoid walking/dashing through the server's
+    // true walls or away from the real Hollow collision hitbox.
+    if(roomRole!=='none'){
+      const now=performance.now();
+      if(clientToastUntil&&now>=clientToastUntil){
+        clientToastUntil=0;ui.toast.classList.remove('show');
+      }
+      if(clientHitFlashUntil){
+        const left=Math.max(0,(clientHitFlashUntil-now)/450);
+        ui.flash.style.opacity=(left*.18).toFixed(2);
+        if(left<=0)clientHitFlashUntil=0;
+      }
+    }
     updateMusic();
     if(state==='playing')updateCamera(dt);
     draw();
@@ -1296,12 +1299,12 @@
   const keyMap={w:'up',arrowup:'up',s:'down',arrowdown:'down',a:'left',arrowleft:'left',d:'right',arrowright:'right'};
   document.addEventListener('keydown', e => {
     const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k))e.preventDefault();
-    if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole==='guest')sendRoom(guestInputPacket());}
+    if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole!=='none')sendRoom(guestInputPacket());}
     if(e.repeat)return;
     if(k==='m'){if(roomRole==='host')developerSkip(e.shiftKey);return;}
-    if(k===' ')dash();else if(k==='q')triggerDecoy();else if(k==='e')interact();else if(k==='f')activateAbility();else if(k==='p'||k==='escape')pause();else if(k==='enter'&&state!=='playing')advance();else if(k==='r'&&state==='playing'&&roomRole==='host'){buildLevel(levelIndex);notify('Floor restarted.');}
+    if(k===' ')dash();else if(k==='q')triggerDecoy();else if(k==='e')interact();else if(k==='f')activateAbility();else if(k==='p'||k==='escape')pause();else if(k==='enter'&&state!=='playing')advance();else if(k==='r'&&state==='playing'&&roomRole==='host'){sendRoom({type:'restart'});}
   });
-  document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir){moveHeld[dir]=false;if(roomRole==='guest')sendRoom(guestInputPacket());}});
+  document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir){moveHeld[dir]=false;if(roomRole!=='none')sendRoom(guestInputPacket());}});
   window.addEventListener('blur',()=>{moveHeld={up:false,down:false,left:false,right:false};if(state==='playing'&&roomRole==='none')pause();});
   $('#primaryBtn').addEventListener('click',advance);
   document.querySelectorAll('.role-option').forEach(card=>{
@@ -1309,7 +1312,7 @@
       if(state!=='menu'&&state!=='dead'&&state!=='victory')return;
       classChoice=card.dataset.role==='medic'?'medic':'scout';
       refreshRoleSelection();
-      if(roomRole==='guest')sendRoom({type:'role',role:classChoice});
+      if(roomRole!=='none')sendRoom({type:'role',role:classChoice});
     });
   });
   refreshRoleSelection();
@@ -1424,10 +1427,11 @@
     sendRoom({type:'snapshot',snapshot});
   }
   function applySnapshot(d){
-    if(roomRole!=='guest'||!d)return;
+    if(roomRole==='none'||!d)return;
     if(!Number.isInteger(d.levelIndex)||d.levelIndex<0||d.levelIndex>=CONFIGS.length)return;
-    if(lastLevel!==d.levelIndex){
-      // Wait for the full map for this floor rather than showing an old maze.
+    if(lastLevel!==d.levelIndex||runSeed!==d.runSeed){
+      // A fresh run can restart on the SAME floor with a new maze seed.
+      // Do not apply movement or objectives until the matching map arrives.
       if(!Array.isArray(d.grid)||!Array.isArray(d.cells))return;
       lastLevel=d.levelIndex;runSeed=d.runSeed;buildLevel(d.levelIndex);
     }
@@ -1435,67 +1439,43 @@
     if(Array.isArray(d.grid))grid=d.grid;
     if(Array.isArray(d.cells))cells=d.cells;
     if(Array.isArray(d.roomTiles))roomTiles=new Set(d.roomTiles);
-    // In an active remote session, never drag a moving character backwards
-    // 20 times per second toward an old host snapshot. Use immediate client
-    // movement with maze collisions, then reconcile during idle periods.
-    const authoritative=d.guestPlayer||d.player;
+    // One true position, generated by the dedicated room simulation.
+    // Never overwrite incoming server coordinates with client estimates.
+    const authoritative=roomRole==='host'?d.player:(d.guestPlayer||d.player);
     if(!authoritative)return;
-    const predicted=player;
-    const moving=Object.values(moveHeld).some(Boolean)||Math.hypot(joystickMove.x,joystickMove.y)>.08;
-    if(d.guestPlayer&&predicted&&lastLevel===d.levelIndex&&
-       predicted.hp>0&&authoritative.hp>0&&state==='playing'&&d.state==='playing'){
-      const error=Math.hypot(predicted.x-authoritative.x,predicted.y-authoritative.y);
-      const sudden=error>3.3;
-      if(!sudden){
-        if(moving||predicted.dashTime>0){
-          // Remote input may still be in flight. Snapshots remain authoritative
-          // for lives and skills, but not for in-flight visual positioning.
-          authoritative.x=predicted.x;
-          authoritative.y=predicted.y;
-        }else{
-          const factor=error>.5?.16:.045;
-          authoritative.x=predicted.x+(authoritative.x-predicted.x)*factor;
-          authoritative.y=predicted.y+(authoritative.y-predicted.y)*factor;
-        }
-        if(predicted.dashTime>0&&authoritative.dashTime>0)
-          authoritative.dashTime=Math.max(predicted.dashTime,authoritative.dashTime);
-      }
-    }
-    // Retain the predicted dash for its short visual window, rather than
-    // repeatedly resetting it with snapshots from before the host received it.
-    if(localDashUntil>performance.now()&&authoritative.hp>0&&d.state==='playing'){
-      authoritative.dashDir={...localDashDir};
-      authoritative.dashTime=Math.max(authoritative.dashTime,(localDashUntil-performance.now())/1000);
-    }
     if(guestPreviousHP!==null&&authoritative.hp<guestPreviousHP){
-      hitFlash=.45;
+      clientHitFlashUntil=performance.now()+450;
       beep(100,.24,'sawtooth',.038);
-      notify(authoritative.hp>0?'A HOLLOW HIT YOU!':'SIGNAL LOST — WAIT FOR RESCUE',2);
-      localDashUntil=0;
+      notify(authoritative.hp>0?'A HOLLOW HIT YOU!':'SIGNAL LOST — WAIT FOR RESCUE',1.5);
     }
     guestPreviousHP=authoritative.hp;
     player=authoritative;
-    guestPlayer=d.guestPlayer?d.player:null;
+    guestPlayer=roomRole==='host'?d.guestPlayer:(d.guestPlayer?d.player:null);
     cores=d.cores;relay=d.relay;exit=d.exit;
-    if(Array.isArray(d.hollows)){
-      const now=performance.now(),dt=(now-hollowVisualSample)/1000;
-      hollowVisualVelocity=d.hollows.map((h,i)=>{
-        const before=hollows?.[i];
-        if(!before||dt<=.015||dt>.6)return {x:0,y:0};
-        const vx=(h.x-before.x)/dt,vy=(h.y-before.y)/dt;
-        const speed=Math.hypot(vx,vy);
-        return speed>9?{x:0,y:0}:{x:vx,y:vy};
-      });
-      hollowVisualSample=now;
-      hollows=d.hollows;
-    }
+    // Hollows must be drawn where the server checks their collisions.
+    // No visual extrapolation that can put their sprites ahead of the hitbox.
+    if(Array.isArray(d.hollows))hollows=d.hollows;
     decoys=d.decoys;
-    noiseEvents=d.noiseEvents;skillWaves=d.skillWaves;survivor=d.survivor;technician=d.technician;
+    noiseEvents=Array.isArray(d.noiseEvents)?d.noiseEvents:[];
+    skillWaves=d.skillWaves||[];survivor=d.survivor;technician=d.technician;
     elapsed=d.elapsed;overallElapsed=d.overallElapsed;clock=d.clock;alertLevel=d.alertLevel;
     state=d.state;
     if(state==='playing')hideOverlay();
-    else if(state!=='menu'&&state!==previous)
-      setOverlay(d.overlay?.title||'WAIT FOR HOST',d.overlay?.text||'The host controls stage progression.','WAIT FOR HOST');
+    else if(state==='menu'&&previous!=='menu')setOverlay('THE HOLLOW WARD','Ready to begin a new run.','START GAME');
+    else if(state!=='menu'&&state!==previous){
+      // The server owns floor progression, but only the room creator can
+      // advance. Show that player the actual action instead of WAIT FOR HOST.
+      const host=roomRole==='host';
+      let button='WAIT FOR HOST';
+      if(host){
+        if(state==='leveldone')
+          button=levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO':'ENTER NEXT FLOOR';
+        else if(state==='paused')button='RESUME GAME';
+        else if(state==='dead'||state==='victory')button='PLAY AGAIN';
+      }
+      setOverlay(d.overlay?.title||'THE HOLLOW WARD',
+        d.overlay?.text||'Waiting for the next floor.',button);
+    }
     // UI updates are costly when snapshots arrive 20 times per second.
     const now=performance.now();
     if(now-lastGuestUIAt>120||previous!==state){
@@ -1526,14 +1506,11 @@
         invite.textContent='ROOM '+m.code+' · Invite link: '+url.href;
         create.disabled=true;join.disabled=true;code.disabled=true;
         status.textContent=m.host?'Room created. Press START GAME to begin!':'Room joined. Waiting for host.';
-        if(roomRole==='guest'){unlockGameAudio();sendRoom({type:'role',role:classChoice});}
+        unlockGameAudio();sendRoom({type:'role',role:classChoice});
         if(roomRole==='guest')setOverlay('JOINED THE WARD','Waiting for the host. Once the game begins, move and use abilities as usual.','WAIT FOR HOST');
       }else if(m.type==='roster'){
         roomCount=m.count;
-        if(roomRole==='host'){
-          if(roomCount===2&&!guestPlayer){newGuest();notify('A second survivor has joined!');}
-          status.textContent=roomCount===2?'2 / 2 players connected':'1 / 2 players · solo room';
-        }
+        status.textContent=roomCount===2?'2 / 2 players connected':'1 / 2 players · solo room';
       }else if(m.type==='playerleft'&&roomRole==='host'){
         guestPlayer=null;remoteKeys={up:false,down:false,left:false,right:false};
         status.textContent='Teammate disconnected. Solo room continues.';
@@ -1552,7 +1529,7 @@
           decoy:triggerDecoy,interact,ability:activateAbility
         };
         if(actions[m.name])asGuest(actions[m.name]);
-      }else if(m.type==='snapshot'&&roomRole==='guest')applySnapshot(m.snapshot);
+      }else if(m.type==='snapshot'&&roomRole!=='none')applySnapshot(m.snapshot);
     });
     create.addEventListener('click',()=>sendRoom({type:'create'}));
     join.addEventListener('click',()=>{
@@ -1567,5 +1544,5 @@
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
   // Expose read-only diagnostics for smoke tests, not used by gameplay.
-  window.__lastLightDiagnostics=()=>({state,level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp,characterClass:classChoice,survivorRescued:survivor.rescued,abilityCooldown:player.abilityCooldown});
+  window.__lastLightDiagnostics=()=>({state,level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp,playerPosition:{x:player.x,y:player.y},allyPosition:guestPlayer?{x:guestPlayer.x,y:guestPlayer.y}:null,dashCooldown:player.dashCooldown,characterClass:classChoice,survivorRescued:survivor.rescued,abilityCooldown:player.abilityCooldown});
 })();

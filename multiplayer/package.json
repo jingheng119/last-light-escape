@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node server.js" },
-  "dependencies": { "ws": "^8.18.0" }
+  "scripts": {
+    "start": "node server-authoritative.js",
+    "test": "node smoke-authoritative.mjs && node integration-authoritative.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
 }

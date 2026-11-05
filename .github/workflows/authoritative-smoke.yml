@@ -1,0 +1,37 @@
+name: Authoritative multiplayer smoke
+on:
+  push:
+    branches: [feature/server-authoritative]
+  pull_request:
+    branches: [feature/multiplayer-phase1]
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: multiplayer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts
+      - run: node --check server-authoritative.js
+      - run: node --check headless-engine.js
+      - run: node --check game.js
+      - run: npm test
+  browser:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: multiplayer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --ignore-scripts
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node browser-authoritative.mjs
