@@ -1072,3 +1072,7 @@
   .game-room-details{order:-1;width:100%;justify-content:space-between}
   .game-page-nav button{flex:1}
 }
+
+/* The lobby is an independent destination, not a game HUD wrapper. */
+.show-lobby .top-links{display:none}
+.show-lobby .site-footer{margin-top:24px}
