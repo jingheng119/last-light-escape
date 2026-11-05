@@ -89,7 +89,11 @@ const bridge=`
     }
   };
 })();`;
-const codeText=original.slice(0,cut)+bridge;
+// In the headless simulation, every action runs locally in the room engine.
+// The browser-only guestAction hook must never send WebSocket messages.
+const codeText=original.slice(0,cut)
+  .replace('function guestAction(name){','function guestAction(name){return false;')
+  +bridge;
 const fakeElement=()=>({
   textContent:'',dataset:{},getContext:()=>({}),children:[{textContent:''},{textContent:''}],
   firstChild:{textContent:''},
