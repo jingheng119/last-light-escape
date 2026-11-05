@@ -1,28 +1,86 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Last Light — Multiplayer Prototype</title>
-<style>
-*{box-sizing:border-box}body{margin:0;padding:22px;background:#07131b;color:#d7fcf0;font-family:Inter,Arial,sans-serif}
-main{max-width:1020px;margin:auto}h1{font-size:clamp(22px,4vw,34px)}
-p{color:#a7c9c7}button,input{font:inherit;border-radius:9px;padding:10px 14px}
-button{background:#1f746a;color:white;border:1px solid #70bcb4;cursor:pointer}
-input{width:135px;background:#16333b;color:white;border:1px solid #568781}
-#actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 0}
-canvas{width:100%;height:auto;border:2px solid #487d77;border-radius:12px;display:block}
-#room{font-weight:bold;color:#8cffd5}#invite{overflow-wrap:anywhere}
-</style>
-<script src="/client.js?v=maze-contrast-v2" defer></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#07121a" />
+  <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
+  <title>Last Light — The Hollow Ward</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/style.css?v=unified-room-1" />
+  <script src="/game.js?v=unified-room-1" defer></script>
 </head>
-<body><main>
-<h1>LAST LIGHT — Multiplayer Phase 1</h1>
-<p>Two-player Stage 1 maze test with real-time movement and server-controlled wall collisions. This prototype does not replace the original game.</p>
-<section id="actions"><button id="create">Create room</button><span>or</span>
-<input id="code" maxlength="6" placeholder="Room code" aria-label="Room code">
-<button id="join">Join room</button></section>
-<p id="status" role="status">Connecting...</p>
-<p>Room: <span id="room">—</span></p><p id="invite"></p>
-<canvas id="arena" width="992" height="672" aria-label="Shared game arena"></canvas>
-<p>Move with WASD or arrow keys. Walls block movement. Both players share the same Stage 1, Floor 1 maze.</p>
-</main></body></html>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"><span></span></div><div><strong>LAST LIGHT</strong><small>THE HOLLOW WARD</small></div></div>
+      <div class="top-links"><span class="edition" id="missionLevel">BROWSER GAME V4.19 · STAGE 01 · FLOOR 01 / 09</span></div>
+    </header>
+
+    <section class="intro"><div><div class="eyebrow"><i></i> THE LIGHT IS FADING</div><h1>Outrun the <em>Hollow.</em></h1><p>Choose your role. Find power cores, rescue trapped survivors, activate the relay, and escape together.</p></div>
+      <div class="stage-info-card" aria-label="Current game stage and floor">
+        <span id="stageInfoCard">BROWSER GAME V4.19 · STAGE 01 · FLOOR 01 / 09</span>
+      </div>
+    </section>
+
+    <section id="roomLobby" style="border:1px solid #3d756e;border-radius:12px;padding:14px 18px;background:#0f2730;color:#d9fff5;margin:12px 0 20px">
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px">
+        <strong>GAME ROOM</strong>
+        <button type="button" id="createRoom" style="background:#195b56;color:#fff;border:1px solid #65bcae;padding:9px 13px;border-radius:9px">Create room (1 player)</button>
+        <input id="joinRoomCode" maxlength="6" placeholder="Room code" aria-label="Room code" style="width:120px;background:#102d35;color:#fff;border:1px solid #477e80;padding:9px;border-radius:8px">
+        <button type="button" id="joinRoom" style="background:#195b56;color:#fff;border:1px solid #65bcae;padding:9px 13px;border-radius:9px">Join room</button>
+      </div>
+      <p id="roomStatus" role="status" style="color:#b1d4d0;margin:10px 0 0">Connecting to room server…</p>
+      <p id="roomInvite" style="color:#8ee8d0;margin:6px 0 0;overflow-wrap:anywhere"></p>
+    </section>
+    <section class="game-shell" aria-label="Game area">
+      <div class="statusbar"><div class="status-item"><span class="status-label">ROLE</span><strong id="classStatus">SCOUT</strong></div><div class="status-item"><span class="status-label" id="allyStatusLabel">SURVIVOR</span><strong id="survivorStatus">TRAPPED</strong></div><div class="status-item"><span class="status-label">VITAL SIGNS</span><strong id="health" class="health">♥ ♥ ♥</strong></div><div class="status-item"><span class="status-label">POWER CORES</span><strong id="cores">0 / 2</strong></div><div class="status-item"><span class="status-label">RELAY</span><strong id="relay">OFFLINE</strong></div><div class="status-item"><span class="status-label">TIME</span><strong id="timer">00:00</strong></div><div class="status-item status-item-last"><span class="status-label">THREAT LEVEL</span><strong id="threat" class="threat-calm">LOW</strong></div></div>
+      <div id="gameWrapper" class="canvas-wrap"><canvas id="game" width="992" height="672" role="img" aria-label="Top-down maze escape game"></canvas>
+        <button id="touchFullscreen" class="mobile-fullscreen-toggle" type="button" aria-label="Enter fullscreen" aria-pressed="false">⛶</button>
+        <button id="touchPause" class="mobile-pause-toggle" type="button" aria-label="Pause game">Ⅱ</button>
+        
+        <div id="overlay" class="overlay"><div class="overlay-panel" id="overlayPanel"><div class="overlay-kicker">SURVIVAL PROTOCOL / 001</div><div class="overlay-glyph" aria-hidden="true">◇</div><h2 id="overlayTitle">THE HOLLOW WARD</h2><p id="overlayText">The emergency elevator is offline. Restore its power and avoid the things lurking in the corridors.</p><div class="objectives"><span>◈ Collect power cores</span><span id="rescueObjective">✚ Rescue the survivor</span><span>⌁ Activate the relay</span><span>⇧ Escape together</span></div><div class="role-selection" id="roleSelection">
+          <div class="role-choice-label" id="roleChoiceLabel">CHOOSE YOUR ROLE <span>· LOCKED FOR THE RUN</span></div>
+          <div class="role-options" id="roleOptions" role="group" aria-label="Choose your character class">
+            <button class="role-option is-selected" data-role="scout" aria-pressed="true" type="button">
+              <span class="role-option-icon" aria-hidden="true">◎</span>
+              <span class="role-option-copy"><strong>SCOUT</strong><small>STUN NEARBY HOLLOWS</small><span class="role-option-key">F · Shockwave</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="role-option" data-role="medic" aria-pressed="false" type="button">
+              <span class="role-option-icon" aria-hidden="true">✚</span>
+              <span class="role-option-copy"><strong>MEDIC</strong><small>RESTORE ONE HEART</small><span class="role-option-key">F · Healing burst</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+          </div>
+          <div id="roleLocked" class="role-locked" hidden>
+            <span aria-hidden="true">◆</span><span id="lockedRoleText">SCOUT · STUN SHOCKWAVE</span><small>ROLE LOCKED THIS RUN</small>
+          </div>
+        </div><button id="primaryBtn" class="primary-btn">ENTER THE WARD <span>↗</span></button><div id="overlayHint" class="overlay-hint">WASD / ARROWS TO MOVE · SPACE TO DASH</div></div></div>
+<div class="mobile-controls" aria-label="On-screen game controls">
+          <div id="joystick" class="virtual-joystick" role="group" aria-label="Drag to move in any direction">
+            <div class="joystick-ring" aria-hidden="true"></div>
+            <div id="joystickKnob" class="joystick-knob" aria-hidden="true"></div>
+          </div>
+          <div class="mobile-actions" role="group" aria-label="Actions">
+            <button id="touchAbility" class="action-orb" type="button"><span class="action-name">SKILL</span><span id="skillCD" class="action-cd"></span></button>
+            <button id="touchDash" class="action-orb" type="button"><span class="action-name">DASH</span><span id="dashCD" class="action-cd"></span></button>
+            <button id="touchDecoy" class="action-orb" type="button"><span class="action-name">DECOY</span><span id="decoyCD" class="action-cd">×3</span></button>
+            <button id="touchInteract" class="action-orb action-use" type="button">USE</button>
+            
+            
+          </div>
+          <div id="mobileStageInfo" class="mobile-stage-info" aria-label="Current stage and floor"><span>BROWSER GAME V4.19</span><span>STAGE 01 · FLOOR 01 / 09</span></div>
+        </div>
+        <div id="toast" class="toast" aria-live="polite"></div>
+        <div id="screenFlash" class="screen-flash"></div>
+      </div>
+      <div class="footerbar"><div class="footer-left"><span class="key">WASD</span> MOVE <span class="sep">·</span> <span class="key">SPACE</span> DASH <span class="sep">·</span> <span class="key">E</span> ACTIVATE <span class="sep">·</span> <span class="key">Q</span> DECOY <span class="sep">·</span> <span class="key">F</span> ABILITY <span class="sep">·</span> <span class="key">P</span> PAUSE <span class="sep">·</span> <span class="key">F11</span> FULLSCREEN</div><div class="footer-right"><span id="abilityStatus">PULSE READY</span><span class="sep">/</span><span id="dashStatus">DASH READY</span><span class="sep">/</span><span id="decoys">DECOYS × 3</span></div></div>
+    </section>
+
+    <section class="bottom-row"><div class="tip-card"><div class="tip-icon">✦</div><div><strong>FIELD NOTES</strong><p id="fieldNote">Hollows can see along corridors. Break line of sight to escape a pursuit.</p></div></div></section>
+    <footer class="site-footer"><span>LAST LIGHT: THE HOLLOW WARD · AN ORIGINAL GAME</span><span>NO ACCOUNTS · NO TRACKING · SAVES BEST TIME LOCALLY</span></footer>
+  </main>
+</body>
+</html>
