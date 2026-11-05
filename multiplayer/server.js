@@ -82,7 +82,13 @@ wss.on('connection',(ws,req)=>{
     }else if(msg.type==='snapshot'&&ws.playerId===1){
       if(Date.now()-lastSnapshot<40)return;lastSnapshot=Date.now();
       if(!msg.snapshot||typeof msg.snapshot!=='object')return;
-      room.lastSnapshot=msg.snapshot;
+      // Keep one complete snapshot for players joining an active room.
+      // Real-time packets omit the static maze to save internet bandwidth.
+      if(Array.isArray(msg.snapshot.grid)&&Array.isArray(msg.snapshot.cells)){
+        room.lastSnapshot=msg.snapshot;
+      }else if(room.lastSnapshot&&room.lastSnapshot.levelIndex===msg.snapshot.levelIndex){
+        room.lastSnapshot={...room.lastSnapshot,...msg.snapshot};
+      }
       send(room.players.get(2)?.ws,{type:'snapshot',snapshot:msg.snapshot});
     }
   });
