@@ -56,7 +56,39 @@
     guestContextHost=own;player=guestPlayer;moveHeld=remoteKeys;joystickMove.x=remoteStick.x;joystickMove.y=remoteStick.y;classChoice=guestClassChoice;
     try{fn();}finally{guestPlayer=player;player=own;moveHeld=keys;joystickMove.x=jx;joystickMove.y=jy;classChoice=ownClass;guestContextHost=null;}
   }
-  function guestAction(name){if(roomRole!=='guest')return false;sendRoom({type:'action',name});return true;}
+  // Only movement is predicted locally. Combat, pickups, health, objectives
+  // and all victory conditions continue to come from the host's snapshots.
+  function predictGuestMovement(dt){
+    if(roomRole!=='guest'||state!=='playing'||!player||player.hp<=0||!grid)return;
+    let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
+    let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
+    const magnitude=Math.hypot(vx,vy);
+    if(magnitude>1){vx/=magnitude;vy/=magnitude;}
+    if(magnitude>.08)player.facing={x:vx/Math.hypot(vx,vy),y:vy/Math.hypot(vx,vy)};
+    if(player.dashTime>0){
+      const step=Math.min(player.dashTime,dt);
+      player.dashTime=Math.max(0,player.dashTime-step);
+      const hitWall=moveEntity(player,player.dashDir.x*9*step,player.dashDir.y*9*step,.21,.32);
+      if(hitWall)player.dashTime=0;
+    }else if(vx||vy){
+      const touchSteering=Math.hypot(joystickMove.x,joystickMove.y)>.08;
+      moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.18:.21,.30);
+    }
+  }
+  function guestAction(name){
+    if(roomRole!=='guest')return false;
+    // Give the local player immediate visual dash feedback; host remains
+    // authoritative and may correct an invalid/cooldown dash.
+    if(name==='dash'&&state==='playing'&&player?.hp>0&&player.dashCooldown<=0){
+      let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
+      let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
+      const m=Math.hypot(vx,vy);
+      player.dashDir=m>.01?{x:vx/m,y:vy/m}:{...player.facing};
+      player.dashTime=.24;
+      player.dashCooldown=3.5*cooldownFactor();
+    }
+    sendRoom({type:'action',name});return true;
+  }
 
   // Temporary developer shortcut. Skipped runs never enter the best-time record.
   let developerSkipped=false;
@@ -1190,6 +1222,9 @@
   function tick(timestamp){
     const dt=Math.min(.045,Math.max(0,(timestamp-lastFrame)/1000||0));
     lastFrame=timestamp;frameIndex++;
+    // Guest responds immediately to input, without waiting for the round trip
+    // via Singapore and the host browser; the next snapshot reconciles it.
+    if(roomRole==='guest')predictGuestMovement(dt);
     // Rendering stays on animation frames; room physics continues in the
     // simulation timer even when the host tab is in the background.
     updateMusic();
@@ -1335,9 +1370,27 @@
     if(Array.isArray(d.grid))grid=d.grid;
     if(Array.isArray(d.cells))cells=d.cells;
     if(Array.isArray(d.roomTiles))roomTiles=new Set(d.roomTiles);
-    player=d.guestPlayer||d.player;
+    // Preserve the locally predicted position instead of snapping backwards
+    // to every delayed host snapshot. Correct small errors smoothly, while
+    // teleport/death/floor transitions snap immediately to host authority.
+    const authoritative=d.guestPlayer||d.player;
+    if(!authoritative)return;
+    const predicted=player;
+    if(d.guestPlayer&&predicted&&lastLevel===d.levelIndex&&
+       predicted.hp>0&&authoritative.hp>0&&state==='playing'&&d.state==='playing'){
+      const error=Math.hypot(predicted.x-authoritative.x,predicted.y-authoritative.y);
+      if(error<1.65){
+        const factor=error>.7?.30:.12;
+        authoritative.x=predicted.x+(authoritative.x-predicted.x)*factor;
+        authoritative.y=predicted.y+(authoritative.y-predicted.y)*factor;
+        // The client display predicts dash timing; other combat state is
+        // authoritative from the host.
+        if(predicted.dashTime>0&&authoritative.dashTime>0)
+          authoritative.dashTime=Math.max(predicted.dashTime,authoritative.dashTime);
+      }
+    }
+    player=authoritative;
     guestPlayer=d.guestPlayer?d.player:null;
-    if(!player)return;
     cores=d.cores;relay=d.relay;exit=d.exit;hollows=d.hollows;decoys=d.decoys;
     noiseEvents=d.noiseEvents;skillWaves=d.skillWaves;survivor=d.survivor;technician=d.technician;
     elapsed=d.elapsed;overallElapsed=d.overallElapsed;clock=d.clock;alertLevel=d.alertLevel;
