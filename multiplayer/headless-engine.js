@@ -10,6 +10,7 @@ if(cut<0)throw new Error('Game source marker missing: simulation bridge must be 
 
 const bridge=`
   roomRole='host';
+  let countdownRemaining=0;
   const safeKeys=(input={})=>({
     up:input.up===true,down:input.down===true,
     left:input.left===true,right:input.right===true
@@ -66,7 +67,8 @@ const bridge=`
       if(!['menu','dead','victory'].includes(state))return;
       runSeed=Math.floor(Math.random()*1000000);
       overallElapsed=0;developerSkipped=false;buildLevel(0);
-      state='playing';
+      countdownRemaining=5;
+      state='countdown';
     },
     next(){
       if(state!=='leveldone')return;
@@ -103,11 +105,28 @@ const bridge=`
     },
     tick(dt){
       frameIndex++;
-      if(state==='playing')update(Math.min(.05,Math.max(0,dt)));
+      const step=Math.min(.05,Math.max(0,dt));
+      if(state==='countdown'){
+        countdownRemaining=Math.max(0,countdownRemaining-step);
+        if(countdownRemaining<=0){
+          // Holding movement before the countdown finishes must not give a
+          // player a head start. Inputs arriving afterwards control movement.
+          moveHeld=safeKeys();
+          remoteKeys=safeKeys();
+          joystickMove.x=0;joystickMove.y=0;
+          for(const controls of extraControls){
+            controls.keys=safeKeys();controls.stick={x:0,y:0};
+          }
+          state='playing';
+        }
+        return;
+      }
+      if(state==='playing')update(step);
     },
     snapshot(full){
       const value={
         state,levelIndex,runSeed,elapsed,overallElapsed,clock,alertLevel,
+        countdownRemaining:state==='countdown'?countdownRemaining:0,
         player,guestPlayer,players:[player.disconnected?null:player,guestPlayer,...extraPlayers],
         playerRoles:[classChoice,guestClassChoice,...extraControls.map(c=>c.role)],
         cores,relay,exit,decoys,noiseEvents,skillWaves,survivor,technician,
