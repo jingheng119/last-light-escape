@@ -49,7 +49,13 @@ try{
   const joined=await waitFor(one,m=>m.type==='joined');
   assert.equal(joined.id,1);
   one.send(JSON.stringify({type:'start'}));
-  await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='playing');
+  const countdown=await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='countdown');
+  assert.equal(Math.ceil(countdown.snapshot.countdownRemaining),5);
+  one.send(JSON.stringify({type:'action',name:'dash',direction:{x:1,y:0}}));
+  await sleep(200);
+  const starting=await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='countdown'&&m.snapshot.countdownRemaining<4.9);
+  assert.equal(starting.snapshot.player.dashCooldown,0);
+  await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='playing',9000);
 
   two.send(JSON.stringify({type:'join',code:joined.code}));
   const joinedTwo=await waitFor(two,m=>m.type==='joined');
