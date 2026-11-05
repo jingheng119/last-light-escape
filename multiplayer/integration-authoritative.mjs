@@ -85,6 +85,9 @@ try{
   one.close();
   await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.player.hp===0&&
     m.snapshot.guestPlayer.hp>0);
+  await waitFor(two,m=>m.type==='roster'&&m.hostId===2);
+  two.send(JSON.stringify({type:'skip',fullStage:true}));
+  await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.levelIndex===9);
 
   console.log('PASS: five-player rooms, live lobby, sixth-player rejection, authoritative dash and host departure');
 }finally{
