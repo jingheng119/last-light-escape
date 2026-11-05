@@ -44,7 +44,7 @@ const server=http.createServer(async(req,res)=>{
     res.end(buffer);
   }catch(e){res.writeHead(500);res.end('Failed to load game asset');}
 });
-const wss=new WebSocketServer({server,maxPayload:128*1024});
+const wss=new WebSocketServer({server,maxPayload:512*1024});
 wss.on('connection',(ws,req)=>{
   const origin=req.headers.origin;
   if(origin){try{if(new URL(origin).host!==req.headers.host){ws.close(1008,'Origin disallowed');return;}}catch{ws.close(1008);return;}}
@@ -70,6 +70,8 @@ wss.on('connection',(ws,req)=>{
       const jx=typeof joystick?.x==='number'&&Number.isFinite(joystick.x)?Math.max(-1,Math.min(1,joystick.x)):0;
       const jy=typeof joystick?.y==='number'&&Number.isFinite(joystick.y)?Math.max(-1,Math.min(1,joystick.y)):0;
       send(room.players.get(1)?.ws,{type:'remoteInput',keys:safe,joystick:{x:jx,y:jy}});
+    }else if(msg.type==='role'&&ws.playerId===2){
+      if(msg.role==='medic'||msg.role==='scout')send(room.players.get(1)?.ws,{type:'remoteRole',role:msg.role});
     }else if(msg.type==='action'&&ws.playerId===2){
       if(['dash','interact','decoy','ability'].includes(msg.name))
         send(room.players.get(1)?.ws,{type:'remoteAction',name:msg.name});
