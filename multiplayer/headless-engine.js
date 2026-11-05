@@ -56,8 +56,9 @@ const bridge=`
       if(state==='playing'||state==='paused'||state==='leveldone')developerSkip(fullStage);
     },
     pause(){
-      if(state==='playing')state='paused';
-      else if(state==='paused')state='playing';
+      if(state==='playing'){
+        state='paused';setOverlay('BREATHING ROOM','The room is paused until play resumes.','RESUME GAME');
+      }else if(state==='paused')state='playing';
     },
     input(id,keys,stick){
       if(id===1){
