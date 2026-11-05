@@ -68,3 +68,25 @@ visibility, preserving live room membership, direct invites and normal
 five-player gameplay. A reload will open a new WebSocket session, so
 players should use the in-page lobby button rather than browser reload
 when switching between lobby and game.
+
+## Player nicknames and lobby roster
+
+Before creating or joining a room, players may set a nickname (up to
+20 characters) and choose **Scout** or **Medic** in the lobby. If no nickname
+is entered, the server assigns `Survivor 1` through `Survivor 5`.
+The browser remembers the nickname for the current tab session; accounts
+and permanent player identities are not required.
+
+The active room shows a five-slot roster with each connected survivor's
+nickname, role, a **HOST** indicator for the current leader, and **YOU** for
+the local player. Empty slots display **Waiting for survivor…**. The server
+broadcasts updates whenever somebody joins, leaves, renames, changes class
+before starting, or inherits host status after a disconnect. The lobby
+remains browseable while already joined.
+
+Role changes are blocked by the server during an active run, while nickname
+updates remain available. Names are length-limited and stripped of markup
+and control characters on the server; browser display uses `textContent`.
+
+Run `npm test` and the Chromium GitHub Actions suite to check nickname
+updates, host handover, room roster rendering and live game behavior.
