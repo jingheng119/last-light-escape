@@ -93,7 +93,11 @@ wss.on('connection',(ws,req)=>{
       }else if(room.lastSnapshot&&room.lastSnapshot.levelIndex===msg.snapshot.levelIndex){
         room.lastSnapshot={...room.lastSnapshot,...msg.snapshot};
       }
-      send(room.players.get(2)?.ws,{type:'snapshot',snapshot:msg.snapshot});
+      const guest=room.players.get(2)?.ws;
+      // Never queue a long tail of stale frames on a slow connection.
+      // The next snapshot will contain the latest positions.
+      if(guest?.readyState===WebSocket.OPEN&&guest.bufferedAmount<192*1024)
+        send(guest,{type:'snapshot',snapshot:msg.snapshot});
     }
   });
   ws.on('close',()=>leave(ws));ws.on('error',()=>leave(ws));
