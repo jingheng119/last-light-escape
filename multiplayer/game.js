@@ -1081,7 +1081,7 @@
       // Catch up safely after the tab was suspended, without huge physics jumps.
       const steps=Math.max(1,Math.ceil(dt/.035));
       for(let i=0;i<steps;i++)update(dt/steps);
-      if(now-lastSync>=100){lastSync=now;sendSnapshot();}
+      if(now-lastSync>=50){lastSync=now;sendSnapshot();}
     }else if(roomRole==='guest'&&now-lastInput>=50){
       lastInput=now;
       sendRoom({type:'input',keys:moveHeld,joystick:joystickMove});
