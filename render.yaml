@@ -1,12 +1,12 @@
 # Online multiplayer trial — original public single-player site remains on main.
-# Import this Blueprint in Render using the feature/multiplayer-phase1 branch.
+# Five-player lobby runs from feature/five-player-lobby; the original game on main is unchanged.
 services:
   - type: web
     runtime: node
     name: last-light-online-trial
     region: singapore
     plan: free
-    branch: feature/server-authoritative
+    branch: feature/five-player-lobby
     rootDir: multiplayer
     buildCommand: npm install --omit=dev
     startCommand: npm start
