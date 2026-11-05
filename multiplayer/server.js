@@ -7,6 +7,10 @@ const PORT=Number(process.env.PORT || 3001);
 const HOST=process.env.HOST || '0.0.0.0';
 const rooms=new Map();
 const send=(ws,obj)=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(obj));};
+const safeVector=value=>{
+  if(!value||typeof value!=='object'||!Number.isFinite(value.x)||!Number.isFinite(value.y))return null;
+  return {x:value.x,y:value.y};
+};
 function makeCode(){let code;do{code=randomBytes(3).toString('hex').toUpperCase();}while(rooms.has(code));return code;}
 function broadcast(room,obj,except=null){for(const entry of room.players.values())if(entry.ws!==except)send(entry.ws,obj);}
 function join(ws,room){
@@ -77,12 +81,12 @@ wss.on('connection',(ws,req)=>{
       const joystick=msg.joystick;
       const jx=typeof joystick?.x==='number'&&Number.isFinite(joystick.x)?Math.max(-1,Math.min(1,joystick.x)):0;
       const jy=typeof joystick?.y==='number'&&Number.isFinite(joystick.y)?Math.max(-1,Math.min(1,joystick.y)):0;
-      send(room.players.get(1)?.ws,{type:'remoteInput',keys:safe,joystick:{x:jx,y:jy}});
+      send(room.players.get(1)?.ws,{type:'remoteInput',keys:safe,joystick:{x:jx,y:jy},pos:safeVector(msg.pos)});
     }else if(msg.type==='role'&&ws.playerId===2){
       if(msg.role==='medic'||msg.role==='scout')send(room.players.get(1)?.ws,{type:'remoteRole',role:msg.role});
     }else if(msg.type==='action'&&ws.playerId===2){
       if(['dash','interact','decoy','ability'].includes(msg.name))
-        send(room.players.get(1)?.ws,{type:'remoteAction',name:msg.name});
+        send(room.players.get(1)?.ws,{type:'remoteAction',name:msg.name,pos:safeVector(msg.pos),direction:safeVector(msg.direction)});
     }else if(msg.type==='snapshot'&&ws.playerId===1){
       if(Date.now()-lastSnapshot<40)return;lastSnapshot=Date.now();
       if(!msg.snapshot||typeof msg.snapshot!=='object')return;
