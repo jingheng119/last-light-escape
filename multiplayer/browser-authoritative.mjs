@@ -45,8 +45,13 @@ try{
   console.log('Join state:',JSON.stringify(joinState));
   await second.waitForFunction(()=>document.querySelector('#networkStatus')?.textContent?.includes('PLAYER 2'),null,{timeout:7000});
   await first.locator('#primaryBtn').click();
-  await first.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='playing',{timeout:8000});
-  await second.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='playing',{timeout:8000});
+  await sleep(600);
+  console.log('After Start:',JSON.stringify({
+    first:await first.evaluate(()=>({diagnostics:window.__lastLightDiagnostics?.(),status:document.querySelector('#roomStatus')?.textContent,overlay:document.querySelector('#overlay')?.className})),
+    second:await second.evaluate(()=>({diagnostics:window.__lastLightDiagnostics?.(),status:document.querySelector('#roomStatus')?.textContent,overlay:document.querySelector('#overlay')?.className}))
+  }));
+  await first.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='playing',null,{timeout:7000});
+  await second.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='playing',null,{timeout:7000});
   assert(await first.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
   assert(await second.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
   const hp1=await first.evaluate(()=>window.__lastLightDiagnostics().playerHP);
