@@ -7,8 +7,8 @@
   <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/style.css?v=nickname-roster-1" />
-  <script src="/game.js?v=nickname-roster-1" defer></script>
+  <link rel="stylesheet" href="/style.css?v=class-summary-nameplates-1" />
+  <script src="/game.js?v=class-summary-nameplates-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -48,11 +48,12 @@
           <div class="lobby-session-actions"><button type="button" id="returnToGame">Return to game</button><button type="button" id="leaveRoom">Leave room</button></div>
         </div>
         <p id="roomInvite" class="lobby-invite"></p>
-        <div class="lobby-roster-heading">
-          <strong>YOUR TEAM</strong>
-          <span id="rosterCount">0 / 5 SURVIVORS</span>
+        <div class="lobby-class-summary" aria-live="polite">
+          <strong>ROOM CLASSES</strong>
+          <span class="class-summary-item">◇ SCOUT <b id="scoutCount">0</b></span>
+          <span class="class-summary-item">✚ MEDIC <b id="medicCount">0</b></span>
+          <span class="class-summary-total" id="rosterCount">0 / 5 players</span>
         </div>
-        <div id="lobbyRoster" class="lobby-roster" aria-live="polite"></div>
       </div>
       <div id="roomBrowser">
         <div class="lobby-create">
