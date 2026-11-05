@@ -73,7 +73,9 @@
   const alliesReady=()=>survivor.rescued&&dist(survivor,exit)<2.0&&(!technician||(technician.rescued&&dist(technician,exit)<2.0));
   // A room with one player has one exit requirement; a room with two
   // players requires BOTH survivors to reach the elevator together.
-  const playersAtExit=()=>dist(player,exit)<1.1&&(!guestPlayer||dist(guestPlayer,exit)<1.1);
+  // All living players must reach the elevator; a downed player spectates.
+  const playersAtExit=()=> (player.hp<=0||dist(player,exit)<1.1)&&
+    (!guestPlayer||guestPlayer.hp<=0||dist(guestPlayer,exit)<1.1);
   let skillWaves = [];
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
@@ -195,7 +197,9 @@
   function buildLevel(index) {
     // Hearts carry across floors in the same run. A fresh run (floor 1)
     // always starts with three hearts. Only the Medic skill restores health.
+    // A downed player returns with one heart at the start of the next floor.
     const carriedHealth=index>0&&player?Math.max(1,Math.min(3,player.hp)):3;
+    const guestCarriedHealth=index>0&&guestPlayer?Math.max(1,Math.min(3,guestPlayer.hp)):3;
     levelIndex=index;const cfg=CONFIGS[index];
     COLS=cfg.stage===2?STAGE_TWO_SIZE.cols:31;
     ROWS=cfg.stage===2?STAGE_TWO_SIZE.rows:21;
@@ -215,7 +219,7 @@
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
     player={...TILE_CENTER(1,1),hp:carriedHealth,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
-    if(roomRole==='host'&&roomCount>1)newGuest();
+    if(roomRole==='host'&&roomCount>1){newGuest();guestPlayer.hp=guestCarriedHealth;}
     hollows=[];
     for(let i=0;i<cfg.enemies;i++) {
       const p=selectSpot(reserved,cfg.stage===2?8:5,distances,false);reserved.push(p);
@@ -486,8 +490,8 @@
     notify(fullStage?'DEV · Stage jump':'DEV · Floor skipped');
   }
   function pause(){if(roomRole==='guest')return;if(state==='playing'){state='paused';setOverlay('BREATHING ROOM','The ward is silent. Your position is safe until you resume.','RESUME GAME');}else if(state==='paused'){unlockGameAudio();state='playing';hideOverlay();}}
-  function triggerDecoy(){if(guestAction('decoy'))return;
-    if(state!=='playing'||player.decoys<=0||player.decoyCooldown>0)return;
+  function triggerDecoy(){if(roomRole==='guest'&&player?.hp<=0)return;if(guestAction('decoy'))return;
+    if(state!=='playing'||player.hp<=0||player.decoys<=0||player.decoyCooldown>0)return;
     player.decoys--;const p={x:player.x+player.facing.x*3.3,y:player.y+player.facing.y*3.3};
     const nearest=cells.filter(c=>dist({x:c.x+.5,y:c.y+.5},p)<4).sort((a,b)=>dist({x:a.x+.5,y:a.y+.5},p)-dist({x:b.x+.5,y:b.y+.5},p))[0];
     if(!nearest){player.decoys++;return;}
@@ -497,14 +501,14 @@
     notify('Sound decoy deployed — they heard it!');beep(850,.22,'square',.016);
     updateUI();
   }
-  function dash(){if(guestAction('dash'))return;if(state!=='playing'||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
+  function dash(){if(roomRole==='guest'&&player?.hp<=0)return;if(guestAction('dash'))return;if(state!=='playing'||player.hp<=0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
     const vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     if(vx||vy){const len=Math.hypot(vx,vy);player.dashDir={x:vx/len,y:vy/len};}else player.dashDir={...player.facing};
     noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
     beep(220,.17,'sawtooth',.019);updateUI();
   }
-  function interact(){if(guestAction('interact'))return;if(state!=='playing')return;
+  function interact(){if(roomRole==='guest'&&player?.hp<=0)return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0)return;
     if(!survivor.rescued&&dist(player,survivor)<1.5){survivor.rescued=true;survivor.repath=0;notify('SURVIVOR RESCUED — guide them to the elevator!');beep(730,.22);updateUI();return;}
     if(technician&&!technician.rescued&&dist(player,technician)<1.5){
       technician.rescued=true;technician.repath=0;
@@ -523,8 +527,8 @@
     }
     notify('Get closer to an ally, relay, or elevator.');
   }
-  function activateAbility(){if(guestAction('ability'))return;
-    if(state!=='playing'||player.abilityCooldown>0)return;
+  function activateAbility(){if(roomRole==='guest'&&player?.hp<=0)return;if(guestAction('ability'))return;
+    if(state!=='playing'||player.hp<=0||player.abilityCooldown>0)return;
     if(classChoice==='medic'){
       if(player.hp>=3){notify('Already at full health.');return;}
       player.hp=Math.min(3,player.hp+1);player.abilityCooldown=SKILL_COOLDOWN.medic*cooldownFactor();
@@ -561,16 +565,25 @@
       }else setOverlay('FLOOR CLEARED',`You restored the relay, collected every core, and escaped ${CONFIGS[levelIndex].name.toLowerCase()} in ${formatTime(elapsed)}.`,'DESCEND DEEPER','THE NEXT FLOOR IS MORE DANGEROUS');
     }
   }
-  function damage(){if(player.invincible>0||player.dashTime>0||state!=='playing')return;
+  function damage(){if(player.hp<=0||player.invincible>0||player.dashTime>0||state!=='playing')return;
     player.hp--;player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
     // Reposition player to start to prevent repeated contact hits.
     player.x=1.5;player.y=1.5;player.dashTime=0;
     hollows.forEach(h=>{h.mode='patrol';h.chaseUntil=0;h.path=[];h.repath=0;h.target=null;h.searchPoints=0;});
     noiseEvents=[];
-    if(player.hp<=0){state='dead';setOverlay('SIGNAL LOST','The ward has taken another survivor. Try a new route, save your decoys, and break line of sight.','TRY AGAIN','THE MAZE REMAINS THE SAME — YOU CAN LEARN IT');}
+    if(player.hp<=0){
+      player.hp=0;
+      if(!guestPlayer||guestPlayer.hp<=0){
+        state='dead';
+        setOverlay('SIGNAL LOST','All players have lost their hearts. Try again together.','TRY AGAIN','THE MAZE REMAINS THE SAME — YOU CAN LEARN IT');
+      }else{
+        notify('A PLAYER IS DOWN — TEAMMATE STILL ALIVE!',3);
+      }
+    }
     updateUI();
   }
   function updatePlayer(dt){
+    if(player.hp<=0)return;
     player.invincible=Math.max(0,player.invincible-dt);player.dashCooldown=Math.max(0,player.dashCooldown-dt);
     player.abilityCooldown=Math.max(0,player.abilityCooldown-dt);
     player.decoyCooldown=Math.max(0,player.decoyCooldown-dt);
@@ -596,7 +609,7 @@
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
   function checkGhostContact(){
-    if(state!=='playing'||player.invincible>0||player.dashTime>0)return;
+    if(state!=='playing'||player.hp<=0||player.invincible>0||player.dashTime>0)return;
     // Hollows follow tile-centre paths; allow contact at their visible edge,
     // including when the player is stationary off-centre inside the same tile.
     // Require a clear path to avoid hitting through a wall.
@@ -604,7 +617,10 @@
   }
   function updateHollows(dt){
     let danger=0;
-    for(const h of hollows){const nearest=guestPlayer&&guestPlayer.hp>0&&dist(h,guestPlayer)<dist(h,player)?guestPlayer:player;
+    for(const h of hollows){
+      // Avoid targeting a downed player if their teammate is still alive.
+      const nearest=player.hp<=0&&guestPlayer?.hp>0?guestPlayer:
+        guestPlayer?.hp>0&&dist(h,guestPlayer)<dist(h,player)?guestPlayer:player;
       if(h.stunned>0){h.stunned=Math.max(0,h.stunned-dt);h.dashTime=0;h.wobble+=dt*5;continue;}
       // Five Stage II Dashers lunge along their movement/chase direction.
       if(h.variant==='dasher'){
@@ -950,6 +966,11 @@
   function drawOtherPlayer(){
     if(!guestPlayer)return;
     const x=guestPlayer.x*TILE,y=guestPlayer.y*TILE;
+    if(guestPlayer.hp<=0){
+      ctx.fillStyle='#7d858c';ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#eeeeee';ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText('DOWN',x,y-17);
+      return;
+    }
     halo(x,y,30,'#ffb46a36');
     ctx.fillStyle='#ffb46a';ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#ffffff';ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText('ALLY',x,y-17);
