@@ -48,6 +48,7 @@
   // Slots 3–5 are simulated on the server, with the same original rules.
   // Browser snapshots use remotePlayers to render every teammate.
   let extraPlayers=[null,null,null],remotePlayers=[],roomPlayerId=0;
+  let roomIdentity=new Map();
   // The two screens share a single live WebSocket connection. Switching
   // screens never removes a player from their server-side room.
   let activePage='lobby';
@@ -1195,13 +1196,34 @@
     for(let i=0;i<remotePlayers.length;i++){
       const teammate=remotePlayers[i];
       if(!teammate)continue;
-      const x=teammate.x*TILE,y=teammate.y*TILE;
       if(teammate.hp<=0){drawSoul(teammate);continue;}
-      const color=palette[i%palette.length];
+      const x=teammate.x*TILE,y=teammate.y*TILE,color=palette[i%palette.length];
       halo(x,y,30,color+'36');
       ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#ffffff';ctx.font='bold 10px monospace';
-      ctx.textAlign='center';ctx.fillText('P'+(teammate.slot||i+2),x,y-17);
+    }
+  }
+  function drawNameplates(){
+    // Game-time identity comes from the live server roster, not the lobby UI.
+    // Labels are drawn AFTER the darkness overlay, making them readable in
+    // Stage II without revealing extra maze tiles.
+    if(roomRole==='none')return;
+    for(const person of [{...player,slot:roomPlayerId},...remotePlayers]){
+      if(!person||!person.slot)continue;
+      const identity=roomIdentity.get(person.slot);
+      const name=(identity?.name||'Survivor '+person.slot).slice(0,20);
+      const label=person.slot===roomPlayerId?name+' (YOU)':name;
+      const x=person.x*TILE,y=person.y*TILE-29;
+      ctx.save();
+      ctx.font='bold 11px monospace';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      const width=Math.min(205,ctx.measureText(label).width+14);
+      ctx.fillStyle='rgba(5,24,30,.86)';
+      ctx.fillRect(x-width/2,y-10,width,20);
+      ctx.strokeStyle=person.slot===roomPlayerId?'#79f0ce':'#78aebb';
+      ctx.lineWidth=1;ctx.strokeRect(x-width/2+.5,y-9.5,width-1,19);
+      ctx.fillStyle=person.hp<=0?'#b4dbe7':person.slot===roomPlayerId?'#afffe8':'#f2fcff';
+      ctx.fillText(label,x,y);
+      ctx.restore();
     }
   }
   function drawDarkness(){
@@ -1328,7 +1350,7 @@
     const y1=Math.min(ROWS,Math.ceil((camera.y+H/CAMERA_ZOOM)/TILE)+1);
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
-    drawItems();drawHollows();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();
+    drawItems();drawHollows();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();
     ctx.restore();
     // Fixed screen-space HUD must never drift with the camera.
     drawDirectionalHUD();drawInteractPrompts();
@@ -1594,44 +1616,19 @@
       roomName=$('#roomName'),directory=$('#roomList'),roomBrowser=$('#roomBrowser'),
       roomSession=$('#roomSession'),roomCountLabel=$('#roomCount'),
       nicknameInput=$('#playerNickname'),lobbyClass=$('#lobbyClass'),
-      roster=$('#lobbyRoster');
+      rosterCountLabel=$('#rosterCount');
     nicknameInput.value=sessionStorage.getItem('lastLightNickname')||'';
     let savedPlayers=[];
     const nameForServer=()=>nicknameInput.value.trim().slice(0,20);
     const joinRequest=code=>sendRoom({type:'join',code,nickname:nameForServer()});
     const renderRoster=players=>{
       savedPlayers=players;
-      roster.replaceChildren();
-      $('#rosterCount').textContent=players.length+' / 5 SURVIVORS';
-      const occupied=new Map(players.map(person=>[person.id,person]));
-      for(let slot=1;slot<=5;slot++){
-        const person=occupied.get(slot);
-        const card=document.createElement('div');
-        card.className='roster-player'+(person?' is-occupied':' is-empty')+
-          (person?.id===roomPlayerId?' is-self':'');
-        const number=document.createElement('span');
-        number.className='roster-slot';number.textContent='P'+slot;
-        const details=document.createElement('div');details.className='roster-details';
-        const name=document.createElement('strong');
-        name.textContent=person?person.name:'Waiting for survivor…';
-        details.appendChild(name);
-        const tags=document.createElement('div');tags.className='roster-tags';
-        if(person){
-          const role=document.createElement('span');
-          role.className='roster-role';role.textContent=person.role==='medic'?'✚ MEDIC':'◇ SCOUT';
-          tags.appendChild(role);
-          if(person.host){
-            const host=document.createElement('span');
-            host.className='roster-host';host.textContent='HOST';
-            tags.appendChild(host);
-          }
-          if(person.id===roomPlayerId){
-            const me=document.createElement('span');
-            me.className='roster-you';me.textContent='YOU';tags.appendChild(me);
-          }
-        }
-        details.appendChild(tags);card.append(number,details);roster.appendChild(card);
-      }
+      roomIdentity=new Map(players.map(person=>[person.id,person]));
+      const scouts=players.filter(person=>person.role==='scout').length;
+      const medics=players.filter(person=>person.role==='medic').length;
+      $('#scoutCount').textContent=String(scouts);
+      $('#medicCount').textContent=String(medics);
+      $('#rosterCount').textContent=players.length+' / 5 players';
     };
     nicknameInput.addEventListener('change',()=>{
       nicknameInput.value=nameForServer();
@@ -1666,7 +1663,9 @@
       code.disabled=joined;
       // Refresh labels such as YOUR ROOM and JOIN (after leaving).
       if(joined)renderRoster(savedPlayers);
-      else{savedPlayers=[];roster.replaceChildren();}
+      else{savedPlayers=[];roomIdentity.clear();
+        $('#scoutCount').textContent='0';$('#medicCount').textContent='0';
+        rosterCountLabel.textContent='0 / 5 players';}
       sendRoom({type:'list'});
     };
     const drawRooms=rooms=>{
