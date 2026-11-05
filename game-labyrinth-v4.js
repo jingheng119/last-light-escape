@@ -374,7 +374,7 @@
       if(!musicBus||musicStage!==stage){
         stopMusic();
         musicBus=audioCtx.createGain();
-        musicBus.gain.value=.90;
+        musicBus.gain.value=1.30;
         musicBus.connect(audioCtx.destination);
         musicStage=stage;musicStep=0;musicNextAt=audioCtx.currentTime+.07;
       }
