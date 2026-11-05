@@ -47,14 +47,14 @@
   let roomTiles = new Set(), noiseEvents = [], survivor = null, technician = null;
   let runSeed=0;
   let roomRole='none',roomSocket=null,roomCount=0,guestPlayer=null,lastSync=0,lastInput=0,lastLevel=-1;
-  let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout';
+  let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout',guestContextHost=null;
   const sendRoom=m=>{if(roomSocket?.readyState===WebSocket.OPEN)roomSocket.send(JSON.stringify(m));};
   function newGuest(){guestPlayer=structuredClone(player);guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.trail=[];}
   function asGuest(fn){
     if(!guestPlayer)return;
     const own=player,keys=moveHeld,jx=joystickMove.x,jy=joystickMove.y,ownClass=classChoice;
-    player=guestPlayer;moveHeld=remoteKeys;joystickMove.x=remoteStick.x;joystickMove.y=remoteStick.y;classChoice=guestClassChoice;
-    try{fn();}finally{guestPlayer=player;player=own;moveHeld=keys;joystickMove.x=jx;joystickMove.y=jy;classChoice=ownClass;}
+    guestContextHost=own;player=guestPlayer;moveHeld=remoteKeys;joystickMove.x=remoteStick.x;joystickMove.y=remoteStick.y;classChoice=guestClassChoice;
+    try{fn();}finally{guestPlayer=player;player=own;moveHeld=keys;joystickMove.x=jx;joystickMove.y=jy;classChoice=ownClass;guestContextHost=null;}
   }
   function guestAction(name){if(roomRole!=='guest')return false;sendRoom({type:'action',name});return true;}
 
@@ -74,8 +74,12 @@
   // A room with one player has one exit requirement; a room with two
   // players requires BOTH survivors to reach the elevator together.
   // All living players must reach the elevator; a downed player spectates.
-  const playersAtExit=()=> (player.hp<=0||dist(player,exit)<1.1)&&
-    (!guestPlayer||guestPlayer.hp<=0||dist(guestPlayer,exit)<1.1);
+  const playersAtExit=()=>{
+    // During remote action handling player temporarily aliases the guest.
+    const host=guestContextHost||player;
+    return (host.hp<=0||dist(host,exit)<1.1)&&
+      (!guestPlayer||guestPlayer.hp<=0||dist(guestPlayer,exit)<1.1);
+  };
   let skillWaves = [];
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
@@ -633,7 +637,8 @@
     if(player.hp<=0){
       player.hp=0;
       player.reviveProgress=0;
-      if(!guestPlayer||guestPlayer.hp<=0){
+      const otherPlayer=guestContextHost||guestPlayer;
+      if(!otherPlayer||otherPlayer.hp<=0){
         state='dead';
         setOverlay('SIGNAL LOST','All players have lost their hearts. Try again together.','TRY AGAIN','THE MAZE REMAINS THE SAME — YOU CAN LEARN IT');
       }else{
