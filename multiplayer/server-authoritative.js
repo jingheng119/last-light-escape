@@ -113,7 +113,7 @@ function join(ws,room){
   else if(id!==1)room.engine.join(id);
   if(room.members.size===1)room.hostId=id;
   send(ws,{type:'joined',code:room.code,name:room.name,id,
-    host:id===room.hostId,reconnectToken:token,resumed:false});
+    host:id===room.hostId,nickname:ws.nickname,reconnectToken:token,resumed:false});
   notifyRoom(room);publish(room,true);
 }
 function resume(ws,code,token){
@@ -141,7 +141,7 @@ function resume(ws,code,token){
   }
   member.token=randomBytes(32).toString('hex');
   send(ws,{type:'joined',code:room.code,name:room.name,id,
-    host:id===room.hostId,reconnectToken:member.token,resumed:true});
+    host:id===room.hostId,nickname:ws.nickname,reconnectToken:member.token,resumed:true});
   notifyRoom(room);publish(room,true);
 }
 function leave(ws,temporary=false){
