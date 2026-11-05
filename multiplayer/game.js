@@ -1177,6 +1177,10 @@
     if(red||hunter){ctx.strokeStyle=hunter?'#ff5caa':dasher?'#efad4c':'#ff546c';ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(0,0,hunter?17:15,0,Math.PI*2);ctx.stroke();}
     ctx.restore();}}
+  // Stable server slot colors: everyone sees the same player in the same color.
+  // Mint, amber, blue, pink and gold are distinguishable on both stage themes.
+  const PLAYER_COLORS=['#76f2d1','#ffb36e','#91b7ff','#f49edb','#f5d778'];
+  const colorForPlayer=slot=>PLAYER_COLORS[Math.max(0,Math.min(4,(slot||1)-1))];
   function drawPlayer(){
     if(player.hp<=0){
       drawSoul(player);
@@ -1184,45 +1188,41 @@
     }
     for(const p of player.trail){ctx.fillStyle=`rgba(110,255,218,${p.life*.55})`;ctx.beginPath();ctx.arc(p.x*TILE,p.y*TILE,8,0,Math.PI*2);ctx.fill();}
     const x=player.x*TILE,y=player.y*TILE,flicker=player.invincible>0&&Math.sin(clock*31)>0;
+    const color=colorForPlayer(roomPlayerId);
     if(flicker)return;
-    halo(x,y,70,'#70fce319');ctx.fillStyle='#061d23';ctx.beginPath();ctx.ellipse(x,y+6,12,6,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=player.dashTime>0?'#dcfff7':'#8cead5';ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+    halo(x,y,70,color+'25');ctx.fillStyle='#061d23';ctx.beginPath();ctx.ellipse(x,y+6,12,6,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#0d3940';ctx.beginPath();ctx.arc(x,y-2,5,0,Math.PI*2);ctx.fill();
     const fx=player.facing.x,fy=player.facing.y;ctx.strokeStyle='#e6fff7';ctx.lineWidth=2.7;ctx.beginPath();ctx.moveTo(x+fx*6,y+fy*6);ctx.lineTo(x+fx*14,y+fy*14);ctx.stroke();
-    ctx.strokeStyle=player.dashTime>0?'#f0fffb':'#56bcaa';ctx.lineWidth=1.7;ctx.beginPath();ctx.arc(x,y,13,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle=color;ctx.lineWidth=player.dashTime>0?3:1.7;ctx.beginPath();ctx.arc(x,y,13,0,Math.PI*2);ctx.stroke();
   }
   function drawOtherPlayer(){
-    const palette=['#ffb46a','#99baff','#ed9de8','#f2d878'];
     for(let i=0;i<remotePlayers.length;i++){
       const teammate=remotePlayers[i];
       if(!teammate)continue;
       if(teammate.hp<=0){drawSoul(teammate);continue;}
-      const x=teammate.x*TILE,y=teammate.y*TILE,color=palette[i%palette.length];
+      const x=teammate.x*TILE,y=teammate.y*TILE,color=colorForPlayer(teammate.slot);
       halo(x,y,30,color+'36');
       ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
     }
   }
   function drawNameplates(){
-    // Game-time identity comes from the live server roster, not the lobby UI.
-    // Labels are drawn AFTER the darkness overlay, making them readable in
-    // Stage II without revealing extra maze tiles.
+    // Unboxed names in the same stable color as their respective character.
+    // No (YOU) suffix: the local player is already centered by the camera.
     if(roomRole==='none')return;
     for(const person of [{...player,slot:roomPlayerId},...remotePlayers]){
       if(!person||!person.slot)continue;
       const identity=roomIdentity.get(person.slot);
       const name=(identity?.name||'Survivor '+person.slot).slice(0,20);
-      const label=person.slot===roomPlayerId?name+' (YOU)':name;
       const x=person.x*TILE,y=person.y*TILE-29;
       ctx.save();
       ctx.font='bold 11px monospace';
       ctx.textAlign='center';ctx.textBaseline='middle';
-      const width=Math.min(205,ctx.measureText(label).width+14);
-      ctx.fillStyle='rgba(5,24,30,.86)';
-      ctx.fillRect(x-width/2,y-10,width,20);
-      ctx.strokeStyle=person.slot===roomPlayerId?'#79f0ce':'#78aebb';
-      ctx.lineWidth=1;ctx.strokeRect(x-width/2+.5,y-9.5,width-1,19);
-      ctx.fillStyle=person.hp<=0?'#b4dbe7':person.slot===roomPlayerId?'#afffe8':'#f2fcff';
-      ctx.fillText(label,x,y);
+      ctx.shadowColor='rgba(0,8,13,.95)';
+      ctx.shadowBlur=5;
+      ctx.shadowOffsetY=1;
+      ctx.fillStyle=colorForPlayer(person.slot);
+      ctx.fillText(name,x,y);
       ctx.restore();
     }
   }
