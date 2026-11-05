@@ -50,7 +50,7 @@ assert.equal(lateJoined.players[1].hp,3,'Late joining slot 2 starts with full he
 assert.equal(lateJoined.players[1].dashCooldown,0,'New teammate must not inherit host dash cooldown');
 assert.equal(lateJoined.players[1].abilityCooldown,0,'New teammate must not inherit host ability cooldown');
 for(let slot=3;slot<=5;slot++)lateRoom.join(slot);
-assert.deepEqual(lateRoom.snapshot(false).players.slice(1).map(p=>p.hp),[3,3,3,3],
+assert.deepEqual(Array.from(lateRoom.snapshot(false).players.slice(1),p=>p.hp),[3,3,3,3],
   'Every late-joining teammate starts with independent full hearts');
 lateRoom.snapshot(false).players[1].hp=2;
 assert.equal(lateRoom.snapshot(false).players[0].hp,1,
