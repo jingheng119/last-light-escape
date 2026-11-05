@@ -7,8 +7,8 @@
   <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/style.css?v=unified-room-1" />
-  <script src="/game.js?v=unified-room-1" defer></script>
+  <link rel="stylesheet" href="/style.css?v=five-player-lobby-1" />
+  <script src="/game.js?v=five-player-lobby-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -24,16 +24,38 @@
       </div>
     </section>
 
-    <section id="roomLobby" style="border:1px solid #3d756e;border-radius:12px;padding:14px 18px;background:#0f2730;color:#d9fff5;margin:12px 0 20px">
-      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px">
-        <strong>GAME ROOM</strong>
-        <button type="button" id="createRoom" style="background:#195b56;color:#fff;border:1px solid #65bcae;padding:9px 13px;border-radius:9px">Create room (1 player)</button>
-        <input id="joinRoomCode" maxlength="6" placeholder="Room code" aria-label="Room code" style="width:120px;background:#102d35;color:#fff;border:1px solid #477e80;padding:9px;border-radius:8px">
-        <button type="button" id="joinRoom" style="background:#195b56;color:#fff;border:1px solid #65bcae;padding:9px 13px;border-radius:9px">Join room</button>
+    <section id="roomLobby" class="online-lobby" aria-label="Online multiplayer lobby">
+      <div class="lobby-heading">
+        <div><span class="lobby-eyebrow">ONLINE CO-OP</span><h2>Survivor Lobby</h2>
+          <p>Browse open rooms, create your own, or join a friend. Up to <strong>5 players</strong> per room.</p>
+        </div>
+        <div class="lobby-count"><span id="roomCount">0 rooms</span><button type="button" id="refreshRooms">↻ Refresh</button></div>
       </div>
-      <p id="roomStatus" role="status" style="color:#b1d4d0;margin:10px 0 0">Connecting to room server…</p>
-      <p id="roomInvite" style="color:#8ee8d0;margin:6px 0 0;overflow-wrap:anywhere"></p>
-      <p id="networkStatus" style="color:#b1d4d0;margin:6px 0 0;font:12px monospace">NETWORK · measuring…</p>
+      <div id="roomBrowser">
+        <div class="lobby-create">
+          <label for="roomName">ROOM NAME</label>
+          <input id="roomName" maxlength="32" placeholder="My Hollow Ward" aria-label="New room name" />
+          <button type="button" id="createRoom">+ Create room</button>
+        </div>
+        <div class="room-search">
+          <label for="joinRoomCode">JOIN BY CODE</label>
+          <input id="joinRoomCode" maxlength="6" placeholder="6-digit code" aria-label="Room code" />
+          <button type="button" id="joinRoom">Join by code</button>
+        </div>
+        <div class="available-title">AVAILABLE ROOMS <span id="roomListCaption">Live server directory</span></div>
+        <div id="roomList" class="room-directory" aria-live="polite">
+          <p class="room-empty">Connecting to room server…</p>
+        </div>
+      </div>
+      <div id="roomSession" hidden>
+        <div class="lobby-session-row">
+          <strong id="currentRoomName">YOUR ROOM</strong>
+          <button type="button" id="leaveRoom">Leave room</button>
+        </div>
+        <p id="roomInvite" class="lobby-invite"></p>
+      </div>
+      <p id="roomStatus" role="status" class="lobby-status">Connecting to room server…</p>
+      <p id="networkStatus" class="lobby-ping">NETWORK · measuring…</p>
     </section>
     <section class="game-shell" aria-label="Game area">
       <div class="statusbar"><div class="status-item"><span class="status-label">ROLE</span><strong id="classStatus">SCOUT</strong></div><div class="status-item"><span class="status-label" id="allyStatusLabel">SURVIVOR</span><strong id="survivorStatus">TRAPPED</strong></div><div class="status-item"><span class="status-label">VITAL SIGNS</span><strong id="health" class="health">♥ ♥ ♥</strong></div><div class="status-item"><span class="status-label">POWER CORES</span><strong id="cores">0 / 2</strong></div><div class="status-item"><span class="status-label">RELAY</span><strong id="relay">OFFLINE</strong></div><div class="status-item"><span class="status-label">TIME</span><strong id="timer">00:00</strong></div><div class="status-item status-item-last"><span class="status-label">THREAT LEVEL</span><strong id="threat" class="threat-calm">LOW</strong></div></div>
