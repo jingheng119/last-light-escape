@@ -94,6 +94,13 @@ const bridge=`
       }
     },
     action:perform,
+    // Used only by local/CI engine tests. There is no WebSocket command for it.
+    testHit(id){
+      const hit=()=>{player.invincible=0;player.dashTime=0;damage();};
+      if(id===1)hit();
+      else if(id===2&&guestPlayer)asGuest(hit);
+      else if(id>=3&&id<=5)withExtra(id,hit);
+    },
     tick(dt){
       frameIndex++;
       if(state==='playing')update(Math.min(.05,Math.max(0,dt)));
