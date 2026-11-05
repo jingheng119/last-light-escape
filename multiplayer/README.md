@@ -33,3 +33,12 @@ No registrations, persistent saves, lobby matchmaking, robust reconnect, touch i
 2. Add per-player roles, better ally-follow behavior, revives, and reconnection.
 3. Move authority into a cloud game server, then deploy it on always-on infrastructure.
 4. Add secure accounts and stored progress.
+
+## Team elimination rule (latest)
+
+- With one player, losing the third heart ends the run.
+- With two players, a player at zero hearts is eliminated, cannot move or use skills, and watches the living teammate.
+- Game over occurs only after both players reach zero hearts.
+- A living teammate may finish the floor by completing objectives and reaching the elevator; the eliminated player is not required to stand at the exit.
+- An eliminated player returns with one heart at the start of the next floor.
+- Reviving teammates during a floor has not been implemented yet.
