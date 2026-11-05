@@ -29,9 +29,23 @@ try{
     p.on('pageerror',error=>problems.push(label+': '+error.message));
     await p.goto('http://127.0.0.1:'+port+'/');
     await p.waitForFunction(()=>document.querySelector('#roomStatus')?.textContent?.includes('Connected'),null,{timeout:10000});
+    assert.equal(new URL(p.url()).pathname,'/');
+    assert(await p.locator('#playPage').isHidden(),'Lobby must not show game canvas');
+    assert(await p.locator('#lobbyPage').isVisible(),'Dedicated lobby page should be visible');
   }
   await first.locator('#createRoom').click();
   await first.waitForFunction(()=>window.__lastLightDiagnostics?.().roomPlayerId===1,null,{timeout:7000});
+  assert.equal(new URL(first.url()).pathname,'/play');
+  assert(await first.locator('#playPage').isVisible());
+  assert(await first.locator('#lobbyPage').isHidden());
+  // Navigation is client-side: returning to lobby must retain room membership.
+  await first.locator('#backToLobby').click();
+  assert.equal(new URL(first.url()).pathname,'/');
+  assert(await first.locator('#playPage').isHidden());
+  assert.equal((await first.evaluate(()=>window.__lastLightDiagnostics())).roomPlayerId,1);
+  await first.locator('#returnToGame').click();
+  assert.equal(new URL(first.url()).pathname,'/play');
+  assert(await first.locator('#playPage').isVisible());
   const room=await first.locator('#joinRoomCode').inputValue();
   assert.match(room,/^[0-9A-F]{6}$/);
   await second.locator('#joinRoomCode').fill(room);
@@ -45,6 +59,8 @@ try{
   }));
   console.log('Join state:',JSON.stringify(joinState));
   await second.waitForFunction(()=>document.querySelector('#networkStatus')?.textContent?.includes('PLAYER 2'),null,{timeout:7000});
+  assert.equal(new URL(second.url()).pathname,'/play');
+  assert(await second.locator('#lobbyPage').isHidden());
   // Players 3–5 discover and join the room from the PUBLIC DIRECTORY,
   // without ever knowing or entering a room code.
   for(let id=3;id<=5;id++){
