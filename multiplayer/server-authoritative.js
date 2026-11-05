@@ -105,7 +105,7 @@ wss.on('connection',(ws,req)=>{
     let m;try{m=JSON.parse(raw.toString());}catch{return;}
     if(!m||typeof m.type!=='string')return;
     if(m.type==='ping'&&Number.isFinite(m.at))return send(ws,{type:'pong',at:m.at});
-    if(m.type==='create')return join(ws,createRoom());
+    if(m.type==='create'){if(ws.room)return;return join(ws,createRoom());}
     if(m.type==='join'){
       if(typeof m.code!=='string'||!/^[0-9A-F]{6}$/.test(m.code))
         return send(ws,{type:'error',message:'Invalid room code'});
@@ -120,6 +120,7 @@ wss.on('connection',(ws,req)=>{
       room.engine.role(id,m.role);
     else if(m.type==='start'&&room.engine)room.engine.start();
     else if(m.type==='next')room.engine.next();
+    else if(m.type==='restart'&&id===1)room.engine.restart();
     else if(m.type==='skip'&&id===1)room.engine.skip(m.fullStage===true);
     else if(m.type==='pause'&&id===1)room.engine.pause();
   });
