@@ -1,37 +1,35 @@
-# Last Light multiplayer — Phase 1
+# Last Light — unified game rooms (development prototype)
 
-This is a separate, experimental two-player WebSocket demo. The public single-player Hollow Ward game is unchanged.
+The same original Hollow Ward game engine now powers a room with either one or two human players. **The public single-player website on main is unchanged.** This is a development integration, not yet a tested public multiplayer release.
 
-## Run on Windows
+## Local test
 
-1. Install Node.js (version 20 or later).
-2. Download or clone the feature/multiplayer-phase1 branch.
-3. Open Command Prompt or PowerShell in the multiplayer folder.
-4. Run: npm install
-5. Run: npm start
-6. Open http://localhost:3001 in two browser tabs.
-7. Create a room in the first tab. Copy the room code or link to the second tab, then join.
-8. Move both players with WASD or arrow keys.
+1. In the repository root on the feature/multiplayer-phase1 branch: `git pull`.
+2. In the multiplayer folder: `npm install` (only needed once or if dependencies change).
+3. Start: `node --watch server.js`.
+4. In Chrome visit http://localhost:3001.
+5. Click **Create room**, then **START GAME**. This is a single-player room using the original game, not a separate mode.
+6. To invite another player, open another browser tab, enter the six-character code, and click **Join room**. Both tabs should show the original game's maze, Hollows, survivor, power cores and relay.
+7. Try WASD, dash, decoy, ability, and interaction on each tab. The host controls floor transitions.
 
-The server must stay running for this local test. We have not deployed a cloud server yet.
+`git pull` in the repository root obtains future updates; refresh both browser tabs after changes. Node watch restarts automatically when the watched server source changes. If the server stops, restart it.
 
-## What this milestone demonstrates
+## Current architecture
 
-- Two clients can create/join a private six-character room.
-- Server owns movement and sends updated locations to each browser at 20Hz.
-- Rooms allow up to two players and are removed when empty.
-- Different player colors and a shared canvas.
-- Shared Stage 1, Floor 1 maze using the original game's maze generator.
-- Server-authoritative circular wall collisions; clients cannot walk through walls.
+- Original game reused as `multiplayer/game.js`; original graphics, stages, enemy AI, audio and abilities retained.
+- Each room starts with 1 player. A second player can join the room using a code.
+- Room host runs the full game simulation. The WebSocket server forwards the second player's input to the host and relays snapshots back.
+- Remote player actions and movement are simulated inside the same original game simulation, rather than in a separate simplified maze.
 
-## Not implemented yet
+## Important limitations
 
-- Hollow/Dasher enemies and original maze artwork
-- Shared abilities, attacks, objectives and stage completion
-- User registration, persistence or leaderboard
-- Reconnection, production-grade rate limits, access control and protection against abuse
-- Cloud hosting for 24/7 access
+This is **host-authoritative**, not yet a secure dedicated game server. It depends on the host browser remaining active. The client-trusted simulation is vulnerable to cheating and unsuitable for competitive leaderboards. Hosting the relay in the cloud would not remove this dependency.
 
-Do not advertise this demonstration server as a production game. GitHub Pages cannot run the WebSocket server; production requires a separate HTTPS/WSS host.
+No registrations, persistent saves, lobby matchmaking, robust reconnect, touch input verification, network prediction, interpolation, dedicated authoritative simulation or production hardening yet. The first implementation uses the host's chosen role for action behavior. Multiplayer balance and progression need hands-on testing. We should subsequently move the simulation into a shared server-side engine while retaining this same room model.
 
-Next step: add shared Hollow/Dasher enemy AI and co-op objectives; later provide always-on cloud hosting.
+## Next steps
+
+1. Test two players on the original Hollow Ward UI and fix any observed bugs.
+2. Add per-player roles, better ally-follow behavior, revives, and reconnection.
+3. Move authority into a cloud game server, then deploy it on always-on infrastructure.
+4. Add secure accounts and stored progress.
