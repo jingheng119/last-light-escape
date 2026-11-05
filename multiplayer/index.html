@@ -7,8 +7,8 @@
   <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/style.css?v=five-player-lobby-1" />
-  <script src="/game.js?v=five-player-lobby-1" defer></script>
+  <link rel="stylesheet" href="/style.css?v=separate-lobby-game-1" />
+  <script src="/game.js?v=separate-lobby-game-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -18,6 +18,7 @@
       <div class="top-links"><span class="edition" id="missionLevel">BROWSER GAME V4.19 · STAGE 01 · FLOOR 01 / 09</span></div>
     </header>
 
+    <div id="lobbyPage" class="page-lobby">
     <section class="intro"><div><div class="eyebrow"><i></i> THE LIGHT IS FADING</div><h1>Outrun the <em>Hollow.</em></h1><p>Choose your role. Find power cores, rescue trapped survivors, activate the relay, and escape together.</p></div>
       <div class="stage-info-card" aria-label="Current game stage and floor">
         <span id="stageInfoCard">BROWSER GAME V4.19 · STAGE 01 · FLOOR 01 / 09</span>
@@ -50,13 +51,23 @@
       <div id="roomSession" hidden>
         <div class="lobby-session-row">
           <strong id="currentRoomName">YOUR ROOM</strong>
-          <button type="button" id="leaveRoom">Leave room</button>
+          <div class="lobby-session-actions"><button type="button" id="returnToGame">Return to game</button><button type="button" id="leaveRoom">Leave room</button></div>
         </div>
         <p id="roomInvite" class="lobby-invite"></p>
       </div>
       <p id="roomStatus" role="status" class="lobby-status">Connecting to room server…</p>
       <p id="networkStatus" class="lobby-ping">NETWORK · measuring…</p>
     </section>
+    </div>
+    <div id="playPage" class="page-play" hidden>
+      <nav class="game-page-nav" aria-label="Game room navigation">
+        <button type="button" id="backToLobby" class="game-nav-back">← Survivor Lobby</button>
+        <div class="game-room-details">
+          <strong id="gameRoomName">HOLLOW WARD</strong>
+          <span id="gameRoomCount">1 / 5 SURVIVORS</span>
+        </div>
+        <button type="button" id="leaveGameRoom" class="game-nav-leave">Leave Room</button>
+      </nav>
     <section class="game-shell" aria-label="Game area">
       <div class="statusbar"><div class="status-item"><span class="status-label">ROLE</span><strong id="classStatus">SCOUT</strong></div><div class="status-item"><span class="status-label" id="allyStatusLabel">SURVIVOR</span><strong id="survivorStatus">TRAPPED</strong></div><div class="status-item"><span class="status-label">VITAL SIGNS</span><strong id="health" class="health">♥ ♥ ♥</strong></div><div class="status-item"><span class="status-label">POWER CORES</span><strong id="cores">0 / 2</strong></div><div class="status-item"><span class="status-label">RELAY</span><strong id="relay">OFFLINE</strong></div><div class="status-item"><span class="status-label">TIME</span><strong id="timer">00:00</strong></div><div class="status-item status-item-last"><span class="status-label">THREAT LEVEL</span><strong id="threat" class="threat-calm">LOW</strong></div></div>
       <div id="gameWrapper" class="canvas-wrap"><canvas id="game" width="992" height="672" role="img" aria-label="Top-down maze escape game"></canvas>
@@ -103,6 +114,7 @@
     </section>
 
     <section class="bottom-row"><div class="tip-card"><div class="tip-icon">✦</div><div><strong>FIELD NOTES</strong><p id="fieldNote">Hollows can see along corridors. Break line of sight to escape a pursuit.</p></div></div></section>
+    </div>
     <footer class="site-footer"><span>LAST LIGHT: THE HOLLOW WARD · AN ORIGINAL GAME</span><span>NO ACCOUNTS · NO TRACKING · SAVES BEST TIME LOCALLY</span></footer>
   </main>
 </body>
