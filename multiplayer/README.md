@@ -25,7 +25,7 @@ The same original Hollow Ward game engine now powers a room with either one or t
 
 This is **host-authoritative**, not yet a secure dedicated game server. It depends on the host browser remaining active. The client-trusted simulation is vulnerable to cheating and unsuitable for competitive leaderboards. Hosting the relay in the cloud would not remove this dependency.
 
-No registrations, persistent saves, lobby matchmaking, robust reconnect, touch input verification, network prediction, interpolation, dedicated authoritative simulation or production hardening yet. The first implementation uses the host's chosen role for action behavior. Multiplayer balance and progression need hands-on testing. We should subsequently move the simulation into a shared server-side engine while retaining this same room model.
+No registrations, persistent saves, lobby matchmaking, robust reconnect, touch input verification, network prediction, interpolation, dedicated authoritative simulation or production hardening yet. The prototype now relays each player's Scout/Medic role selection. Multiplayer balance, stage progression and abilities still need hands-on testing. We should subsequently move the simulation into a shared server-side engine while retaining this same room model.
 
 ## Next steps
 
