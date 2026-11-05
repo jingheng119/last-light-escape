@@ -21,10 +21,12 @@ The server must stay running for this local test. We have not deployed a cloud s
 - Server owns movement and sends updated locations to each browser at 20Hz.
 - Rooms allow up to two players and are removed when empty.
 - Different player colors and a shared canvas.
+- Shared Stage 1, Floor 1 maze using the original game's maze generator.
+- Server-authoritative circular wall collisions; clients cannot walk through walls.
 
 ## Not implemented yet
 
-- Maze walls and Hollow/Dasher enemies
+- Hollow/Dasher enemies and original maze artwork
 - Shared abilities, attacks, objectives and stage completion
 - User registration, persistence or leaderboard
 - Reconnection, production-grade rate limits, access control and protection against abuse
@@ -32,4 +34,4 @@ The server must stay running for this local test. We have not deployed a cloud s
 
 Do not advertise this demonstration server as a production game. GitHub Pages cannot run the WebSocket server; production requires a separate HTTPS/WSS host.
 
-Next step: port the real game maze and server-authoritative collisions, then implement co-op objectives and hosting.
+Next step: add shared Hollow/Dasher enemy AI and co-op objectives; later provide always-on cloud hosting.
