@@ -1260,12 +1260,12 @@
   }
   // World-to-screen teammate tracking. The server already broadcasts all
   // player positions and souls, so these markers need no additional packets.
-  function getTeammateIndicators(){
-    if(roomRole==='none'||!remotePlayers.length||!grid)return [];
+  function getTeammateIndicators(teammates=remotePlayers){
+    if(roomRole==='none'||!teammates.length||!grid)return [];
     const view={left:35,top:103,right:W-35,bottom:H-76};
     const center={x:W/2,y:H/2};
     const markers=[];
-    for(const teammate of remotePlayers){
+    for(const teammate of teammates){
       if(!teammate||!Number.isFinite(teammate.x)||!Number.isFinite(teammate.y))continue;
       const screenX=(teammate.x*TILE-camera.x)*CAMERA_ZOOM;
       const screenY=(teammate.y*TILE-camera.y)*CAMERA_ZOOM;
@@ -1879,5 +1879,8 @@
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
   // Expose read-only diagnostics for smoke tests, not used by gameplay.
+  // Read-only geometry diagnostic used by five-player browser regression tests.
+  window.__lastLightPreviewIndicators=teammates=>getTeammateIndicators(teammates)
+    .map(m=>({slot:m.slot,dead:m.dead,x:m.x,y:m.y,edge:m.edge,color:m.color}));
   window.__lastLightDiagnostics=()=>({state,roomPlayerId,roomRole,roomCount,visibleTeammates:remotePlayers.length,teammateIndicators:getTeammateIndicators().map(m=>({slot:m.slot,dead:m.dead,x:m.x,y:m.y,angle:m.angle,edge:m.edge})),level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp,playerPosition:{x:player.x,y:player.y},allyPosition:guestPlayer?{x:guestPlayer.x,y:guestPlayer.y}:null,dashCooldown:player.dashCooldown,characterClass:classChoice,survivorRescued:survivor.rescued,abilityCooldown:player.abilityCooldown});
 })();
