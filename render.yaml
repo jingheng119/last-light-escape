@@ -1,12 +1,12 @@
 # Online multiplayer trial — original public single-player site remains on main.
-# Five-player lobby runs from feature/five-player-lobby; the original game on main is unchanged.
+# Reconnection-enabled five-player lobby runs from feature/player-reconnection; the original game on main is unchanged.
 services:
   - type: web
     runtime: node
     name: last-light-online-trial
     region: singapore
     plan: free
-    branch: feature/five-player-lobby
+    branch: feature/player-reconnection
     rootDir: multiplayer
     buildCommand: npm install --omit=dev
     startCommand: npm start
