@@ -1593,13 +1593,18 @@
       roomName=$('#roomName'),directory=$('#roomList'),roomBrowser=$('#roomBrowser'),
       roomSession=$('#roomSession'),roomCountLabel=$('#roomCount');
     const setJoined=joined=>{
-      roomBrowser.hidden=joined;
+      // A host still needs to browse other active rooms. Keep the directory
+      // visible; only hide room creation / code-entry while already joined.
+      roomBrowser.hidden=false;
+      roomBrowser.classList.toggle('has-active-room',joined);
       roomSession.hidden=!joined;
       $('#leaveRoom').disabled=!joined;
       $('#returnToGame').disabled=!joined;
       create.disabled=joined;
       join.disabled=joined;
       code.disabled=joined;
+      // Refresh labels such as YOUR ROOM and JOIN (after leaving).
+      sendRoom({type:'list'});
     };
     const drawRooms=rooms=>{
       directory.replaceChildren();
@@ -1623,9 +1628,21 @@
         description.append(title,metadata);
         const button=document.createElement('button');
         button.type='button';
-        button.textContent=entry.joinable?'Join room':'Full';
-        button.disabled=!entry.joinable||roomRole!=='none';
-        button.addEventListener('click',()=>sendRoom({type:'join',code:entry.code}));
+        const ownRoom=roomRole!=='none'&&entry.code===code.value;
+        if(ownRoom){
+          card.classList.add('room-entry-current');
+          const current=document.createElement('span');
+          current.className='room-current-label';
+          current.textContent='YOUR ROOM';
+          description.appendChild(current);
+          button.textContent='Return to game';
+          button.addEventListener('click',()=>showPage('play'));
+        }else{
+          button.textContent=!entry.joinable?'Full':roomRole!=='none'?'Leave to join':'Join room';
+          button.disabled=!entry.joinable||roomRole!=='none';
+          button.title=roomRole!=='none'?'Leave your current room before joining another':'';
+          button.addEventListener('click',()=>sendRoom({type:'join',code:entry.code}));
+        }
         card.append(description,button);directory.appendChild(card);
       }
     };
@@ -1655,6 +1672,7 @@
         invite.textContent='ROOM '+m.code+' · Invite link: '+url.href;
         $('#currentRoomName').textContent=(m.name||'Hollow Ward')+' · ROOM '+m.code;
         setJoined(true);showPage('play');
+        sendRoom({type:'list'});
         status.textContent=m.host?'Room created. Press START GAME to begin!':'Room joined. Waiting for host.';
         // The browser requires a gesture for audio; don't initialize it during
         // an unsolicited network message. The player can enable it by clicking.
