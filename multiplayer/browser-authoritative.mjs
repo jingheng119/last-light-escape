@@ -243,6 +243,26 @@ try{
   p2=await second.evaluate(()=>window.__lastLightDiagnostics());
   assert(delta(p1.playerPosition,p2.allyPosition)<.24);
   assert(delta(p2.playerPosition,p1.allyPosition)<.24);
+  // A full browser refresh must recover the ORIGINAL player ID, nickname,
+  // class, health and position without occupying an extra room slot.
+  const prior=await first.evaluate(()=>window.__lastLightDiagnostics());
+  const savedToken=await first.evaluate(()=>JSON.parse(sessionStorage.getItem('lastLightPlayerSession')||'null'));
+  assert(savedToken?.token&&savedToken?.code===room,'Browser must save private reconnect credentials');
+  await first.reload();
+  await first.waitForFunction(()=>window.__lastLightDiagnostics?.().roomPlayerId===1&&
+    window.__lastLightDiagnostics?.().state==='playing',null,{timeout:12000});
+  const recovered=await first.evaluate(()=>window.__lastLightDiagnostics());
+  assert.equal(recovered.playerHP,prior.playerHP,'Reconnection preserves health');
+  assert.equal(recovered.characterClass,prior.characterClass,'Reconnection preserves Medic role');
+  assert.equal(recovered.roomCount,5,'Reconnection does not create a sixth player');
+  assert.equal(recovered.roomPlayerId,prior.roomPlayerId,'Reconnection reclaims same seat');
+  assert.equal(new URL(first.url()).pathname,'/play');
+  assert(delta(recovered.playerPosition,prior.playerPosition)<.15,
+    'Reconnection preserves position');
+  const nextToken=await first.evaluate(()=>JSON.parse(sessionStorage.getItem('lastLightPlayerSession')||'null'));
+  assert.notEqual(nextToken?.token,savedToken.token,
+    'Session token should rotate each time a player reconnects');
+
   // Regression: the inactive soul has no floating "SOUL · REVIVE" text,
   // and hosts get an actionable next-floor button when the level clears.
   const gameSource=await (await fetch('http://127.0.0.1:'+port+'/game.js')).text();
