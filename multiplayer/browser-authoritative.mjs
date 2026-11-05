@@ -35,6 +35,14 @@ try{
   assert.match(room,/^[0-9A-F]{6}$/);
   await second.locator('#joinRoomCode').fill(room);
   await second.locator('#joinRoom').click();
+  await sleep(500);
+  const joinState=await second.evaluate(()=>({
+    status:document.querySelector('#roomStatus')?.textContent,
+    code:document.querySelector('#joinRoomCode')?.value,
+    role:window.__lastLightDiagnostics?.().state,
+    socketStatus:document.querySelector('#networkStatus')?.textContent
+  }));
+  console.log('Join state:',JSON.stringify(joinState));
   await second.waitForFunction(()=>document.querySelector('#roomStatus')?.textContent?.includes('Room joined'),null,{timeout:7000});
   await first.locator('#primaryBtn').click();
   await first.waitForFunction(()=>window.__lastLightDiagnostics?.().state==='playing',{timeout:8000});
