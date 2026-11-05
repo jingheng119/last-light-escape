@@ -51,6 +51,7 @@
   // The two screens share a single live WebSocket connection. Switching
   // screens never removes a player from their server-side room.
   let activePage='lobby';
+  let lastCountdownNumber=0;
   function showPage(target,push=true){
     const page=target==='play'&&roomRole!=='none'?'play':'lobby';
     activePage=page;
@@ -1549,9 +1550,23 @@
     skillWaves=d.skillWaves||[];survivor=d.survivor;technician=d.technician;
     elapsed=d.elapsed;overallElapsed=d.overallElapsed;clock=d.clock;alertLevel=d.alertLevel;
     state=d.state;
+    if(state==='countdown'){
+      const number=Math.max(1,Math.ceil(d.countdownRemaining||0));
+      if(number!==lastCountdownNumber||previous!=='countdown'){
+        lastCountdownNumber=number;
+        setOverlay(''+number,'GET READY · THE WARD OPENS SOON','STARTING…',
+          'ALL SURVIVORS BEGIN TOGETHER');
+      }
+      ui.overlay.classList.add('countdown-active');
+      ui.button.disabled=true;
+    }else{
+      lastCountdownNumber=0;
+      ui.overlay.classList.remove('countdown-active');
+      ui.button.disabled=false;
+    }
     if(state==='playing')hideOverlay();
     else if(state==='menu'&&previous!=='menu')setOverlay('THE HOLLOW WARD','Ready to begin a new run.','START GAME');
-    else if(state!=='menu'&&state!==previous){
+    else if(state!=='menu'&&state!=='countdown'&&state!==previous){
       // The server owns floor progression, but only the room creator can
       // advance. Show that player the actual action instead of WAIT FOR HOST.
       const host=roomRole==='host';
