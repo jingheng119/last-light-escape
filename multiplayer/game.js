@@ -1533,13 +1533,55 @@
     // Smooth camera motion in the render loop, not per network packet.
   }
   function connectRoom(){
-    const status=$('#roomStatus'),invite=$('#roomInvite'),create=$('#createRoom'),join=$('#joinRoom'),code=$('#joinRoomCode');
+    const status=$('#roomStatus'),invite=$('#roomInvite'),
+      create=$('#createRoom'),join=$('#joinRoom'),code=$('#joinRoomCode'),
+      roomName=$('#roomName'),directory=$('#roomList'),roomBrowser=$('#roomBrowser'),
+      roomSession=$('#roomSession'),roomCountLabel=$('#roomCount');
+    const setJoined=joined=>{
+      roomBrowser.hidden=joined;
+      roomSession.hidden=!joined;
+      $('#leaveRoom').disabled=!joined;
+      create.disabled=joined;
+      join.disabled=joined;
+      code.disabled=joined;
+    };
+    const drawRooms=rooms=>{
+      directory.replaceChildren();
+      roomCountLabel.textContent=rooms.length+' '+(rooms.length===1?'room':'rooms');
+      if(!rooms.length){
+        const p=document.createElement('p');
+        p.className='room-empty';
+        p.textContent='No rooms yet. Create one and invite your friends!';
+        directory.appendChild(p);return;
+      }
+      for(const entry of rooms){
+        const card=document.createElement('div');
+        card.className='room-entry';
+        const description=document.createElement('div');
+        description.className='room-description';
+        const title=document.createElement('strong');
+        title.textContent=entry.name||'Hollow Ward';
+        const metadata=document.createElement('span');
+        metadata.textContent=entry.code+' · '+entry.players+' / 5 players · '+
+          (entry.status==='waiting'?'Waiting for players':'In progress');
+        description.append(title,metadata);
+        const button=document.createElement('button');
+        button.type='button';
+        button.textContent=entry.joinable?'Join room':'Full';
+        button.disabled=!entry.joinable||roomRole!=='none';
+        button.addEventListener('click',()=>sendRoom({type:'join',code:entry.code}));
+        card.append(description,button);directory.appendChild(card);
+      }
+    };
     roomSocket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host);
     roomSocket.addEventListener('open',()=>{
-      status.textContent='Connected. Create a room to play solo or invite a teammate.';
-      sendRoom({type:'ping',at:performance.now()});
+      status.textContent='Connected · Choose an available room or create one.';
+      sendRoom({type:'list'});sendRoom({type:'ping',at:performance.now()});
     });
-    roomSocket.addEventListener('close',()=>{status.textContent='Disconnected from room server. Refresh to reconnect.';roomRole='none';});
+    roomSocket.addEventListener('close',()=>{
+      status.textContent='Disconnected from server. Refresh to reconnect.';
+      roomRole='none';roomPlayerId=0;setJoined(false);
+    });
     roomSocket.addEventListener('message',event=>{
       let m;try{m=JSON.parse(event.data);}catch{return;}
       if(m.type==='pong'&&typeof m.at==='number'){
@@ -1548,50 +1590,67 @@
         showNetworkStatus();
       }
       if(m.type==='error')status.textContent=m.message;
+      if(m.type==='rooms'&&Array.isArray(m.rooms))drawRooms(m.rooms);
       if(m.type==='joined'){
-        roomRole=m.host?'host':'guest';roomCount=m.host?1:2;showNetworkStatus();
-        code.value=m.code;
+        roomPlayerId=m.id;roomRole=m.host?'host':'guest';roomCount=1;
+        code.value=m.code;showNetworkStatus();
         const url=new URL(location.href);url.searchParams.set('room',m.code);
         invite.textContent='ROOM '+m.code+' · Invite link: '+url.href;
-        create.disabled=true;join.disabled=true;code.disabled=true;
+        $('#currentRoomName').textContent=(m.name||'Hollow Ward')+' · ROOM '+m.code;
+        setJoined(true);
         status.textContent=m.host?'Room created. Press START GAME to begin!':'Room joined. Waiting for host.';
-        unlockGameAudio();sendRoom({type:'role',role:classChoice});
-        if(roomRole==='guest')setOverlay('JOINED THE WARD','Waiting for the host. Once the game begins, move and use abilities as usual.','WAIT FOR HOST');
-      }else if(m.type==='roster'){
+        // The browser requires a gesture for audio; don't initialize it during
+        // an unsolicited network message. The player can enable it by clicking.
+        sendRoom({type:'role',role:classChoice});
+        if(roomRole==='guest')
+          setOverlay('JOINED THE WARD','Waiting for the room host to start.','WAIT FOR HOST');
+      }else if(m.type==='roster'&&roomPlayerId){
         roomCount=m.count;
-        status.textContent=roomCount===2?'2 / 2 players connected':'1 / 2 players · solo room';
-      }else if(m.type==='playerleft'&&roomRole==='host'){
-        guestPlayer=null;remoteKeys={up:false,down:false,left:false,right:false};
-        status.textContent='Teammate disconnected. Solo room continues.';
-      }else if(m.type==='hostleft'){
-        roomRole='none';status.textContent='Host disconnected. Refresh to join again.';
-        setOverlay('ROOM CLOSED','The host has disconnected. Refresh the browser.','ROOM CLOSED');
-      }else if(m.type==='remoteInput'&&roomRole==='host'){
-        remoteKeys=m.keys;remoteStick=m.joystick||{x:0,y:0};
-        reconcileRemotePosition(m.pos);
-      }else if(m.type==='remoteRole'&&roomRole==='host'){
-        guestClassChoice=m.role==='medic'?'medic':'scout';
-      }else if(m.type==='remoteAction'&&roomRole==='host'){
-        reconcileRemotePosition(m.pos);
-        const actions={
-          dash:()=>dash(m.direction),
-          decoy:triggerDecoy,interact,ability:activateAbility
-        };
-        if(actions[m.name])asGuest(actions[m.name]);
+        roomRole=m.hostId===roomPlayerId?'host':'guest';
+        showNetworkStatus();
+        status.textContent=roomCount+' / 5 players connected'+
+          (roomRole==='host'?' · You are the host':'');
+        if(state==='menu'){
+          ui.button.firstChild.textContent=roomRole==='host'?'START GAME ':'WAIT FOR HOST ';
+        }else if(state==='leveldone'){
+          ui.button.firstChild.textContent=roomRole==='host'?
+            (levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO ':'ENTER NEXT FLOOR '):
+            'WAIT FOR HOST ';
+        }
+      }else if(m.type==='left'){
+        roomRole='none';roomPlayerId=0;roomCount=0;
+        guestPlayer=null;remotePlayers=[];
+        lastLevel=-1;guestPreviousHP=null;
+        setJoined(false);
+        status.textContent='You left the room. Join another or create your own.';
+        invite.textContent='';
+        const url=new URL(location.href);url.searchParams.delete('room');
+        history.replaceState(null,'',url);
+        state='menu';
+        setOverlay('THE HOLLOW WARD','Choose a room to play with your team.','START GAME');
+        showNetworkStatus();sendRoom({type:'list'});
       }else if(m.type==='snapshot'&&roomRole!=='none')applySnapshot(m.snapshot);
     });
-    create.addEventListener('click',()=>sendRoom({type:'create'}));
+    create.addEventListener('click',()=>{
+      if(roomRole!=='none')return;
+      sendRoom({type:'create',name:roomName.value.trim()||'Hollow Ward'});
+    });
     join.addEventListener('click',()=>{
       const value=code.value.trim().toUpperCase();
-      if(!/^[0-9A-F]{6}$/.test(value)){status.textContent='Enter a valid six-character room code.';return;}
+      if(!/^[0-9A-F]{6}$/.test(value)){
+        status.textContent='Enter a valid six-character room code.';return;
+      }
       sendRoom({type:'join',code:value});
     });
+    $('#refreshRooms').addEventListener('click',()=>sendRoom({type:'list'}));
+    $('#leaveRoom').addEventListener('click',()=>sendRoom({type:'leave'}));
     const invited=new URLSearchParams(location.search).get('room');
     if(invited&&/^[0-9A-F]{6}$/i.test(invited))code.value=invited.toUpperCase();
+    setJoined(false);
   }
   connectRoom();
   // Build the first level behind the menu so the player sees the environment before starting.
   buildLevel(0);requestAnimationFrame(tick);
   // Expose read-only diagnostics for smoke tests, not used by gameplay.
-  window.__lastLightDiagnostics=()=>({state,level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp,playerPosition:{x:player.x,y:player.y},allyPosition:guestPlayer?{x:guestPlayer.x,y:guestPlayer.y}:null,dashCooldown:player.dashCooldown,characterClass:classChoice,survivorRescued:survivor.rescued,abilityCooldown:player.abilityCooldown});
+  window.__lastLightDiagnostics=()=>({state,roomPlayerId,roomRole,roomCount,visibleTeammates:remotePlayers.length,level:levelIndex,mazeSize:[COLS,ROWS],floorTiles:cells.length,roomTiles:roomTiles.size,cores:cores.length,enemies:hollows.length,playerHP:player.hp,playerPosition:{x:player.x,y:player.y},allyPosition:guestPlayer?{x:guestPlayer.x,y:guestPlayer.y}:null,dashCooldown:player.dashCooldown,characterClass:classChoice,survivorRescued:survivor.rescued,abilityCooldown:player.abilityCooldown});
 })();
