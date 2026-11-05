@@ -3,7 +3,7 @@ import { createRoomEngine } from './headless-engine.js';
 
 // A diagonal mobile dash must slide along an impassable wall instead of
 // reversing direction or stopping on contact. Straight-on dashes still stop.
-function testWallDash(direction){
+function testWallDash(direction,{touch=false,atWall=false}={}){
   const room=createRoomEngine();
   room.start();
   for(let i=0;i<155;i++)room.tick(.033);
@@ -11,8 +11,8 @@ function testWallDash(direction){
   for(let y=0;y<map.grid.length;y++)
     for(let x=0;x<map.grid[y].length;x++)
       map.grid[y][x]=x===1&&y>=1&&y<=10?0:1;
-  map.player.x=1.5;map.player.y=3.5;
-  room.action(1,'dash',direction);
+  map.player.x=atWall?1.185:1.5;map.player.y=3.5;
+  room.action(1,'dash',direction,touch);
   for(let i=0;i<3;i++)room.tick(.033);
   return room.snapshot(false).player;
 }
@@ -21,6 +21,16 @@ assert(diagonalWallDash.y>3.65,
   'Diagonal dash against a vertical wall must keep moving along its free axis');
 assert(diagonalWallDash.x>=1.20,
   'Diagonal dash must not go through the wall');
+// Reproduce real phone movement: walking places the character only 0.18
+// tiles from a wall. DASH must keep this radius even if input lags.
+const contactDiagonalDash=testWallDash({x:-1,y:1},{touch:true,atWall:true});
+assert(contactDiagonalDash.y>3.65,
+  'Mobile diagonal dash must slide when already flush against a wall');
+assert(contactDiagonalDash.x>=1.18,
+  'Mobile dash must not cross a solid wall at zero gap');
+const contactStraightDash=testWallDash({x:-1,y:0},{touch:true,atWall:true});
+assert(Math.abs(contactStraightDash.y-3.5)<.001,
+  'Mobile straight wall dash must stop, never reverse direction');
 const straightWallDash=testWallDash({x:-1,y:0});
 assert(Math.abs(straightWallDash.y-3.5)<.001,
   'Straight wall dash must not reverse or slide sideways');
