@@ -51,12 +51,29 @@ function draw() {
     for(let row=0;row<maze.length;row++)for(let col=0;col<maze[row].length;col++){
       const x=col*tileSize,y=row*tileSize;
       if(maze[row][col]===1){
-        ctx.fillStyle='#152832';ctx.fillRect(x,y,tileSize,tileSize);
-        ctx.strokeStyle='#24414a';ctx.strokeRect(x+.5,y+.5,tileSize-1,tileSize-1);
+        // Walls are solid and dark, without distracting per-tile grid outlines.
+        ctx.fillStyle='#08151c';ctx.fillRect(x,y,tileSize,tileSize);
+        ctx.fillStyle='#10232a';ctx.fillRect(x+3,y+3,tileSize-6,tileSize-6);
       }else{
-        ctx.fillStyle='#102c34';ctx.fillRect(x,y,tileSize,tileSize);
-        ctx.strokeStyle='#1a3a40';ctx.strokeRect(x+.5,y+.5,tileSize-1,tileSize-1);
+        // Walkable floor is deliberately lighter so corridors read at a glance.
+        ctx.fillStyle='#254c55';ctx.fillRect(x,y,tileSize,tileSize);
+        ctx.fillStyle='#2b535b';ctx.fillRect(x+2,y+2,tileSize-4,tileSize-4);
       }
+    }
+    // Draw only the wall-to-floor boundaries, not a grid on every tile.
+    ctx.beginPath();
+    for(let row=0;row<maze.length;row++)for(let col=0;col<maze[row].length;col++){
+      if(maze[row][col]!==0)continue;
+      const x=col*tileSize,y=row*tileSize,t=tileSize;
+      if(row===0||maze[row-1][col]===1){ctx.moveTo(x,y+.5);ctx.lineTo(x+t,y+.5);}
+      if(row===maze.length-1||maze[row+1][col]===1){ctx.moveTo(x,y+t-.5);ctx.lineTo(x+t,y+t-.5);}
+      if(col===0||maze[row][col-1]===1){ctx.moveTo(x+.5,y);ctx.lineTo(x+.5,y+t);}
+      if(col===maze[row].length-1||maze[row][col+1]===1){ctx.moveTo(x+t-.5,y);ctx.lineTo(x+t-.5,y+t);}
+    }
+    ctx.strokeStyle='#7bb3b6';
+    ctx.lineWidth=2;
+    ctx.stroke();
+    ctx.lineWidth=1;
     }
   }
   for(const p of players){
