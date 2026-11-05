@@ -7,8 +7,8 @@
   <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/style.css?v=class-summary-nameplates-1" />
-  <script src="/game.js?v=class-summary-nameplates-1" defer></script>
+  <link rel="stylesheet" href="/style.css?v=pinned-room-card-1" />
+  <script src="/game.js?v=pinned-room-card-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -42,20 +42,26 @@
         </select>
         <span class="lobby-profile-hint">Role is locked while a run is active.</span>
       </div>
-      <div id="roomSession" hidden>
-        <div class="lobby-session-row">
-          <strong id="currentRoomName">YOUR ROOM</strong>
-          <div class="lobby-session-actions"><button type="button" id="returnToGame">Return to game</button><button type="button" id="leaveRoom">Leave room</button></div>
-        </div>
-        <p id="roomInvite" class="lobby-invite"></p>
-        <div class="lobby-class-summary" aria-live="polite">
-          <strong>ROOM CLASSES</strong>
-          <span class="class-summary-item">◇ SCOUT <b id="scoutCount">0</b></span>
-          <span class="class-summary-item">✚ MEDIC <b id="medicCount">0</b></span>
-          <span class="class-summary-total" id="rosterCount">0 / 5 players</span>
-        </div>
-      </div>
       <div id="roomBrowser">
+        <section id="myRoomCard" class="room-entry room-entry-current own-room-card" hidden aria-label="Your current room">
+          <div class="own-room-main">
+            <div class="room-description">
+              <strong id="currentRoomName">YOUR ROOM</strong>
+              <span class="room-current-label">YOUR ROOM</span>
+              <p id="roomInvite" class="lobby-invite"></p>
+            </div>
+            <div class="own-room-actions">
+              <button type="button" id="returnToGame">Return to game</button>
+              <button type="button" id="leaveRoom">Leave room</button>
+            </div>
+          </div>
+          <div class="lobby-class-summary" aria-live="polite">
+            <strong>ROOM CLASSES</strong>
+            <span class="class-summary-item">◇ SCOUT <b id="scoutCount">0</b></span>
+            <span class="class-summary-item">✚ MEDIC <b id="medicCount">0</b></span>
+            <span class="class-summary-total" id="rosterCount">0 / 5 players</span>
+          </div>
+        </section>
         <div class="lobby-create">
           <label for="roomName">ROOM NAME</label>
           <input id="roomName" maxlength="32" placeholder="My Hollow Ward" aria-label="New room name" />
