@@ -1332,8 +1332,8 @@
   }
 
   .game-shell .room-chat.chat-no-gutter{
-    top:96px;
-    right:8px;
+    top:80px;
+    right:18px;
     width:min(205px,var(--chat-gutter-width,205px));
     height:160px;
   }
