@@ -829,7 +829,7 @@
     if(state!=='playing'||!player||player.hp<=0||!canUseSkill())return;
     if(!rewindTargeting){
       rewindTargeting=true;rewindTargetIndex=0;
-      notify('REWINDER — tap a target to rewind, or tap CANCEL to exit without using a charge.',3);
+      notify('REWINDER — tap a target to rewind, or tap outside the ring to cancel.',3);
     }else commitRewindTarget(chosenRewindTarget());
   }
   function activateAbility(rewindTarget=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability',false,rewindTarget))return;
@@ -1365,8 +1365,8 @@
     skillButton.style.setProperty('--skill-charge-outer',`${outer.toFixed(3)}turn`);
     skillButton.classList.toggle('two-charges',maximum===2);
     ui.skillCD.textContent='';
-    skillButton.querySelector('.action-name').textContent=rewindTargeting&&classChoice==='rewinder'?'CANCEL':'SKILL';
-    skillButton.setAttribute('aria-label',rewindTargeting?'Cancel rewind target selection':available===0&&!(classChoice==='anchor'&&player.anchor)?
+    skillButton.querySelector('.action-name').textContent='SKILL';
+    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':available===0&&!(classChoice==='anchor'&&player.anchor)?
       'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
     const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
     const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/(2*cooldownFactor())));
@@ -2081,24 +2081,26 @@
       activate();
     });
   }
-  // On touch, a second press exits target selection without consuming a charge.
-  // Keyboard F/Enter still confirms the highlighted target; Esc cancels.
-  bindDescribedAction('#touchAbility','skill',()=>{
-    if(classChoice==='rewinder'&&rewindTargeting){cancelRewindTarget();return;}
-    requestAbility();
-  });
+  bindDescribedAction('#touchAbility','skill',requestAbility);
   bindDescribedAction('#touchDash','dash',()=>dash(null,true));
   bindDescribedAction('#touchDecoy','decoy',triggerDecoy);
   bindDescribedAction('#touchInteract','use',interact);
-  // Tap/click the selected character or Hollow while Rewinder is targeting.
+  // Tap a valid target within the Rewinder ring, or tap outside it to cancel.
+  // Account for object-fit:contain letterboxing in mobile landscape/fullscreen.
   canvas.addEventListener('pointerdown',event=>{
     if(!rewindTargeting||state!=='playing'||classChoice!=='rewinder')return;
     event.preventDefault();
     const rect=canvas.getBoundingClientRect();
-    const px=(event.clientX-rect.left)*W/rect.width;
-    const py=(event.clientY-rect.top)*H/rect.height;
+    const scale=Math.min(rect.width/W,rect.height/H);
+    if(scale<=0)return;
+    const px=(event.clientX-rect.left-(rect.width-W*scale)/2)/scale;
+    const py=(event.clientY-rect.top-(rect.height-H*scale)/2)/scale;
     const wx=(px/CAMERA_ZOOM+camera.x)/TILE;
     const wy=(py/CAMERA_ZOOM+camera.y)/TILE;
+    if(Math.hypot(wx-player.x,wy-player.y)>REWIND_RADIUS){
+      cancelRewindTarget();
+      return;
+    }
     const choices=rewindChoices();
     const closest=choices.sort((a,b)=>
       Math.hypot(a.entity.x-wx,a.entity.y-wy)-
