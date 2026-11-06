@@ -1122,7 +1122,7 @@
       player.x=to.x;player.y=to.y;
       // A short arrival grace prevents the same Hollow from immediately
       // inflicting damage on the next server tick.
-      player.invincible=Math.max(player.invincible,1);
+      player.invincible=Math.max(player.invincible,2);
       player.dashTime=0;
       skillWaves.push({x:from.x,y:from.y,radius:1.2,age:0,duration:.45,color:'teleporter'});
       skillWaves.push({x:to.x,y:to.y,radius:1.2,age:0,duration:.45,color:'teleporter'});
