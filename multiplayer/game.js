@@ -786,8 +786,8 @@
       if(!target){notify('MEDIC — no injured teammate within range.');return;}
       target.hp=Math.min(3,target.hp+1);
       player.abilityCooldown=SKILL_COOLDOWN.medic*cooldownFactor();
-      skillWaves.push({x:target.x,y:target.y,radius:MEDIC_HEAL_RADIUS,
-        age:0,duration:.7,color:'medic'});
+      skillWaves.push({x:player.x,y:player.y,healX:target.x,healY:target.y,
+        radius:MEDIC_HEAL_RADIUS,age:0,duration:.7,color:'medic'});
       notify(target===player?'MEDIC — one health restored!':
         'MEDIC — teammate healed for one heart!');
       beep(880,.25);
@@ -1705,11 +1705,20 @@
       const t=Math.min(1,wave.age/wave.duration);
       const x=wave.x*TILE,y=wave.y*TILE;
       if(wave.color==='medic'){
-        // Medic: a bright central healing cross with six drifting plus signs.
-        // No circular radius effect; healing is self-targeted.
+        // Show the full actual healing range around the Medic, with the
+        // healing-cross animation on the character who receives the heart.
         ctx.save();
         const ease=1-Math.pow(1-t,2);
         const opacity=Math.pow(1-t,1.1);
+        const ringRadius=wave.radius*TILE*(.05+.95*ease);
+        ctx.globalAlpha=opacity;
+        ctx.fillStyle='rgba(118,255,202,.09)';
+        ctx.strokeStyle='#7dffd0';ctx.lineWidth=3.5-t*2;
+        ctx.beginPath();ctx.arc(x,y,ringRadius,0,Math.PI*2);
+        ctx.fill();ctx.stroke();
+        ctx.globalAlpha=1;
+        const healX=(wave.healX??wave.x)*TILE;
+        const healY=(wave.healY??wave.y)*TILE;
         const cross=(px,py,size,alpha)=>{
           ctx.save();
           ctx.globalAlpha=alpha;
@@ -1721,12 +1730,12 @@
           ctx.restore();
         };
         const centerSize=(25+13*Math.sin(Math.min(1,t*2)*Math.PI/2))*(1-.18*t);
-        cross(x,y-7*t,centerSize,opacity);
+        cross(healX,healY-7*t,centerSize,opacity);
         for(let i=0;i<6;i++){
           const angle=i*Math.PI/3-Math.PI/2;
           const distance=(18+i%2*8)+ease*(38+i%3*10);
-          const px=x+Math.cos(angle)*distance;
-          const py=y+Math.sin(angle)*distance-14*ease;
+          const px=healX+Math.cos(angle)*distance;
+          const py=healY+Math.sin(angle)*distance-14*ease;
           cross(px,py,9+(i%2)*3,opacity*(.74-.17*(i%3)/2));
         }
         ctx.restore();
