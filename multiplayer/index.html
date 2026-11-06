@@ -8,7 +8,7 @@
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/style.css?v=compact-game-nav-1" />
-  <script src="/game.js?v=teleporter-wall-phase-2" defer></script>
+  <script src="/game.js?v=phantom-double-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -45,6 +45,7 @@
           <option value="medic">Medic · Healing burst</option>
           <option value="invisibler">Invisibler · Vanish for 3 seconds</option>
           <option value="teleporter">Teleporter · Phase Guard</option>
+          <option value="illusioner">Illusioner · Phantom Double</option>
         </select>
         <span class="lobby-profile-hint">Role is locked while a run is active.</span>
       </div>
@@ -67,6 +68,7 @@
             <span class="class-summary-item">✚ MEDIC <b id="medicCount">0</b></span>
             <span class="class-summary-item">◌ INVISIBLER <b id="invisiblerCount">0</b></span>
             <span class="class-summary-item">✧ TELEPORTER <b id="teleporterCount">0</b></span>
+            <span class="class-summary-item">◈ ILLUSIONER <b id="illusionerCount">0</b></span>
             <span class="class-summary-total" id="rosterCount">0 / 5 players</span>
           </div>
         </section>
@@ -121,6 +123,11 @@
             <button class="role-option" data-role="teleporter" aria-pressed="false" type="button">
               <span class="role-option-icon" aria-hidden="true">✧</span>
               <span class="role-option-copy"><strong>TELEPORTER</strong><small>GUARD 5S · TELEPORT WHEN HIT</small><span class="role-option-key">F · Phase Guard</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="role-option" data-role="illusioner" aria-pressed="false" type="button">
+              <span class="role-option-icon" aria-hidden="true">◈</span>
+              <span class="role-option-copy"><strong>ILLUSIONER</strong><small>INVINCIBLE MOVING PHANTOM · 5S</small><span class="role-option-key">F · Phantom Double</span></span>
               <span class="role-option-check" aria-hidden="true">✓</span>
             </button>
           </div>
