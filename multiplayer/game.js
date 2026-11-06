@@ -219,6 +219,29 @@
     rewinder:{label:'REWINDER',skill:'TARGET REWIND · 5.5 TILES',ready:'REWIND READY'},
     anchor:{label:'ANCHOR',skill:'PLACE ANCHOR · RETURN',ready:'ANCHOR READY'}
   };
+  const ROLE_DESCRIPTIONS={
+    scout: "Release a shockwave that stuns Hollows within 5.5 tiles for 2.5 seconds.",
+    medic: "Restore 1 heart to yourself. At full health, heal one randomly chosen injured teammate within 5.5 tiles. No charge is spent if nobody needs healing.",
+    invisibler: "Become invisible for 3 seconds, breaking Hollow pursuit and hiding your trail.",
+    teleporter: "Activate Phase Guard for 5 seconds. If a Hollow strikes during this period, teleport to safety.",
+    illusioner: "Summon an invincible roaming phantom that distracts Hollows for 5 seconds. Two phantoms can roam at once without replacing each other.",
+    rewinder: "Choose yourself, a teammate, or a Hollow within 5.5 tiles; return that target to its position 3 seconds ago. Players gain 2 seconds of protection.",
+    anchor: "Press Skill once to place an anchor. Press again to teleport back through walls with 2 seconds of protection. The charge is spent on return."
+};
+  function skillDescription(role){
+    const charges=SKILL_MAX_CHARGES[role];
+    return `${charges} ${charges===1?'CHARGE':'CHARGES'} · ${SKILL_COOLDOWN[role]}s RECHARGE · ${charges===2?'SEQUENTIAL RECHARGE':'SINGLE RECHARGE'}`;
+  }
+  function refreshSkillDescriptions(){
+    const role=validRole(classChoice);
+    for(const prefix of ['role','lobby']){
+      const details=$('#'+prefix+'SkillDetails');
+      if(!details)continue;
+      details.querySelector('.skill-description-title').textContent=ROLE_DETAILS[role].label+' · '+ROLE_DETAILS[role].skill;
+      details.querySelector('.skill-description-body').textContent=ROLE_DESCRIPTIONS[role];
+      details.querySelector('.skill-description-meta').textContent=skillDescription(role);
+    }
+  }
   const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
   const cooldownFactor=()=>technician?.rescued?TECHNICIAN_COOLDOWN_FACTOR:1;
@@ -634,6 +657,7 @@
     ui.roleLabel.firstChild.textContent=choosing?'CHOOSE YOUR ROLE ':'YOUR ROLE ';
     ui.lockedRoleText.textContent=ROLE_DETAILS[classChoice].label+' · '+ROLE_DETAILS[classChoice].skill;
     if($('#lobbyClass'))$('#lobbyClass').value=classChoice;
+    refreshSkillDescriptions();
     document.querySelectorAll('.role-option').forEach(card=>{
       const selected=card.dataset.role===classChoice;
       card.classList.toggle('is-selected',selected);
