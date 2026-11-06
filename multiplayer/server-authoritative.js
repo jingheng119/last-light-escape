@@ -12,7 +12,7 @@ const MAX_ROOMS=16, MAX_PLAYERS=5;
 const RECONNECT_GRACE_MS=90000;
 const CHAT_HISTORY_LIMIT=50,CHAT_MAX_LENGTH=240,CHAT_MIN_INTERVAL_MS=850;
 const CHAT_BURST_WINDOW_MS=10000,CHAT_BURST_LIMIT=6;
-const QUICK_MESSAGES=new Set(['Help!','Follow me!','Relay on!','Hollow!','I need healing!','Meet at the elevator!']);
+const QUICK_MESSAGES=new Set(['Help!','Follow!','Relay on!','Hollow!','Healing!','Meet at the elevator!']);
 const rooms=new Map(),lobbyClients=new Set();
 const matchStore=makeMatchStore();
 const MIME={'/':'text/html; charset=utf-8','/play':'text/html; charset=utf-8','/play/':'text/html; charset=utf-8','/game.js':'text/javascript; charset=utf-8',
