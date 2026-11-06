@@ -741,8 +741,9 @@
       // Break pursuit immediately: Hollows must not retain the caster's
       // prior position as a target while invisibility is active.
       for(const h of hollows){
-        if(h.mode==='chase'&&h.target&&dist(h.target,player)<1.0){
-          h.mode='search';h.target=null;h.path=[];h.pathIndex=0;
+        if(h.mode==='chase'&&h.chasedPlayer===player){
+          h.mode='search';h.target=null;h.chasedPlayer=null;
+          h.path=[];h.pathIndex=0;
           h.repath=0;h.chaseUntil=clock;
           if(h.variant==='dasher')h.dashTime=0;
         }
@@ -936,22 +937,24 @@
         const tileChanged=!prior||Math.floor(prior.x)!==Math.floor(nearest.x)||
           Math.floor(prior.y)!==Math.floor(nearest.y);
         h.mode='chase';h.target={x:nearest.x,y:nearest.y};
+        h.chasedPlayer=nearest;
         h.chaseUntil=clock+2.8;
         if(tileChanged)h.repath=0;
         h.searchPoints=0;
       } else if(h.mode==='chase'&&clock>h.chaseUntil){
         // Investigate the last seen location rather than knowing where the nearest moved.
-        h.mode='search';h.chaseUntil=clock+4.5;h.searchPoints=0;h.repath=0;
+        h.mode='search';h.chasedPlayer=null;
+        h.chaseUntil=clock+4.5;h.searchPoints=0;h.repath=0;
       }
       if(!visible&&heard&&h.mode!=='chase'&&(h.mode!=='lure'||h.heardAt<clock-0.65)){
-        h.mode='lure';h.target={x:heard.x,y:heard.y};h.heardAt=clock;
+        h.mode='lure';h.chasedPlayer=null;h.target={x:heard.x,y:heard.y};h.heardAt=clock;
         h.chaseUntil=clock+3.5;h.repath=0;h.searchPoints=0;
       }
       if(h.mode==='lure'&&(clock>h.chaseUntil||h.target&&dist(h,h.target)<.5)){
         h.mode='search';h.chaseUntil=clock+3.3;h.searchPoints=0;h.repath=0;
       }
       if(h.mode==='search'&&clock>h.chaseUntil){
-        h.mode='patrol';h.target=null;h.repath=0;
+        h.mode='patrol';h.target=null;h.chasedPlayer=null;h.repath=0;
       }
       if(h.mode==='search'&&h.target&&dist(h,h.target)<.6&&h.searchPoints<2){
         // Check neighboring passages before returning to patrol.
@@ -1814,8 +1817,10 @@
       roomIdentity=new Map(players.map(person=>[person.id,person]));
       const scouts=players.filter(person=>person.role==='scout').length;
       const medics=players.filter(person=>person.role==='medic').length;
+      const invisiblers=players.filter(person=>person.role==='invisibler').length;
       $('#scoutCount').textContent=String(scouts);
       $('#medicCount').textContent=String(medics);
+      $('#invisiblerCount').textContent=String(invisiblers);
       $('#rosterCount').textContent=players.length+' / 5 players';
     };
     nicknameInput.addEventListener('change',()=>{
