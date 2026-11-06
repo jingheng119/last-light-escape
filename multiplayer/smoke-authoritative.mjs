@@ -1,6 +1,45 @@
 import assert from 'node:assert/strict';
 import { createRoomEngine } from './headless-engine.js';
 
+// Vanish is owned by the authoritative simulation. It affects only the
+// caster, expires after three seconds, and prevents Hollows selecting them.
+{
+  const room=createRoomEngine();
+  room.role(1,'invisibler');
+  room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  const active=room.snapshot(false);
+  const caster=active.player;
+  assert.equal(active.playerRoles[0],'invisibler');
+  room.action(1,'ability');
+  assert.equal(caster.invisibleTime,3,'Vanish lasts exactly three seconds');
+  assert(caster.abilityCooldown>17,'Successful Vanish starts its cooldown');
+  assert.equal(caster.hp,3,'Vanish does not heal the caster');
+  room.action(1,'ability');
+  assert.equal(caster.invisibleTime,3,'Cannot refresh invisibility on cooldown');
+  for(let i=0;i<29;i++)room.tick(.033);
+  assert(caster.invisibleTime>1.9&&caster.invisibleTime<2.1,
+    'Vanish timer must advance using game simulation time');
+  assert.equal(room.snapshot(false).hollows.filter(h=>h.mode==='chase').length,0,
+    'A solo invisible player cannot be acquired as a Hollow chase target');
+  for(let i=0;i<65;i++)room.tick(.033);
+  assert.equal(caster.invisibleTime,0,'Vanish must end automatically after three seconds');
+  assert(caster.abilityCooldown>0,'Cooldown continues after Vanish expires');
+}
+{
+  const room=createRoomEngine();
+  room.join(2);room.join(3);room.join(4);room.join(5);
+  for(let id=1;id<=5;id++)room.role(id,'invisibler');
+  room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  assert.deepEqual(Array.from(room.snapshot(false).playerRoles),Array(5).fill('invisibler'),
+    'Invisibler can be selected by every multiplayer slot');
+  room.action(4,'ability');
+  const players=room.snapshot(false).players;
+  assert.equal(players[3].invisibleTime,3,'Fourth player can activate Vanish');
+  assert.equal(players[0].invisibleTime||0,0,'Vanish does not apply to teammates');
+  assert.equal(players[4].invisibleTime||0,0,'Fifth player remains visible');
+}
 // Medic heals the caster first, then exactly one random injured teammate
 // within 5.5 cells. Failed heals must not consume the skill cooldown.
 function readyMedicRoom(){
