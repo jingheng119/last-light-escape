@@ -8,7 +8,7 @@
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/style.css?v=compact-game-nav-1" />
-  <script src="/game.js?v=medic-team-heal-1" defer></script>
+  <script src="/game.js?v=invisibler-vanish-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -43,6 +43,7 @@
         <select id="lobbyClass" aria-label="Choose player class">
           <option value="scout">Scout · Stun shockwave</option>
           <option value="medic">Medic · Healing burst</option>
+          <option value="invisibler">Invisibler · Vanish for 3 seconds</option>
         </select>
         <span class="lobby-profile-hint">Role is locked while a run is active.</span>
       </div>
@@ -106,7 +107,12 @@
             </button>
             <button class="role-option" data-role="medic" aria-pressed="false" type="button">
               <span class="role-option-icon" aria-hidden="true">✚</span>
-              <span class="role-option-copy"><strong>MEDIC</strong><small>RESTORE ONE HEART</small><span class="role-option-key">F · Healing burst</span></span>
+              <span class="role-option-copy"><strong>MEDIC</strong><small>HEAL YOURSELF OR AN ALLY</small><span class="role-option-key">F · Healing burst</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="role-option" data-role="invisibler" aria-pressed="false" type="button">
+              <span class="role-option-icon" aria-hidden="true">◌</span>
+              <span class="role-option-copy"><strong>INVISIBLER</strong><small>HIDE FROM HOLLOWS FOR 3 SECONDS</small><span class="role-option-key">F · Vanish</span></span>
               <span class="role-option-check" aria-hidden="true">✓</span>
             </button>
           </div>
