@@ -2063,7 +2063,7 @@
           held=true;
           showActionTooltip(button,actionName);
         }
-      },1000);
+      },500);
     });
     const finish=(e,cancelled=false)=>{
       if(touchPointer!==e.pointerId)return;
