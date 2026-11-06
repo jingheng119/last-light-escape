@@ -227,7 +227,7 @@
   let skillWaves = [];
   // Histories live only on the authoritative simulation, never in network snapshots.
   const rewindHistory=new WeakMap();
-  const REWIND_SECONDS=3,REWIND_SAFE_RADIUS=3;
+  const REWIND_SECONDS=3;
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
   const joystickMove={x:0,y:0};
@@ -737,22 +737,9 @@
     const cutoff=clock-REWIND_SECONDS;
     const prior=[...history].reverse().find(sample=>sample.t<=cutoff)||
       history[0]||{x:p.x,y:p.y};
-    const origin={x:prior.x,y:prior.y};
-    const clear=spot=>canStand(spot.x,spot.y,.21)&&
-      hollows.every(h=>dist(h,spot)>.85)&&
-      allPlayers().every(ally=>ally===p||ally.hp<=0||dist(ally,spot)>.4);
-    if(clear(origin))return origin;
-    // Choose randomly among safe landing tiles within three cells of the
-    // recorded point, even when the original tile is now occupied.
-    const candidates=[];
-    for(let y=Math.max(0,Math.floor(origin.y)-3);y<=Math.min(ROWS-1,Math.floor(origin.y)+3);y++){
-      for(let x=Math.max(0,Math.floor(origin.x)-3);x<=Math.min(COLS-1,Math.floor(origin.x)+3);x++){
-        const spot=TILE_CENTER(x,y);
-        if(dist(spot,origin)<=REWIND_SAFE_RADIUS&&clear(spot))
-          candidates.push(spot);
-      }
-    }
-    return candidates.length?candidates[Math.floor(rand()*candidates.length)]:null;
+    // Always return to the recorded position, even if a Hollow is there.
+    // The ability grants two seconds of invincibility on arrival.
+    return {x:prior.x,y:prior.y};
   }
   function activateAbility(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability'))return;
     if(state!=='playing'||player.hp<=0||player.abilityCooldown>0)return;
@@ -794,9 +781,9 @@
       beep(700,.24,'triangle',.025);
     }else if(classChoice==='rewinder'){
       const destination=rewindDestination(player);
-      if(!destination){notify('REWINDER — no safe landing nearby.');return;}
       const from={x:player.x,y:player.y};
       player.x=destination.x;player.y=destination.y;
+      player.invincible=Math.max(player.invincible,2);
       player.dashTime=0;
       // Begin a new history after the jump; do not let consecutive uses
       // refer to an old position across the teleport.
@@ -804,7 +791,7 @@
       player.abilityCooldown=SKILL_COOLDOWN.rewinder*cooldownFactor();
       skillWaves.push({x:from.x,y:from.y,radius:1.6,age:0,duration:.5,color:'teleporter'});
       skillWaves.push({x:player.x,y:player.y,radius:1.6,age:0,duration:.5,color:'teleporter'});
-      notify('REWINDER — returned three seconds!');
+      notify('REWINDER — returned three seconds! Invincible for 2 seconds.');
       beep(1080,.22,'triangle',.028);
     }else if(classChoice==='anchor'){
       if(!player.anchor){
