@@ -81,7 +81,7 @@ const bridge=`
       return true;
     },
     role(id,value){
-      const role=['scout','medic','invisibler','teleporter'].includes(value)?value:'scout';
+      const role=['scout','medic','invisibler','teleporter','illusioner'].includes(value)?value:'scout';
       if(id===1)classChoice=role;
       else if(id===2)guestClassChoice=role;
       else if(id>=3&&id<=5)extraControls[id-3].role=role;
@@ -152,7 +152,7 @@ const bridge=`
         countdownRemaining:state==='countdown'?countdownRemaining:0,
         player,guestPlayer,players:[player.disconnected?null:player,guestPlayer?.disconnected?null:guestPlayer,...extraPlayers.map(p=>p?.disconnected?null:p)],
         playerRoles:[classChoice,guestClassChoice,...extraControls.map(c=>c.role)],
-        cores,relay,exit,decoys,noiseEvents,skillWaves,survivor,technician,
+        cores,relay,exit,decoys,illusions,noiseEvents,skillWaves,survivor,technician,
         classChoice,guestClassChoice,
         hollows:hollows.map(h=>({
           x:h.x,y:h.y,angle:h.angle,variant:h.variant,
