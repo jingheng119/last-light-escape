@@ -1198,8 +1198,31 @@
     transparent calc(100% - 2.5px),#000 calc(100% - 1px));
 }
 
-/* Compact skill details in both character selection and room lobby. */
-.skill-description{margin:10px 0 8px;padding:10px 12px;border:1px solid #386963;border-radius:10px;background:rgba(12,43,48,.8);text-align:left;color:#cbeee6}
-.skill-description-title{display:block;color:#a2f6d8;font:800 11px/1.5 monospace;letter-spacing:.05em}
-.skill-description-body{margin:5px 0 7px;color:#d0e6e1;font-size:12px;line-height:1.5}
-.skill-description-meta{display:block;color:#87cbbc;font:700 10px/1.5 monospace;letter-spacing:.025em}
+
+/* Game-only skill tooltip. Stays inside the fullscreen canvas wrapper. */
+.game-shell .canvas-wrap .skill-tooltip{
+  position:absolute;z-index:8;right:clamp(12px,3%,28px);
+  bottom:clamp(122px,23%,170px);width:min(310px,calc(100% - 24px));
+  padding:13px 15px;border:1px solid #64d9bd;border-radius:12px;
+  background:rgba(8,29,37,.97);box-shadow:0 7px 28px #000a,0 0 18px #56d9ac25;
+  color:#d3f5ea;line-height:1.45;pointer-events:none;
+  opacity:0;visibility:hidden;transform:translateY(5px);
+  transition:opacity .12s ease,transform .12s ease,visibility .12s;
+}
+.game-shell .canvas-wrap .skill-tooltip.is-visible{
+  opacity:1;visibility:visible;transform:translateY(0);
+}
+.skill-tooltip .skill-description-title{
+  display:block;color:#a2f6d8;font:800 12px/1.45 monospace;letter-spacing:.04em;
+}
+.skill-tooltip .skill-description-body{
+  margin:7px 0 9px;color:#d0e6e1;font-size:12px;line-height:1.5;overflow-wrap:anywhere;
+}
+.skill-tooltip .skill-description-meta{
+  display:block;color:#87cbbc;font:700 10px/1.5 monospace;letter-spacing:.02em;
+}
+@media(max-width:550px){
+  .game-shell .canvas-wrap .skill-tooltip{
+    right:8px;bottom:110px;width:min(270px,calc(100% - 16px));padding:11px 12px;
+  }
+}
