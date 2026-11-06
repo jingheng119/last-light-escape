@@ -206,13 +206,14 @@
   const CAMERA_ZOOM = 1.65;
   const SCOUT_STUN_RADIUS = 5.5;
   const MEDIC_HEAL_RADIUS = 5.5;
-  const SKILL_COOLDOWN = {scout:13,medic:16,invisibler:18,teleporter:20,illusioner:22};
+  const SKILL_COOLDOWN = {scout:13,medic:16,invisibler:18,teleporter:20,illusioner:22,rewinder:25};
   const ROLE_DETAILS={
     scout:{label:'SCOUT',skill:'STUN SHOCKWAVE',ready:'PULSE READY'},
     medic:{label:'MEDIC',skill:'HEALING BURST',ready:'HEAL READY'},
     invisibler:{label:'INVISIBLER',skill:'VANISH · 3 SECONDS',ready:'VANISH READY'},
     teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 5 SECONDS',ready:'GUARD READY'},
-    illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'}
+    illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'},
+    rewinder:{label:'REWINDER',skill:'REWIND · 3 SECONDS',ready:'REWIND READY'}
   };
   const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
@@ -223,6 +224,9 @@
   // All living players must reach the elevator; a downed player spectates.
   const playersAtExit=()=>allPlayers().every(p=>p.hp<=0||dist(p,exit)<1.1);
   let skillWaves = [];
+  // Histories live only on the authoritative simulation, never in network snapshots.
+  const rewindHistory=new WeakMap();
+  const REWIND_SECONDS=3,REWIND_SAFE_RADIUS=3;
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
   const joystickMove={x:0,y:0};
@@ -719,6 +723,36 @@
     }
     notify('Get closer to an ally, relay, or elevator.');
   }
+  function recordRewindPosition(p){
+    let samples=rewindHistory.get(p);
+    if(!samples){samples=[];rewindHistory.set(p,samples);}
+    samples.push({t:clock,x:p.x,y:p.y});
+    // Retain a small bounded position timeline (3 seconds plus margin).
+    while(samples.length>1&&samples[1].t<clock-REWIND_SECONDS-.15)
+      samples.shift();
+  }
+  function rewindDestination(p){
+    const history=rewindHistory.get(p)||[];
+    const cutoff=clock-REWIND_SECONDS;
+    const prior=[...history].reverse().find(sample=>sample.t<=cutoff)||
+      history[0]||{x:p.x,y:p.y};
+    const origin={x:prior.x,y:prior.y};
+    const clear=spot=>canStand(spot.x,spot.y,.21)&&
+      hollows.every(h=>dist(h,spot)>.85)&&
+      allPlayers().every(ally=>ally===p||ally.hp<=0||dist(ally,spot)>.4);
+    if(clear(origin))return origin;
+    // Choose randomly among safe landing tiles within three cells of the
+    // recorded point, even when the original tile is now occupied.
+    const candidates=[];
+    for(let y=Math.max(0,Math.floor(origin.y)-3);y<=Math.min(ROWS-1,Math.floor(origin.y)+3);y++){
+      for(let x=Math.max(0,Math.floor(origin.x)-3);x<=Math.min(COLS-1,Math.floor(origin.x)+3);x++){
+        const spot=TILE_CENTER(x,y);
+        if(dist(spot,origin)<=REWIND_SAFE_RADIUS&&clear(spot))
+          candidates.push(spot);
+      }
+    }
+    return candidates.length?candidates[Math.floor(rand()*candidates.length)]:null;
+  }
   function activateAbility(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability'))return;
     if(state!=='playing'||player.hp<=0||player.abilityCooldown>0)return;
     if(classChoice==='medic'){
@@ -757,6 +791,20 @@
       player.abilityCooldown=SKILL_COOLDOWN.teleporter*cooldownFactor();
       notify('TELEPORTER — Phase Guard active for 5 seconds!');
       beep(700,.24,'triangle',.025);
+    }else if(classChoice==='rewinder'){
+      const destination=rewindDestination(player);
+      if(!destination){notify('REWINDER — no safe landing nearby.');return;}
+      const from={x:player.x,y:player.y};
+      player.x=destination.x;player.y=destination.y;
+      player.dashTime=0;
+      // Begin a new history after the jump; do not let consecutive uses
+      // refer to an old position across the teleport.
+      rewindHistory.set(player,[{t:clock,x:player.x,y:player.y}]);
+      player.abilityCooldown=SKILL_COOLDOWN.rewinder*cooldownFactor();
+      skillWaves.push({x:from.x,y:from.y,radius:1.6,age:0,duration:.5,color:'teleporter'});
+      skillWaves.push({x:player.x,y:player.y,radius:1.6,age:0,duration:.5,color:'teleporter'});
+      notify('REWINDER — returned three seconds!');
+      beep(1080,.22,'triangle',.028);
     }else if(classChoice==='illusioner'){
       // The illusion is independent of its caster: it never takes damage,
       // collects objectives, or blocks real survivors.
@@ -946,6 +994,7 @@
       moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.18:.21,.30);
     }
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
+    recordRewindPosition(player);
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
   function checkGhostContact(){
@@ -1976,11 +2025,13 @@
       const teleporters=players.filter(person=>person.role==='teleporter').length;
       const invisiblers=players.filter(person=>person.role==='invisibler').length;
       const illusioners=players.filter(person=>person.role==='illusioner').length;
+      const rewinders=players.filter(person=>person.role==='rewinder').length;
       $('#scoutCount').textContent=String(scouts);
       $('#medicCount').textContent=String(medics);
       $('#teleporterCount').textContent=String(teleporters);
       $('#invisiblerCount').textContent=String(invisiblers);
       $('#illusionerCount').textContent=String(illusioners);
+      $('#rewinderCount').textContent=String(rewinders);
       $('#rosterCount').textContent=players.length+' / 5 players';
     };
     nicknameInput.addEventListener('change',()=>{
