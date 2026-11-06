@@ -1327,14 +1327,14 @@
     top:50px;
     right:22px;
     bottom:auto;
-    width:min(260px,var(--chat-gutter-width,260px));
+    width:260px;
     height:160px;
   }
 
   .game-shell .room-chat.chat-no-gutter{
     top:50px;
     right:22px;
-    width:min(260px,var(--chat-gutter-width,260px));
+    width:260px;
     height:160px;
   }
 
