@@ -232,13 +232,28 @@
     const charges=SKILL_MAX_CHARGES[role];
     return `${charges} ${charges===1?'CHARGE':'CHARGES'} · ${SKILL_COOLDOWN[role]}s RECHARGE · ${charges===2?'SEQUENTIAL RECHARGE':'SINGLE RECHARGE'}`;
   }
-  function refreshSkillDescriptions(){
+  function refreshActionDescription(action){
     const details=$('#skillTooltip');
     if(!details)return;
     const role=validRole(classChoice);
-    details.querySelector('.skill-description-title').textContent=ROLE_DETAILS[role].label+' · '+ROLE_DETAILS[role].skill;
-    details.querySelector('.skill-description-body').textContent=ROLE_DESCRIPTIONS[role];
-    details.querySelector('.skill-description-meta').textContent=skillDescription(role);
+    const descriptions={
+      skill:{title:ROLE_DETAILS[role].label+' · '+ROLE_DETAILS[role].skill,
+        body:ROLE_DESCRIPTIONS[role],meta:skillDescription(role)},
+      dash:{title:'DASH · QUICK ESCAPE',
+        body:'Surge in your movement or facing direction for 0.24 seconds at 9 tiles per second. Dashing makes noise unless you are invisible.',
+        meta:'3.5s COOLDOWN · DIRECTIONAL'},
+      decoy:{title:'DECOY · SOUND DISTRACTION',
+        body:'Throw a sound decoy about 3.3 tiles ahead to lure Hollows. It lasts 5 seconds and creates a noise pulse with an 11-tile radius.',
+        meta:'3 DECOYS PER FLOOR · 2s COOLDOWN · 11-TILE NOISE RADIUS'},
+      use:{title:'USE · INTERACT',
+        body:'Interact with nearby survivors, the technician, relays, and the elevator. Rescue allies, activate the relay, then escape when objectives are complete.',
+        meta:'RANGE: ABOUT 1.5 TILES · NO COOLDOWN'}
+    };
+    const info=descriptions[action]||descriptions.skill;
+    details.querySelector('.skill-description-title').textContent=info.title;
+    details.querySelector('.skill-description-body').textContent=info.body;
+    details.querySelector('.skill-description-meta').textContent=info.meta+
+      (technician?.rescued&&action!=='use'?' · TECHNICIAN: 30% FASTER':'');
   }
   const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
@@ -655,7 +670,6 @@
     ui.roleLabel.firstChild.textContent=choosing?'CHOOSE YOUR ROLE ':'YOUR ROLE ';
     ui.lockedRoleText.textContent=ROLE_DETAILS[classChoice].label+' · '+ROLE_DETAILS[classChoice].skill;
     if($('#lobbyClass'))$('#lobbyClass').value=classChoice;
-    refreshSkillDescriptions();
     document.querySelectorAll('.role-option').forEach(card=>{
       const selected=card.dataset.role===classChoice;
       card.classList.toggle('is-selected',selected);
@@ -1960,70 +1974,74 @@
       action();
     });
   }
-  bindGameAction('#touchDash',()=>dash(null,true));
-  bindGameAction('#touchInteract',interact);
-  bindGameAction('#touchDecoy',triggerDecoy);
-  // Skill tooltip: desktop hover, or a one-second mobile hold.
-  // A short touch activates on release; a completed hold only explains
-  // the ability, so reading its description cannot consume a charge.
-  const skillButtonForHelp=$('#touchAbility');
-  const skillTooltip=$('#skillTooltip');
-  let skillHoldTimer=null,skillHoldPointer=null,skillHoldTriggered=false;
-  let skillTouchClickSuppressedUntil=0;
-  const hideSkillTooltip=()=>{
-    skillTooltip.classList.remove('is-visible');
-    skillTooltip.setAttribute('aria-hidden','true');
+  // Tooltip for all four actions: mouse hover or one-second touch hold.
+  // Short touches activate on release. Long holds never spend resources.
+  const actionTooltip=$('#skillTooltip');
+  let activeActionHelp=null;
+  const hideActionTooltip=(button=null)=>{
+    if(button&&activeActionHelp!==button)return;
+    activeActionHelp=null;
+    actionTooltip.classList.remove('is-visible');
+    actionTooltip.setAttribute('aria-hidden','true');
   };
-  const showSkillTooltip=()=>{
+  const showActionTooltip=(button,actionName)=>{
     if(activePage!=='play'||state!=='playing')return;
-    refreshSkillDescriptions();
-    skillTooltip.classList.add('is-visible');
-    skillTooltip.setAttribute('aria-hidden','false');
+    activeActionHelp=button;
+    refreshActionDescription(actionName);
+    actionTooltip.classList.add('is-visible');
+    actionTooltip.setAttribute('aria-hidden','false');
   };
-  const cancelSkillHold=()=>{
-    if(skillHoldTimer!==null){clearTimeout(skillHoldTimer);skillHoldTimer=null;}
-  };
-  skillButtonForHelp.addEventListener('pointerenter',e=>{
-    if(e.pointerType==='mouse')showSkillTooltip();
-  });
-  skillButtonForHelp.addEventListener('pointerleave',e=>{
-    if(e.pointerType==='mouse')hideSkillTooltip();
-  });
-  skillButtonForHelp.addEventListener('focus',showSkillTooltip);
-  skillButtonForHelp.addEventListener('blur',hideSkillTooltip);
-  skillButtonForHelp.addEventListener('pointerdown',e=>{
-    if(e.pointerType==='mouse')return;
-    e.preventDefault();
-    if(skillHoldPointer!==null)return;
-    skillHoldPointer=e.pointerId;
-    skillHoldTriggered=false;
-    skillTouchClickSuppressedUntil=Date.now()+1500;
-    try{skillButtonForHelp.setPointerCapture(e.pointerId);}catch(_){}
-    cancelSkillHold();
-    skillHoldTimer=setTimeout(()=>{
-      skillHoldTimer=null;
-      if(skillHoldPointer===e.pointerId){
-        skillHoldTriggered=true;
-        showSkillTooltip();
-      }
-    },1000);
-  });
-  function finishSkillHold(e,cancelled=false){
-    if(skillHoldPointer!==e.pointerId)return;
-    const wasLongHold=skillHoldTriggered;
-    skillHoldPointer=null;skillHoldTriggered=false;
-    cancelSkillHold();hideSkillTooltip();
-    skillTouchClickSuppressedUntil=Date.now()+800;
-    if(!cancelled&&!wasLongHold)requestAbility();
+  function bindDescribedAction(selector,actionName,activate){
+    const button=$(selector);
+    let touchPointer=null,holdTimer=null,held=false,suppressClickUntil=0;
+    const clearHold=()=>{
+      if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null;}
+    };
+    button.addEventListener('pointerenter',e=>{
+      if(e.pointerType==='mouse')showActionTooltip(button,actionName);
+    });
+    button.addEventListener('pointerleave',e=>{
+      if(e.pointerType==='mouse')hideActionTooltip(button);
+    });
+    button.addEventListener('focus',()=>showActionTooltip(button,actionName));
+    button.addEventListener('blur',()=>hideActionTooltip(button));
+    button.addEventListener('pointerdown',e=>{
+      if(e.pointerType==='mouse')return;
+      e.preventDefault();
+      if(touchPointer!==null)return;
+      touchPointer=e.pointerId;
+      held=false;
+      suppressClickUntil=Date.now()+1500;
+      try{button.setPointerCapture(e.pointerId);}catch(_){}
+      clearHold();
+      holdTimer=setTimeout(()=>{
+        holdTimer=null;
+        if(touchPointer===e.pointerId){
+          held=true;
+          showActionTooltip(button,actionName);
+        }
+      },1000);
+    });
+    const finish=(e,cancelled=false)=>{
+      if(touchPointer!==e.pointerId)return;
+      const wasHeld=held;
+      touchPointer=null;held=false;
+      clearHold();hideActionTooltip(button);
+      suppressClickUntil=Date.now()+800;
+      if(!cancelled&&!wasHeld)activate();
+    };
+    button.addEventListener('pointerup',e=>finish(e));
+    button.addEventListener('pointercancel',e=>finish(e,true));
+    button.addEventListener('lostpointercapture',e=>finish(e,true));
+    button.addEventListener('click',e=>{
+      if(e.detail!==0&&Date.now()<suppressClickUntil)return;
+      activate();
+    });
   }
-  skillButtonForHelp.addEventListener('pointerup',e=>finishSkillHold(e));
-  skillButtonForHelp.addEventListener('pointercancel',e=>finishSkillHold(e,true));
-  skillButtonForHelp.addEventListener('lostpointercapture',e=>finishSkillHold(e,true));
-  // Keep desktop mouse clicks and keyboard activation unchanged.
-  skillButtonForHelp.addEventListener('click',e=>{
-    if(e.detail!==0&&Date.now()<skillTouchClickSuppressedUntil)return;
-    requestAbility();
-  });
+  bindDescribedAction('#touchAbility','skill',requestAbility);
+  bindDescribedAction('#touchDash','dash',()=>dash(null,true));
+  bindDescribedAction('#touchDecoy','decoy',triggerDecoy);
+  bindDescribedAction('#touchInteract','use',interact);
   bindGameAction('#touchPause',pause);
   // Tap/click the selected character or Hollow while Rewinder is targeting.
   canvas.addEventListener('pointerdown',event=>{
