@@ -115,7 +115,7 @@
       (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
-  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.trail=[];}
+  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.anchor=null;guestPlayer.trail=[];}
   let extraContextGuest=null;
   function allPlayers(){
     // A player action temporarily swaps the global 'player' reference.
@@ -384,6 +384,7 @@
       if(extraActive[i]){
         extraPlayers[i]=structuredClone(player);
         extraPlayers[i].slot=i+3;
+        extraPlayers[i].abilityCharges=SKILL_MAX_CHARGES[extraControls[i].role];
         extraPlayers[i].hp=extraCarriedHealth[i];
       }
     }
