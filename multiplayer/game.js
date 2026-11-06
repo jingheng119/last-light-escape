@@ -237,16 +237,17 @@
     if(!details)return;
     const role=validRole(classChoice);
     const descriptions={
-      skill:{title:ROLE_DETAILS[role].label+' · '+ROLE_DETAILS[role].skill,
-        body:ROLE_DESCRIPTIONS[role],meta:skillDescription(role)},
+      skill:{title:ROLE_DETAILS[role].skill,
+        body:ROLE_DESCRIPTIONS[role],
+        meta:skillDescription(role)},
       dash:{title:'DASH · QUICK ESCAPE',
-        body:'Surge in your movement or facing direction for 0.24 seconds at 9 tiles per second. Dashing makes noise unless you are invisible.',
+        body:'Surge in your movement or facing direction for 0.24 seconds at 2.5 tiles. Dashing makes noise unless you are invisible.',
         meta:'3.5s COOLDOWN · DIRECTIONAL'},
       decoy:{title:'DECOY · SOUND DISTRACTION',
         body:'Throw a sound decoy about 3.3 tiles ahead to lure Hollows. It lasts 5 seconds and creates a noise pulse with an 11-tile radius.',
-        meta:'3 DECOYS PER FLOOR · 2s COOLDOWN · 11-TILE NOISE RADIUS'},
+        meta:'3 CHARGES · 2s COOLDOWN · 11-TILE NOISE RADIUS'},
       use:{title:'USE · INTERACT',
-        body:'Interact with nearby survivors, the technician, relays, and the elevator. Rescue allies, activate the relay, then escape when objectives are complete.',
+        body:'Interact with nearby survivors, the technician, and the relays.',
         meta:'RANGE: ABOUT 1.5 TILES · NO COOLDOWN'}
     };
     const info=descriptions[action]||descriptions.skill;
