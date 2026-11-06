@@ -2251,10 +2251,14 @@
     // Measure that gutter because the canvas size changes with aspect ratio,
     // screen height, and fullscreen mode.
     const positionChat=()=>{
-      const shell=$('.game-shell'),maze=$('#gameWrapper');
-      if(!shell||!maze)return;
-      const sr=shell.getBoundingClientRect(),mr=maze.getBoundingClientRect();
-      const gap=Math.max(0,sr.right-mr.right);
+      const shell=$('.game-shell'),canvas=$('#game');
+      if(!shell||!canvas)return;
+      const sr=shell.getBoundingClientRect(),cr=canvas.getBoundingClientRect();
+      // object-fit:contain can leave a wide unused gutter INSIDE the
+      // canvas element in landscape fullscreen. Measure the painted maze.
+      const paintedWidth=Math.min(cr.width,cr.height*(canvas.width/canvas.height));
+      const mazeRight=cr.left+(cr.width+paintedWidth)/2;
+      const gap=Math.max(0,sr.right-mazeRight);
       panel.style.setProperty('--chat-gutter-width',Math.max(0,Math.floor(gap-24))+'px');
       panel.classList.toggle('chat-no-gutter',gap<180);
     };
