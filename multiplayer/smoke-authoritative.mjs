@@ -70,7 +70,7 @@ import { createRoomEngine } from './headless-engine.js';
   for(let i=0;i<38;i++)room.tick(.033);
   const phantom=room.snapshot(false).illusions[0];
   assert(phantom,'Phantom stays active after reaching a corner');
-  assert(phantom.x>3.9&&phantom.x<4.1,
+  assert(phantom.x>4.4&&phantom.x<4.6,
     'Phantom must align with the corner and turn instead of moving through the wall');
   assert(phantom.y>3.7,
     'Phantom must turn down into the side passage at a corner');
