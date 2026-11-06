@@ -1326,7 +1326,7 @@
   .game-shell .room-chat,
   .game-shell .room-chat.chat-no-gutter{
     top:50px;
-    right:22px;
+    right:10px;
     bottom:auto;
     width:240px;
     height:160px;
