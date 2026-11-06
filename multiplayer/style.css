@@ -1319,59 +1319,85 @@
   /* Navigation becomes a compact strip; leave room above chat. */
   .game-shell .room-chat{top:115px;bottom:155px}
 }
-@media(max-width:650px),(hover:none) and (pointer:coarse){
-  /* Short landscape screens: chat sits ABOVE Skill/Decoy/Dash buttons. */
+
+/* Mobile chat positioning */
+@media (max-width:650px), (hover:none) and (pointer:coarse){
+
   .game-shell .room-chat{
-    top:clamp(92px,21vh,145px);bottom:auto;
-    height:clamp(125px,28vh,220px);
-    right:8px;width:min(260px,var(--chat-gutter-width,240px));
+    top:96px;
+    right:8px;
+    bottom:auto;
+    width:min(205px,var(--chat-gutter-width,205px));
+    height:160px;
   }
+
   .game-shell .room-chat.chat-no-gutter{
-    top:clamp(92px,21vh,145px);height:clamp(125px,28vh,220px);
-    width:min(210px,calc(100% - 16px));
+    top:96px;
+    right:8px;
+    width:min(205px,var(--chat-gutter-width,205px));
+    height:160px;
   }
-  .room-chat .chat-drawer{padding:8px}
-  .room-chat .chat-heading{margin-bottom:4px}
-  .room-chat .chat-messages{margin-bottom:5px}
-  .room-chat .chat-quick{padding-bottom:5px}
-  .room-chat .chat-quick button{padding:5px 8px}
-  .room-chat .chat-form input{height:30px}
+
+  .room-chat .chat-drawer{
+    padding:6px;
+    border-radius:9px;
+  }
+
+  .room-chat .chat-heading{
+    margin-bottom:3px;
+    font-size:9px;
+  }
+
+  .room-chat .chat-messages{
+    margin-bottom:4px;
+    padding:4px;
+    font-size:8px;
+    line-height:1.2;
+  }
+
+  .room-chat .chat-author,
+  .room-chat .chat-text,
+  .room-chat .chat-placeholder{
+    font-size:8px;
+  }
+
+  .room-chat .chat-form{
+    gap:3px;
+  }
+
+  .room-chat .chat-form input{
+    height:26px;
+    font-size:9px;
+    padding:4px 6px;
+  }
+
+  .room-chat .chat-form button{
+    font-size:8px;
+    padding:4px 6px;
+  }
 }
 
-/* Six quick chat presets: two rows of three, always fully visible.
-   Never scroll horizontally; wrap long labels inside their own buttons. */
+/* Six quick messages in 2 rows x 3 columns */
 .game-shell .room-chat .chat-quick{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
-  grid-template-rows:repeat(2,auto);
-  gap:5px;
+  gap:3px;
   width:100%;
-  overflow:visible;
-  padding:0 0 7px;
-  scrollbar-width:none;
+  overflow:hidden;
+  padding:0 0 4px;
 }
+
 .game-shell .room-chat .chat-quick button{
   display:flex;
   align-items:center;
   justify-content:center;
   min-width:0;
-  min-height:33px;
-  padding:5px 3px;
-  border-radius:9px;
-  font-size:clamp(8px,.75vw,10px);
-  line-height:1.2;
+  min-height:27px;
+  padding:3px 2px;
+  border-radius:7px;
+  font-size:8px;
+  line-height:1.1;
   text-align:center;
   white-space:normal;
   overflow-wrap:anywhere;
-}
-@media(max-width:650px),(hover:none) and (pointer:coarse){
-  .game-shell .room-chat .chat-quick{
-    gap:4px;
-    padding-bottom:5px;
-  }
-  .game-shell .room-chat .chat-quick button{
-    font-size:9px;
-    min-height:31px;
-    padding:4px 2px;
-  }
 }
