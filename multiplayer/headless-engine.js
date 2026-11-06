@@ -38,6 +38,7 @@ const bridge=`
       else if(id>=3&&id<=5&&!extraPlayers[id-3]){
         extraPlayers[id-3]=structuredClone(player);
         extraPlayers[id-3].slot=id;
+        extraPlayers[id-3].abilityCharges=SKILL_MAX_CHARGES[extraControls[id-3].role];
         extraPlayers[id-3].x=1.5;extraPlayers[id-3].y=1.5;
         extraPlayers[id-3].hp=3;extraPlayers[id-3].dashTime=0;
         extraPlayers[id-3].dashCooldown=0;extraPlayers[id-3].trail=[];
