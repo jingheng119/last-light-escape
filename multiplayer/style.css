@@ -1328,7 +1328,7 @@
     top:50px;
     right:10px;
     bottom:auto;
-    width:min(225px, var(--chat-gutter-width, 225px));
+    width:min(235px, var(--chat-gutter-width, 235px));
     height:160px;
   }
 
