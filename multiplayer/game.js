@@ -206,11 +206,12 @@
   const CAMERA_ZOOM = 1.65;
   const SCOUT_STUN_RADIUS = 5.5;
   const MEDIC_HEAL_RADIUS = 5.5;
-  const SKILL_COOLDOWN = {scout:13,medic:16,invisibler:18};
+  const SKILL_COOLDOWN = {scout:13,medic:16,invisibler:18,teleporter:20};
   const ROLE_DETAILS={
     scout:{label:'SCOUT',skill:'STUN SHOCKWAVE',ready:'PULSE READY'},
     medic:{label:'MEDIC',skill:'HEALING BURST',ready:'HEAL READY'},
-    invisibler:{label:'INVISIBLER',skill:'VANISH · 3 SECONDS',ready:'VANISH READY'}
+    invisibler:{label:'INVISIBLER',skill:'VANISH · 3 SECONDS',ready:'VANISH READY'},
+    teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 5 SECONDS',ready:'GUARD READY'}
   };
   const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
@@ -750,6 +751,11 @@
       }
       notify('INVISIBLER — Hollows lost your trail for 3 seconds!');
       beep(1040,.24,'triangle',.024);
+    }else if(classChoice==='teleporter'){
+      player.phaseGuardTime=5;
+      player.abilityCooldown=SKILL_COOLDOWN.teleporter*cooldownFactor();
+      notify('TELEPORTER — Phase Guard active for 5 seconds!');
+      beep(700,.24,'triangle',.025);
     }else{
       const stunned=hollows.filter(h=>dist(h,player)<SCOUT_STUN_RADIUS);
       for(const h of stunned){h.stunned=2.5;h.mode='search';h.target=null;h.path=[];h.repath=0;h.chaseUntil=clock+3;}
@@ -828,7 +834,59 @@
     // The soul artwork stays visible; only show a timer during an active revive.
     if(progress>0)ctx.fillText('REVIVING '+(REVIVE_SECONDS-(soul.reviveProgress||0)).toFixed(1)+'s',x,y-28);
   }
+  // Move up to three cells in the facing direction. Stop at the last
+  // safe point before a wall. If forward is blocked, search nearby
+  // reachable floor tiles without ever passing through maze walls.
+  function phaseGuardDestination(origin,direction){
+    const size=Math.hypot(direction?.x||0,direction?.y||0);
+    const facing=size>.01?{x:direction.x/size,y:direction.y/size}:{x:1,y:0};
+    const clear=(x,y)=>canStand(x,y,.21)&&
+      hollows.every(h=>dist({x,y},h)>.85);
+    let forward=null;
+    for(let t=.1;t<=3.001;t+=.1){
+      const x=origin.x+facing.x*t,y=origin.y+facing.y*t;
+      // Test every increment, preventing crossing even thin walls.
+      if(!canStand(x,y,.21))break;
+      if(clear(x,y))forward={x,y};
+    }
+    if(forward&&dist(origin,forward)>=.5)return forward;
+    const start=tileAt(origin),queue=[start],visited=new Set([keyOf(start.x,start.y)]);
+    const candidates=[];
+    for(let i=0;i<queue.length;i++){
+      const current=queue[i];
+      for(const [dx,dy] of dirs){
+        const x=current.x+dx,y=current.y+dy,k=keyOf(x,y);
+        if(visited.has(k)||!floorAt(x,y))continue;
+        visited.add(k);
+        const center=TILE_CENTER(x,y);
+        if(dist(origin,center)>3.15||!canStand(center.x,center.y,.21))continue;
+        queue.push({x,y});
+        if(clear(center.x,center.y)){
+          const projection=(center.x-origin.x)*facing.x+(center.y-origin.y)*facing.y;
+          candidates.push({...center,score:projection*2+dist(origin,center)*.3});
+        }
+      }
+    }
+    candidates.sort((a,b)=>b.score-a.score);
+    return candidates[0]||{x:origin.x,y:origin.y};
+  }
   function damage(){if(player.hp<=0||player.disconnected||player.invincible>0||player.dashTime>0||state!=='playing')return;
+    if(player.phaseGuardTime>0){
+      player.phaseGuardTime=0;
+      const from={x:player.x,y:player.y};
+      const to=phaseGuardDestination(from,player.facing);
+      player.x=to.x;player.y=to.y;
+      // A short arrival grace prevents the same Hollow from immediately
+      // inflicting damage on the next server tick.
+      player.invincible=Math.max(player.invincible,1);
+      player.dashTime=0;
+      skillWaves.push({x:from.x,y:from.y,radius:1.2,age:0,duration:.45,color:'teleporter'});
+      skillWaves.push({x:to.x,y:to.y,radius:1.2,age:0,duration:.45,color:'teleporter'});
+      notify('TELEPORTER — Phase Guard triggered!');
+      beep(1320,.23,'triangle',.035);
+      updateUI();
+      return;
+    }
     player.hp--;player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
     // On the final hit, keep the soul at the exact place the player fell.
     // Surviving players are still teleported to start as in the original game.
@@ -856,6 +914,7 @@
     player.invincible=Math.max(0,player.invincible-dt);player.dashCooldown=Math.max(0,player.dashCooldown-dt);
     player.abilityCooldown=Math.max(0,player.abilityCooldown-dt);
     player.invisibleTime=Math.max(0,(player.invisibleTime||0)-dt);
+    player.phaseGuardTime=Math.max(0,(player.phaseGuardTime||0)-dt);
     player.decoyCooldown=Math.max(0,player.decoyCooldown-dt);
     let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
@@ -1044,8 +1103,9 @@
     ui.survivorStatus.textContent=technician
       ?`${Number(survivor.rescued)+Number(technician.rescued)} / 2 ALLIES`
       :(survivor.rescued?'FOLLOWING':'TRAPPED');
-    ui.abilityStatus.textContent=player.invisibleTime>0?
-      'VANISH ACTIVE · '+player.invisibleTime.toFixed(1)+'s':
+    ui.abilityStatus.textContent=player.phaseGuardTime>0?
+      'PHASE GUARD · '+player.phaseGuardTime.toFixed(1)+'s':
+      player.invisibleTime>0?'VANISH ACTIVE · '+player.invisibleTime.toFixed(1)+'s':
       player.abilityCooldown<=0?ROLE_DETAILS[classChoice].ready:'ABILITY RECHARGING';
     if(technician?.rescued)ui.abilityStatus.textContent+=' · CD -30%';
     ui.dash.textContent=player.dashCooldown<=0?'DASH READY':`DASH ${player.dashCooldown.toFixed(1)}s`;
@@ -1261,6 +1321,10 @@
     if(flicker)return;
     ctx.save();
     if(player.invisibleTime>0)ctx.globalAlpha=.28;
+    if(player.phaseGuardTime>0){
+      ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(x,y,18+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
+    }
     halo(x,y,70,color+'25');ctx.fillStyle='#061d23';ctx.beginPath();ctx.ellipse(x,y+6,12,6,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#0d3940';ctx.beginPath();ctx.arc(x,y-2,5,0,Math.PI*2);ctx.fill();
@@ -1276,6 +1340,10 @@
       const x=teammate.x*TILE,y=teammate.y*TILE,color=colorForPlayer(teammate.slot);
       ctx.save();
       if(teammate.invisibleTime>0)ctx.globalAlpha=.28;
+      if(teammate.phaseGuardTime>0){
+        ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
+        ctx.beginPath();ctx.arc(x,y,17+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
+      }
       halo(x,y,30,color+'36');
       ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
       ctx.restore();
@@ -1817,9 +1885,11 @@
       roomIdentity=new Map(players.map(person=>[person.id,person]));
       const scouts=players.filter(person=>person.role==='scout').length;
       const medics=players.filter(person=>person.role==='medic').length;
+      const teleporters=players.filter(person=>person.role==='teleporter').length;
       const invisiblers=players.filter(person=>person.role==='invisibler').length;
       $('#scoutCount').textContent=String(scouts);
       $('#medicCount').textContent=String(medics);
+      $('#teleporterCount').textContent=String(teleporters);
       $('#invisiblerCount').textContent=String(invisiblers);
       $('#rosterCount').textContent=players.length+' / 5 players';
     };
