@@ -8,7 +8,7 @@
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/style.css?v=compact-game-nav-1" />
-  <script src="/game.js?v=dual-sequential-charges-1" defer></script>
+  <script src="/game.js?v=role-skill-descriptions-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -49,6 +49,7 @@
           <option value="rewinder">Rewinder · Targeted rewind (5.5 tiles)</option>
           <option value="anchor">Anchor · Place and return</option>
         </select>
+        <div id="lobbySkillDetails" class="skill-description" aria-live="polite"><strong class="skill-description-title">SCOUT · STUN SHOCKWAVE</strong><p class="skill-description-body">Release a shockwave that stuns Hollows within 5.5 tiles for 2.5 seconds.</p><small class="skill-description-meta">1 CHARGE · 13s RECHARGE · SINGLE RECHARGE</small></div>
         <span class="lobby-profile-hint">Role is locked while a run is active.</span>
       </div>
       <div id="roomBrowser">
@@ -145,6 +146,7 @@
               <span class="role-option-check" aria-hidden="true">✓</span>
             </button>
           </div>
+          <div id="roleSkillDetails" class="skill-description" aria-live="polite"><strong class="skill-description-title">SCOUT · STUN SHOCKWAVE</strong><p class="skill-description-body">Release a shockwave that stuns Hollows within 5.5 tiles for 2.5 seconds.</p><small class="skill-description-meta">1 CHARGE · 13s RECHARGE · SINGLE RECHARGE</small></div>
           <div id="roleLocked" class="role-locked" hidden>
             <span aria-hidden="true">◆</span><span id="lockedRoleText">SCOUT · STUN SHOCKWAVE</span><small>ROLE LOCKED THIS RUN</small>
           </div>
