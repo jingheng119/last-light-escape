@@ -1243,3 +1243,13 @@
     outline:none;
   }
 }
+
+/* Only the charge pseudo-elements may draw circular outlines.
+   The browser's :focus-visible outline creates a third ring after
+   activating a two-charge Skill with a pointer. Replace it with a
+   subtle brightness cue, keeping keyboard focus discernible. */
+.mobile-controls .mobile-actions #touchAbility:focus-visible,
+.mobile-controls .mobile-actions #touchDash:focus-visible{
+  outline:none;
+  filter:brightness(1.13);
+}
