@@ -1326,8 +1326,9 @@
   .game-shell .room-chat,
   .game-shell .room-chat.chat-no-gutter{
     top:50px;
-    right:10px;
+    right:8px;
     bottom:auto;
+    /* Fit the actual space beside the maze, with a small safety gap. */
     width:min(235px, var(--chat-gutter-width, 235px));
     height:160px;
   }
