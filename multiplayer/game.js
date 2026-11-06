@@ -1935,6 +1935,7 @@
   const keyMap={w:'up',arrowup:'up',s:'down',arrowdown:'down',a:'left',arrowleft:'left',d:'right',arrowright:'right'};
   document.addEventListener('keydown', e => {
     if(activePage!=='play')return;
+    if(e.target instanceof HTMLElement&&e.target.closest('input, textarea, select, [contenteditable="true"]'))return;
     if(!soundEnabled)unlockGameAudio();
     const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k)||(rewindTargeting&&k==='tab'))e.preventDefault();
     if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole!=='none')sendRoom(guestInputPacket());}
@@ -2242,7 +2243,99 @@
     }
     // Smooth camera motion in the render loop, not per network packet.
   }
+  function setupRoomChat(){
+    const toggle=$('#chatToggle'),drawer=$('#chatDrawer'),close=$('#chatClose');
+    const log=$('#chatMessages'),input=$('#chatInput'),form=$('#chatForm');
+    const feedback=$('#chatFeedback'),unread=$('#chatUnread');
+    let messages=[],unreadCount=0;
+    const setOpen=open=>{
+      drawer.hidden=!open;toggle.setAttribute('aria-expanded',String(open));
+      toggle.setAttribute('aria-label',open?'Close room chat':'Open room chat');
+      if(open){
+        unreadCount=0;unread.hidden=true;
+        log.scrollTop=log.scrollHeight;
+      }
+    };
+    const clear=()=>{
+      messages=[];unreadCount=0;unread.hidden=true;
+      feedback.textContent='';input.value='';
+      log.replaceChildren();
+      const empty=document.createElement('p');
+      empty.className='chat-placeholder';
+      empty.textContent='Chat with your teammates in this room.';
+      log.appendChild(empty);
+      setOpen(false);
+    };
+    const render=()=>{
+      const scrollToEnd=log.scrollHeight-log.scrollTop-log.clientHeight<35;
+      log.replaceChildren();
+      if(!messages.length){
+        const empty=document.createElement('p');
+        empty.className='chat-placeholder';
+        empty.textContent='Chat with your teammates in this room.';
+        log.appendChild(empty);
+      }
+      for(const message of messages){
+        const item=document.createElement('div');
+        item.className='chat-item'+(message.playerId===roomPlayerId?' is-self':'');
+        const author=document.createElement('span');
+        author.className='chat-author';
+        author.textContent=message.name+(message.playerId===roomPlayerId?' (you)':'');
+        const body=document.createElement('span');
+        body.className='chat-text';
+        body.textContent=message.text;
+        item.append(author,body);log.appendChild(item);
+      }
+      if(scrollToEnd||!drawer.hidden)log.scrollTop=log.scrollHeight;
+    };
+    const validMessage=m=>m&&Number.isInteger(m.id)&&
+      Number.isInteger(m.playerId)&&typeof m.name==='string'&&
+      typeof m.text==='string'&&m.text.length<=240;
+    const receive=message=>{
+      if(!validMessage(message)||messages.some(m=>m.id===message.id))return;
+      messages.push(message);
+      if(messages.length>50)messages.shift();
+      render();
+      if(drawer.hidden&&message.playerId!==roomPlayerId){
+        unreadCount=Math.min(99,unreadCount+1);
+        unread.textContent=String(unreadCount);unread.hidden=false;
+      }
+    };
+    toggle.addEventListener('click',()=>setOpen(drawer.hidden));
+    close.addEventListener('click',()=>{setOpen(false);toggle.focus();});
+    const send=(text,quick=false)=>{
+      const value=String(text||'').replace(/\s+/g,' ').trim();
+      if(!value||value.length>240||roomRole==='none')return;
+      if(roomSocket?.readyState!==WebSocket.OPEN){
+        feedback.textContent='Not connected. Reconnecting…';return;
+      }
+      feedback.textContent='';
+      sendRoom({type:'chat',text:value,quick});
+      input.value='';
+    };
+    form.addEventListener('submit',e=>{
+      e.preventDefault();send(input.value);
+    });
+    for(const button of drawer.querySelectorAll('[data-quick-chat]')){
+      button.addEventListener('click',()=>send(button.dataset.quickChat,true));
+    }
+    input.addEventListener('focus',()=>{
+      moveHeld={up:false,down:false,left:false,right:false};
+      if(roomRole!=='none')sendRoom(guestInputPacket());
+    });
+    return {
+      clear,
+      history:entries=>{
+        messages=Array.isArray(entries)?entries.filter(validMessage).slice(-50):[];
+        unreadCount=0;unread.hidden=true;feedback.textContent='';
+        render();
+      },
+      receive,
+      error:text=>{feedback.textContent=String(text||'Please slow down.').slice(0,120)}
+    };
+  }
   function connectRoom(){
+    const chat=setupRoomChat();
     const status=$('#roomStatus'),invite=$('#roomInvite'),
       create=$('#createRoom'),join=$('#joinRoom'),code=$('#joinRoomCode'),
       roomName=$('#roomName'),directory=$('#roomList'),roomBrowser=$('#roomBrowser'),
@@ -2391,14 +2484,17 @@
         showNetworkStatus();
       }
       if(m.type==='error')status.textContent=m.message;
+      if(m.type==='chat-history')chat.history(m.messages);
+      if(m.type==='chat-message')chat.receive(m.message);
+      if(m.type==='chat-error')chat.error(m.message);
       if(m.type==='resume-error'){
-        clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
+        chat.clear();clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
         setJoined(false);state='menu';showPage('lobby',true);
         status.textContent=m.message+'. Please join a room again.';
       }
       if(m.type==='rooms'&&Array.isArray(m.rooms))drawRooms(m.rooms);
       if(m.type==='joined'){
-        roomPlayerId=m.id;roomRole=m.host?'host':'guest';roomCount=1;
+        chat.clear();roomPlayerId=m.id;roomRole=m.host?'host':'guest';roomCount=1;
         if(m.reconnectToken)saveSession(m.code,m.reconnectToken);
         code.value=m.code;showNetworkStatus();
         if(m.resumed&&typeof m.nickname==='string')nicknameInput.value=m.nickname;
@@ -2434,7 +2530,7 @@
             'WAIT FOR HOST ';
         }
       }else if(m.type==='left'){
-        clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
+        chat.clear();clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
         guestPlayer=null;remotePlayers=[];
         lastLevel=-1;guestPreviousHP=null;
         setJoined(false);
