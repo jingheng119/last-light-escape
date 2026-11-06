@@ -1,6 +1,75 @@
 import assert from 'node:assert/strict';
 import { createRoomEngine } from './headless-engine.js';
 
+// Rewinder maintains a server-only timeline and returns exactly one
+// character to its three-seconds-ago position without healing.
+function makeRewindRoom(){
+  const room=createRoomEngine();
+  room.role(1,'rewinder');room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  const snap=room.snapshot(true),p=snap.player;
+  for(let y=0;y<snap.grid.length;y++)
+    for(let x=0;x<snap.grid[y].length;x++)
+      snap.grid[y][x]=y===3&&x>=1&&x<=24?0:1;
+  for(const h of snap.hollows){h.x=25;h.y=15;h.stunned=100;}
+  p.x=2.5;p.y=3.5;p.hp=2;p.invincible=100;
+  return {room,snap,p};
+}
+{
+  const {room,p}=makeRewindRoom();
+  room.input(1,{right:true},{x:0,y:0});
+  for(let i=0;i<20;i++)room.tick(.033);
+  const oldX=p.x;
+  for(let i=0;i<91;i++)room.tick(.033);
+  const before=p.x;
+  assert(before>oldX+5,'Player must have moved after recorded position');
+  assert.equal(room.snapshot(false).playerRoles[0],'rewinder');
+  room.input(1,{}, {x:0,y:0});
+  room.action(1,'ability');
+  assert(Math.abs(p.x-oldX)<.5,'Rewinder must return to position from 3 seconds earlier');
+  assert.equal(p.y,3.5,'Rewind should preserve recorded row');
+  assert.equal(p.hp,2,'Rewinding must not restore health');
+  assert(p.abilityCooldown>24,'Rewind must begin its 25s cooldown');
+  const landed=p.x;
+  room.action(1,'ability');
+  assert.equal(p.x,landed,'Rewind cannot activate twice during cooldown');
+}
+{
+  const {room,p,snap}=makeRewindRoom();
+  room.input(1,{right:true},{x:0,y:0});
+  for(let i=0;i<20;i++)room.tick(.033);
+  const oldX=p.x;
+  for(let i=0;i<91;i++)room.tick(.033);
+  room.input(1,{}, {x:0,y:0});
+  // Mark the exact recorded position as occupied by a stunned Hollow.
+  snap.hollows[0].x=oldX;snap.hollows[0].y=3.5;
+  room.action(1,'ability');
+  assert(Math.hypot(p.x-oldX,p.y-3.5)<=3.01,
+    'Blocked rewind must use a safe tile within three cells of recorded location');
+  assert(Math.hypot(p.x-oldX,p.y-3.5)>.85,
+    'Rewind must not land on top of a Hollow');
+  assert.equal(snap.grid[Math.floor(p.y)][Math.floor(p.x)],0,
+    'Fallback rewind must land on a walkable tile');
+  assert.equal(p.hp,2,'Blocked rewind also cannot heal');
+}
+{
+  const room=createRoomEngine();
+  for(let id=2;id<=5;id++)room.join(id);
+  for(let id=1;id<=5;id++)room.role(id,'rewinder');
+  room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  const snap=room.snapshot(false);
+  assert.deepEqual(Array.from(snap.playerRoles),Array(5).fill('rewinder'),
+    'All five player slots must support Rewinder role selection');
+  for(const p of snap.players)p.invincible=100;
+  room.action(4,'ability');
+  assert(snap.players[3].abilityCooldown>24,'Fourth player can rewind');
+  assert.equal(snap.players[0].abilityCooldown,0,'Other player cooldown unaffected');
+  assert.equal(snap.players[4].abilityCooldown,0,'Fifth player cooldown unaffected');
+  assert(!Object.hasOwn(snap.players[3],'rewindHistory'),
+    'History must never be attached to network player snapshots');
+}
+
 // Illusioner spawns exactly one independent, invincible moving Phantom
 // Double. Hollows must prioritize it over living players until it expires.
 {
