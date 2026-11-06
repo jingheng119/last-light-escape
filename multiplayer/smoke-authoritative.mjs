@@ -1,6 +1,80 @@
 import assert from 'node:assert/strict';
 import { createRoomEngine } from './headless-engine.js';
 
+// Illusioner spawns exactly one independent, invincible moving Phantom
+// Double. Hollows must prioritize it over living players until it expires.
+{
+  const room=createRoomEngine();
+  room.role(1,'illusioner');room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  const snap=room.snapshot(true),p=snap.player;
+  p.invincible=100;
+  const h=snap.hollows[0];
+  p.x=h.x;p.y=h.y;p.facing={x:1,y:0};
+  const hp=p.hp;
+  room.action(1,'ability');
+  let state=room.snapshot(false);
+  assert.equal(state.playerRoles[0],'illusioner','Illusioner is selectable');
+  assert.equal(state.illusions.length,1,'Phantom Double must spawn once');
+  assert.equal(state.illusions[0].life,5,'Phantom lasts five seconds');
+  assert(state.player.abilityCooldown>21,'Phantom skill starts cooldown');
+  assert.equal(state.illusions[0].ownerSlot,1,'Phantom has its caster slot');
+  const initial={x:state.illusions[0].x,y:state.illusions[0].y};
+  room.action(1,'ability');
+  assert.equal(room.snapshot(false).illusions.length,1,'Cooldown prevents extra illusions');
+  room.tick(.033);
+  state=room.snapshot(false);
+  assert(state.illusions[0].life<5,'Phantom duration must tick down');
+  assert(state.illusions[0].x>=initial.x,'Phantom cannot walk backward');
+  assert(state.hollows.some(ghost=>ghost.mode==='illusion'),
+    'Nearby Hollows must chase an illusion rather than a real survivor');
+  assert.equal(p.hp,hp,'Hollow contact with a phantom does not injure its owner');
+  for(let i=0;i<155;i++)room.tick(.033);
+  state=room.snapshot(false);
+  assert.equal(state.illusions.length,0,'Phantom expires after five seconds');
+  assert(!state.hollows.some(ghost=>ghost.mode==='illusion'),
+    'Hollows must abandon expired phantoms');
+}
+{
+  const room=createRoomEngine();
+  for(let id=2;id<=5;id++)room.join(id);
+  for(let id=1;id<=5;id++)room.role(id,'illusioner');
+  room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  const snap=room.snapshot(false);
+  for(const p of snap.players){p.invincible=100;}
+  assert.deepEqual(Array.from(snap.playerRoles),Array(5).fill('illusioner'),
+    'Illusioner selectable for every multiplayer slot');
+  room.action(4,'ability');
+  const phantoms=room.snapshot(false).illusions;
+  assert.equal(phantoms.length,1,'Fourth player creates one phantom');
+  assert.equal(phantoms[0].ownerSlot,4,'Fourth player phantom has correct owner');
+  room.action(5,'ability');
+  const combined=room.snapshot(false).illusions;
+  assert.equal(combined.length,2,'Teammates can each have their own phantom');
+  assert.deepEqual(Array.from(combined,p=>p.ownerSlot),[4,5],
+    'Each illusion belongs to the correct teammate');
+}
+{
+  const room=createRoomEngine();
+  room.role(1,'illusioner');room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  const snap=room.snapshot(true),p=snap.player;
+  // Build a short corridor ending in a wall. The illusion should remain
+  // stationary against it, not vanish on contact.
+  for(let y=0;y<snap.grid.length;y++)
+    for(let x=0;x<snap.grid[y].length;x++)
+      snap.grid[y][x]=x>=1&&x<=2&&y===3?0:1;
+  p.x=2.5;p.y=3.5;p.facing={x:1,y:0};p.invincible=100;
+  room.action(1,'ability');
+  for(let i=0;i<15;i++)room.tick(.033);
+  const phantom=room.snapshot(false).illusions[0];
+  assert(phantom,'Phantom remains active after reaching a wall');
+  assert(phantom.stopped,'Phantom should stop upon hitting a wall');
+  assert(phantom.x<3,'Phantom cannot pass through a wall');
+  assert(phantom.life>4,'Phantom remains until its five-second timer ends');
+}
+
 // Teleporter: shield is armed for five seconds, protects exactly one hit,
 // and phases through walls while landing on a safe tile within three cells.
 function makeTeleporterRoom(){
