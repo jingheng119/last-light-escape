@@ -1787,8 +1787,8 @@
       ctx.beginPath();ctx.arc(cx,cy,REWIND_RADIUS*TILE,0,Math.PI*2);ctx.stroke();
       for(const choice of rewindChoices()){
         const x=choice.entity.x*TILE,y=choice.entity.y*TILE;
-        ctx.strokeStyle=choice===selected?'#fff3ac':'#b9a7ff';
-        ctx.lineWidth=choice===selected?4:2;
+        ctx.strokeStyle=selected&&choice.kind===selected.kind&&choice.slot===selected.slot&&choice.index===selected.index?'#fff3ac':'#b9a7ff';
+        ctx.lineWidth=selected&&choice.kind===selected.kind&&choice.slot===selected.slot&&choice.index===selected.index?4:2;
         ctx.beginPath();ctx.arc(x,y,choice===selected?18:14,0,Math.PI*2);ctx.stroke();
       }
       ctx.restore();
