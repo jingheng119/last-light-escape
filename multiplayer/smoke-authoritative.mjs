@@ -1,6 +1,76 @@
 import assert from 'node:assert/strict';
 import { createRoomEngine } from './headless-engine.js';
 
+// Teleporter: shield is armed for five seconds, protects exactly one hit,
+// and relocates within three cells without crossing a blocked corridor.
+function makeTeleporterRoom(){
+  const room=createRoomEngine();
+  room.role(1,'teleporter');
+  room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  return room;
+}
+{
+  const room=makeTeleporterRoom(),state=room.snapshot(true),p=state.player;
+  // Clear a safe horizontal lane and place the caster at its start.
+  for(let y=0;y<state.grid.length;y++)
+    for(let x=0;x<state.grid[y].length;x++)
+      state.grid[y][x]=x>=1&&x<=8&&y===3?0:1;
+  p.x=2.5;p.y=3.5;p.facing={x:1,y:0};
+  state.hollows.forEach(h=>{h.x=20;h.y=15;h.stunned=100;});
+  room.action(1,'ability');
+  assert.equal(p.phaseGuardTime,5,'Phase Guard must last five seconds');
+  assert(p.abilityCooldown>19,'Phase Guard must begin cooldown on activation');
+  const hp=p.hp;
+  room.testHit(1);
+  assert.equal(p.hp,hp,'Phase Guard must block the triggering damage');
+  assert.equal(p.phaseGuardTime,0,'Phase Guard is consumed by first hit');
+  assert(p.x>5.3&&p.x<=5.51,'A clear path teleports forward three cells');
+  assert.equal(p.y,3.5,'A straight teleport must preserve the row');
+  assert(p.invincible>0,'Landing grants short collision grace');
+  assert(p.abilityCooldown>0,'Using protection does not reset cooldown');
+}
+{
+  const room=makeTeleporterRoom(),state=room.snapshot(true),p=state.player;
+  for(let y=0;y<state.grid.length;y++)
+    for(let x=0;x<state.grid[y].length;x++)
+      state.grid[y][x]=x>=1&&x<=4&&y>=2&&y<=5?0:1;
+  // The tile directly ahead is a wall; safe nearby floor tiles remain.
+  state.grid[3][3]=1;
+  p.x=2.5;p.y=3.5;p.facing={x:1,y:0};
+  state.hollows.forEach(h=>{h.x=20;h.y=15;h.stunned=100;});
+  room.action(1,'ability');const hp=p.hp;
+  room.testHit(1);
+  assert.equal(p.hp,hp,'Wall-blocked shield still prevents damage');
+  assert.equal(state.grid[Math.floor(p.y)][Math.floor(p.x)],0,
+    'Wall-blocked teleport must end on a walkable tile');
+  assert(Math.hypot(p.x-2.5,p.y-3.5)<=3.15,
+    'Alternate landing must remain within three cells');
+  assert(!(p.x>3&&p.y>=3&&p.y<4),
+    'Teleport must never enter a wall tile');
+}
+{
+  const room=makeTeleporterRoom(),p=room.snapshot(false).player;
+  room.action(1,'ability');
+  for(let i=0;i<155;i++)room.tick(.033);
+  assert.equal(p.phaseGuardTime,0,'Unused shield must expire after five seconds');
+  assert(p.abilityCooldown>0,'Cooldown continues after protection expires');
+}
+{
+  const room=createRoomEngine();
+  for(let id=2;id<=5;id++)room.join(id);
+  for(let id=1;id<=5;id++)room.role(id,'teleporter');
+  room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  assert.deepEqual(Array.from(room.snapshot(false).playerRoles),Array(5).fill('teleporter'),
+    'Teleporter must be selectable for every multiplayer slot');
+  room.action(4,'ability');
+  const players=room.snapshot(false).players;
+  assert.equal(players[3].phaseGuardTime,5,'Fourth player can activate Phase Guard');
+  assert.equal(players[0].phaseGuardTime||0,0,'Shield must not cover teammates');
+  assert.equal(players[4].phaseGuardTime||0,0,'Fifth player stays unshielded');
+}
+
 // Vanish is owned by the authoritative simulation. It affects only the
 // caster, expires after three seconds, and prevents Hollows selecting them.
 {
