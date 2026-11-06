@@ -2044,7 +2044,6 @@
   bindDescribedAction('#touchDash','dash',()=>dash(null,true));
   bindDescribedAction('#touchDecoy','decoy',triggerDecoy);
   bindDescribedAction('#touchInteract','use',interact);
-  bindGameAction('#touchPause',pause);
   // Tap/click the selected character or Hollow while Rewinder is targeting.
   canvas.addEventListener('pointerdown',event=>{
     if(!rewindTargeting||state!=='playing'||classChoice!=='rewinder')return;
