@@ -44,7 +44,7 @@
     roleOptions: $('#roleOptions'), roleLocked: $('#roleLocked'), lockedRoleText: $('#lockedRoleText'), roleLabel: $('#roleChoiceLabel')
   };
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
-  let roomTiles = new Set(), noiseEvents = [], survivor = null, technician = null;
+  let roomTiles = new Set(), noiseEvents = [], illusions = [], survivor = null, technician = null;
   // Slots 3–5 are simulated on the server, with the same original rules.
   // Browser snapshots use remotePlayers to render every teammate.
   let extraPlayers=[null,null,null],remotePlayers=[],roomPlayerId=0;
@@ -206,12 +206,13 @@
   const CAMERA_ZOOM = 1.65;
   const SCOUT_STUN_RADIUS = 5.5;
   const MEDIC_HEAL_RADIUS = 5.5;
-  const SKILL_COOLDOWN = {scout:13,medic:16,invisibler:18,teleporter:20};
+  const SKILL_COOLDOWN = {scout:13,medic:16,invisibler:18,teleporter:20,illusioner:22};
   const ROLE_DETAILS={
     scout:{label:'SCOUT',skill:'STUN SHOCKWAVE',ready:'PULSE READY'},
     medic:{label:'MEDIC',skill:'HEALING BURST',ready:'HEAL READY'},
     invisibler:{label:'INVISIBLER',skill:'VANISH · 3 SECONDS',ready:'VANISH READY'},
-    teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 5 SECONDS',ready:'GUARD READY'}
+    teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 5 SECONDS',ready:'GUARD READY'},
+    illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'}
   };
   const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
@@ -385,7 +386,7 @@
         wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100,stunned:0,
         dashCooldown:variant==='dasher'?2+rand()*1.5:0,dashTime:0,dashDir:{x:0,y:0}});
     }
-    decoys=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
+    decoys=[];illusions=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
     ui.level.textContent=`BROWSER GAME V4.19 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
@@ -756,6 +757,18 @@
       player.abilityCooldown=SKILL_COOLDOWN.teleporter*cooldownFactor();
       notify('TELEPORTER — Phase Guard active for 5 seconds!');
       beep(700,.24,'triangle',.025);
+    }else if(classChoice==='illusioner'){
+      // The illusion is independent of its caster: it never takes damage,
+      // collects objectives, or blocks real survivors.
+      const heading=Math.hypot(player.facing.x,player.facing.y)||1;
+      const ownerSlot=allPlayers().indexOf(player)+1;
+      illusions=illusions.filter(illusion=>illusion.ownerSlot!==ownerSlot);
+      illusions.push({x:player.x,y:player.y,
+        direction:{x:player.facing.x/heading,y:player.facing.y/heading},
+        life:5,stopped:false,ownerSlot});
+      player.abilityCooldown=SKILL_COOLDOWN.illusioner*cooldownFactor();
+      notify('ILLUSIONER — Phantom Double deployed!');
+      beep(920,.25,'triangle',.026);
     }else{
       const stunned=hollows.filter(h=>dist(h,player)<SCOUT_STUN_RADIUS);
       for(const h of stunned){h.stunned=2.5;h.mode='search';h.target=null;h.path=[];h.repath=0;h.chaseUntil=clock+3;}
@@ -940,14 +953,31 @@
     // Require a clear path to avoid hitting through a wall.
     if(hollows.some(h=>!(h.stunned>0)&&dist(player,h)<.80&&clearLine(player,h)))damage();
   }
+  function updateIllusions(dt){
+    for(const illusion of illusions){
+      illusion.life=Math.max(0,illusion.life-dt);
+      if(illusion.life<=0||illusion.stopped)continue;
+      const before={x:illusion.x,y:illusion.y};
+      const hitWall=moveEntity(illusion,illusion.direction.x*3.5*dt,
+        illusion.direction.y*3.5*dt,.18);
+      if(hitWall||dist(before,illusion)<.002)illusion.stopped=true;
+    }
+    illusions=illusions.filter(illusion=>illusion.life>0);
+  }
   function updateHollows(dt){
     let danger=0;
     for(const h of hollows){
-      // Avoid targeting a downed player if their teammate is still alive.
-      // Invisible survivors must never be selected as chase targets,
-      // including when they are the only living player.
+      // Illusions are decoys that take precedence over real survivors
+      // within their attraction radius. A Hollow cannot destroy one.
+      const phantom=illusions.filter(i=>dist(h,i)<=8)
+        .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
+      // Ignore downed or invisible survivors as regular chase targets.
       const nearest=allPlayers().filter(p=>p.hp>0&&!(p.invisibleTime>0))
         .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
+      if(!phantom&&h.mode==='illusion'){
+        h.mode='search';h.target=null;h.path=[];h.pathIndex=0;
+        h.chaseUntil=clock;h.repath=0;
+      }
       if(h.stunned>0){h.stunned=Math.max(0,h.stunned-dt);h.dashTime=0;h.wobble+=dt*5;continue;}
       // Five Stage II Dashers lunge along their movement/chase direction.
       if(h.variant==='dasher'){
@@ -978,7 +1008,16 @@
         (distance<(h.mode==='chase'?8:6.6)&&dot>.12&&clearLine(h,nearest)));
       const heard=noiseEvents.filter(n=>n.expires>clock&&dist(h,n)<n.radius)
         .sort((a,b)=>dist(h,a)-dist(h,b))[0];
-      if(visible){
+      if(phantom){
+        const prior=h.target;
+        const tileChanged=!prior||Math.floor(prior.x)!==Math.floor(phantom.x)||
+          Math.floor(prior.y)!==Math.floor(phantom.y);
+        h.mode='illusion';h.chasedPlayer=null;
+        h.target={x:phantom.x,y:phantom.y};
+        h.chaseUntil=clock+1;
+        h.searchPoints=0;
+        if(tileChanged)h.repath=0;
+      }else if(visible){
         // Repath when the nearest changes tile, not every animation frame:
         // resetting pathIndex every frame leaves chasing ghosts circling.
         const prior=h.target;
@@ -994,7 +1033,7 @@
         h.mode='search';h.chasedPlayer=null;
         h.chaseUntil=clock+4.5;h.searchPoints=0;h.repath=0;
       }
-      if(!visible&&heard&&h.mode!=='chase'&&(h.mode!=='lure'||h.heardAt<clock-0.65)){
+      if(!phantom&&!visible&&heard&&h.mode!=='chase'&&(h.mode!=='lure'||h.heardAt<clock-0.65)){
         h.mode='lure';h.chasedPlayer=null;h.target={x:heard.x,y:heard.y};h.heardAt=clock;
         h.chaseUntil=clock+3.5;h.repath=0;h.searchPoints=0;
       }
@@ -1012,6 +1051,14 @@
       }
       if(h.mode==='chase')danger=Math.max(danger,distance<3.5?2:1);
       if(h.mode==='lure'&&distance<5)danger=Math.max(danger,1);
+      if(h.mode==='illusion'&&phantom&&dist(h,phantom)<1.5&&clearLine(h,phantom)){
+        const d=dist(h,phantom);
+        const step=Math.min(h.speed*1.55*dt,Math.max(0,d-.13));
+        h.angle=Math.atan2(phantom.y-h.y,phantom.x-h.x);
+        moveEntity(h,Math.cos(h.angle)*step,Math.sin(h.angle)*step,.13);
+        h.wobble+=dt*5;
+        continue;
+      }
       if(h.mode==='chase'&&distance<1.5&&clearLine(h,nearest)){
         // When a Hollow reaches the nearest's tile, navigate to the nearest,
         // not just the tile centre. This also works when the nearest is still.
@@ -1031,7 +1078,7 @@
           target=TILE_CENTER(chosen.x,chosen.y);
         }
         if(target)h.path=pathTo(h,target);
-        h.pathIndex=0;h.repath=h.mode==='chase'?.23:(h.mode==='lure'?.65:1.25);
+        h.pathIndex=0;h.repath=h.mode==='chase'||h.mode==='illusion'?.23:(h.mode==='lure'?.65:1.25);
       }else h.repath-=dt;
       if(h.variant==='dasher'&&h.dashCooldown<=0){
         // If the nearest is visible, dash right at them; otherwise lunge along
@@ -1066,7 +1113,7 @@
         const p=h.path[h.pathIndex],delta=dist(h,p);
         if(delta<.07)h.pathIndex++;
         else{
-          const speed=h.speed*(h.mode==='chase'?1.55:1)*(h.mode==='lure'?1.20:1);
+          const speed=h.speed*((h.mode==='chase'||h.mode==='illusion')?1.55:1)*(h.mode==='lure'?1.20:1);
           const step=Math.min(speed*dt,delta);
           h.angle=Math.atan2(p.y-h.y,p.x-h.x);
           if(h.variant==='dasher'){
@@ -1095,6 +1142,8 @@
     ui.abilityStatus.textContent=player.phaseGuardTime>0?
       'PHASE GUARD · '+player.phaseGuardTime.toFixed(1)+'s':
       player.invisibleTime>0?'VANISH ACTIVE · '+player.invisibleTime.toFixed(1)+'s':
+      classChoice==='illusioner'&&illusions.some(i=>i.ownerSlot===allPlayers().indexOf(player)+1)?
+        'PHANTOM DOUBLE ACTIVE':
       player.abilityCooldown<=0?ROLE_DETAILS[classChoice].ready:'ABILITY RECHARGING';
     if(technician?.rescued)ui.abilityStatus.textContent+=' · CD -30%';
     ui.dash.textContent=player.dashCooldown<=0?'DASH READY':`DASH ${player.dashCooldown.toFixed(1)}s`;
@@ -1126,7 +1175,7 @@
     if(guestPlayer)asGuest(()=>updatePlayer(dt));
     for(let slot=3;slot<=5;slot++)withExtra(slot,()=>updatePlayer(dt));
     if(state!=='playing')return;
-    updateSurvivor(dt);updateHollows(dt);
+    updateSurvivor(dt);updateIllusions(dt);updateHollows(dt);
     for(const wave of skillWaves)wave.age+=dt;
     skillWaves=skillWaves.filter(wave=>wave.age<wave.duration);
     // Check AFTER ghosts move, including when the player is stationary.
@@ -1320,6 +1369,27 @@
     const fx=player.facing.x,fy=player.facing.y;ctx.strokeStyle='#e6fff7';ctx.lineWidth=2.7;ctx.beginPath();ctx.moveTo(x+fx*6,y+fy*6);ctx.lineTo(x+fx*14,y+fy*14);ctx.stroke();
     ctx.strokeStyle=color;ctx.lineWidth=player.dashTime>0?3:1.7;ctx.beginPath();ctx.arc(x,y,13,0,Math.PI*2);ctx.stroke();
     ctx.restore();
+  }
+  function drawIllusions(){
+    for(const illusion of illusions){
+      const x=illusion.x*TILE,y=illusion.y*TILE;
+      const color=colorForPlayer(illusion.ownerSlot);
+      ctx.save();
+      ctx.globalAlpha=Math.min(.54,.2+illusion.life*.065);
+      halo(x,y,50,color+'50');
+      ctx.setLineDash([3,4]);
+      ctx.strokeStyle='#b9c7ff';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(x,y,14,0,Math.PI*2);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle=color;
+      ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#122d45';
+      ctx.beginPath();ctx.arc(x,y-2,5,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#e7f5ff';ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.moveTo(x+illusion.direction.x*6,y+illusion.direction.y*6);
+      ctx.lineTo(x+illusion.direction.x*14,y+illusion.direction.y*14);ctx.stroke();
+      ctx.restore();
+    }
   }
   function drawOtherPlayer(){
     for(let i=0;i<remotePlayers.length;i++){
@@ -1565,7 +1635,7 @@
     const y1=Math.min(ROWS,Math.ceil((camera.y+H/CAMERA_ZOOM)/TILE)+1);
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
-    drawItems();drawHollows();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();
+    drawItems();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();
     ctx.restore();
     // Fixed screen-space HUD must never drift with the camera.
     drawDirectionalHUD();drawInteractPrompts();drawTeammateIndicators();
@@ -1800,6 +1870,7 @@
     // Hollows must be drawn where the server checks their collisions.
     // No visual extrapolation that can put their sprites ahead of the hitbox.
     if(Array.isArray(d.hollows))hollows=d.hollows;
+    illusions=Array.isArray(d.illusions)?d.illusions:[];
     decoys=d.decoys;
     noiseEvents=Array.isArray(d.noiseEvents)?d.noiseEvents:[];
     skillWaves=d.skillWaves||[];survivor=d.survivor;technician=d.technician;
@@ -1876,10 +1947,12 @@
       const medics=players.filter(person=>person.role==='medic').length;
       const teleporters=players.filter(person=>person.role==='teleporter').length;
       const invisiblers=players.filter(person=>person.role==='invisibler').length;
+      const illusioners=players.filter(person=>person.role==='illusioner').length;
       $('#scoutCount').textContent=String(scouts);
       $('#medicCount').textContent=String(medics);
       $('#teleporterCount').textContent=String(teleporters);
       $('#invisiblerCount').textContent=String(invisiblers);
+      $('#illusionerCount').textContent=String(illusioners);
       $('#rosterCount').textContent=players.length+' / 5 players';
     };
     nicknameInput.addEventListener('change',()=>{
