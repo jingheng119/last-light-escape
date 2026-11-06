@@ -115,7 +115,7 @@
       (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
-  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.trail=[];}
+  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.trail=[];}
   let extraContextGuest=null;
   function allPlayers(){
     // A player action temporarily swaps the global 'player' reference.
@@ -176,7 +176,7 @@
       moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.18:.21,.30);
     }
   }
-  function guestAction(name,touch=false){
+  function guestAction(name,touch=false,target=null){
     if(roomRole==='none')return false;
     // The authoritative server owns movement and dash activation. Do NOT
     // move the character or start a local dash before server confirmation:
@@ -192,11 +192,13 @@
       action.direction=magnitude>.08?{x:vx/magnitude,y:vy/magnitude}:{x:facing.x,y:facing.y};
     }
     if(name==='dash'&&touch)action.touch=true;
+    if(name==='ability'&&target)action.target=target;
     sendRoom(action);
     return true;
   }
 
   // Temporary developer shortcut. Skipped runs never enter the best-time record.
+  let rewindTargeting=false,rewindTargetIndex=0;
   let developerSkipped=false;
   let classChoice = 'scout';
   let elapsed = 0, overallElapsed = 0, clock = 0, toastUntil = 0, hitFlash = 0, alertLevel = 0;
@@ -375,11 +377,12 @@
       const techSpot=selectSpot(reserved,13,distances,false);reserved.push(techSpot);
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
-    player={...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,anchor:null};
+    player={slot:1,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,anchor:null};
     if(roomRole==='host'&&guestPlayer){newGuest();guestPlayer.hp=guestCarriedHealth;}
     for(let i=0;i<3;i++){
       if(extraActive[i]){
         extraPlayers[i]=structuredClone(player);
+        extraPlayers[i].slot=i+3;
         extraPlayers[i].hp=extraCarriedHealth[i];
       }
     }
@@ -741,7 +744,36 @@
     // Return to the recorded position even when another entity occupies it.
     return {x:prior.x,y:prior.y};
   }
-  function activateAbility(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability'))return;
+  function rewindChoices(){
+    if(!player||state!=='playing')return [];
+    const self={kind:'player',slot:roomPlayerId||1,entity:player,label:'SELF'};
+    const allies=remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&dist(p,player)<=REWIND_RADIUS)
+      .map(p=>({kind:'player',slot:p.slot,entity:p,label:'ALLY '+p.slot}));
+    const enemies=hollows.map((h,index)=>({kind:'hollow',index,entity:h,label:'HOLLOW'}))
+      .filter(t=>dist(t.entity,player)<=REWIND_RADIUS);
+    return [self,...allies,...enemies];
+  }
+  function chosenRewindTarget(){
+    const choices=rewindChoices();
+    if(!choices.length)return null;
+    rewindTargetIndex=((rewindTargetIndex%choices.length)+choices.length)%choices.length;
+    return choices[rewindTargetIndex];
+  }
+  function cancelRewindTarget(){rewindTargeting=false;}
+  function commitRewindTarget(choice){
+    if(!choice)return;
+    rewindTargeting=false;
+    activateAbility({kind:choice.kind,...(choice.kind==='hollow'?{index:choice.index}:{slot:choice.slot})});
+  }
+  function requestAbility(){
+    if(classChoice!=='rewinder'){activateAbility();return;}
+    if(state!=='playing'||!player||player.hp<=0||player.abilityCooldown>0)return;
+    if(!rewindTargeting){
+      rewindTargeting=true;rewindTargetIndex=0;
+      notify('REWINDER — tap a target, or TAB to choose and F/ENTER to confirm.',3);
+    }else commitRewindTarget(chosenRewindTarget());
+  }
+  function activateAbility(rewindTarget=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability',false,rewindTarget))return;
     if(state!=='playing'||player.hp<=0||player.abilityCooldown>0)return;
     if(classChoice==='medic'){
       // Self-healing always takes priority. When healthy, heal exactly one
@@ -780,35 +812,34 @@
       notify('TELEPORTER — Phase Guard active for 5 seconds!');
       beep(700,.24,'triangle',.025);
     }else if(classChoice==='rewinder'){
-      const center={x:player.x,y:player.y};
-      const nearbyPlayers=allPlayers().filter(p=>p.hp>0&&dist(p,center)<=REWIND_RADIUS);
-      const nearbyHollows=hollows.filter(h=>dist(h,center)<=REWIND_RADIUS);
-      for(const target of nearbyPlayers){
-        const destination=rewindDestination(target);
-        const from={x:target.x,y:target.y};
-        target.x=destination.x;target.y=destination.y;
-        target.invincible=Math.max(target.invincible,2);
-        target.dashTime=0;
-        rewindHistory.set(target,[{t:clock,x:target.x,y:target.y}]);
-        skillWaves.push({x:from.x,y:from.y,radius:.75,age:0,duration:.48,color:'rewinder'});
-        skillWaves.push({x:target.x,y:target.y,radius:.75,age:0,duration:.48,color:'rewinder'});
+      // A single explicitly chosen target. The authoritative simulation checks
+      // distance again so clients cannot target out-of-range enemies or allies.
+      const chosen=rewindTarget&&rewindTarget.kind==='hollow'&&Number.isInteger(rewindTarget.index)
+        ?hollows[rewindTarget.index]
+        :rewindTarget&&rewindTarget.kind==='player'&&Number.isInteger(rewindTarget.slot)
+          ?allPlayers().find(p=>p.slot===rewindTarget.slot):null;
+      if(!chosen||chosen.disconnected||chosen.hp===0||
+         dist(chosen,player)>REWIND_RADIUS){
+        notify('REWINDER — select a valid target within range.');return;
       }
-      for(const h of nearbyHollows){
-        const destination=rewindDestination(h,hollowRewindHistory);
-        const from={x:h.x,y:h.y};
-        h.x=destination.x;h.y=destination.y;
-        // A rewound Hollow must rebuild navigation from its new position.
-        h.dashTime=0;h.path=[];h.pathIndex=0;h.repath=0;
-        h.target=null;h.chasedPlayer=null;h.chaseUntil=clock;
-        h.mode='search';
-        hollowRewindHistory.set(h,[{t:clock,x:h.x,y:h.y}]);
-        skillWaves.push({x:from.x,y:from.y,radius:.65,age:0,duration:.48,color:'rewinder'});
-        skillWaves.push({x:h.x,y:h.y,radius:.65,age:0,duration:.48,color:'rewinder'});
+      const isHollow=rewindTarget.kind==='hollow';
+      const destination=rewindDestination(chosen,isHollow?hollowRewindHistory:rewindHistory);
+      const from={x:chosen.x,y:chosen.y};
+      chosen.x=destination.x;chosen.y=destination.y;
+      chosen.dashTime=0;
+      if(isHollow){
+        chosen.path=[];chosen.pathIndex=0;chosen.repath=0;
+        chosen.target=null;chosen.chasedPlayer=null;chosen.chaseUntil=clock;
+        chosen.mode='search';
+        hollowRewindHistory.set(chosen,[{t:clock,x:chosen.x,y:chosen.y}]);
+      }else{
+        chosen.invincible=Math.max(chosen.invincible,2);
+        rewindHistory.set(chosen,[{t:clock,x:chosen.x,y:chosen.y}]);
       }
       player.abilityCooldown=SKILL_COOLDOWN.rewinder*cooldownFactor();
-      skillWaves.push({x:center.x,y:center.y,radius:REWIND_RADIUS,age:0,duration:.65,color:'rewinder'});
-      notify('REWINDER — '+nearbyHollows.length+' Hollows and '+
-        Math.max(0,nearbyPlayers.length-1)+' teammates rewound! 2s protection.');
+      skillWaves.push({x:from.x,y:from.y,radius:.8,age:0,duration:.5,color:'rewinder'});
+      skillWaves.push({x:chosen.x,y:chosen.y,radius:1.3,age:0,duration:.55,color:'rewinder'});
+      notify('REWINDER — target returned 3 seconds!'+(isHollow?'':' 2s protection.'));
       beep(1080,.22,'triangle',.028);
     }else if(classChoice==='anchor'){
       if(!player.anchor){
@@ -1239,7 +1270,7 @@
     ui.survivorStatus.textContent=technician
       ?`${Number(survivor.rescued)+Number(technician.rescued)} / 2 ALLIES`
       :(survivor.rescued?'FOLLOWING':'TRAPPED');
-    ui.abilityStatus.textContent=player.phaseGuardTime>0?
+    ui.abilityStatus.textContent=rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':player.phaseGuardTime>0?
       'PHASE GUARD · '+player.phaseGuardTime.toFixed(1)+'s':
       player.invisibleTime>0?'VANISH ACTIVE · '+player.invisibleTime.toFixed(1)+'s':
       classChoice==='anchor'&&player.anchor?'ANCHOR PLACED · F TO RETURN':
@@ -1253,7 +1284,7 @@
     const skillCharge=classChoice==='anchor'&&player.anchor?1:Math.max(0,Math.min(1,1-player.abilityCooldown/skillTotal));
     $('#touchAbility').style.setProperty('--skill-charge',`${skillCharge.toFixed(3)}turn`);
     ui.skillCD.textContent='';
-    $('#touchAbility').setAttribute('aria-label',player.abilityCooldown>0?'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
+    $('#touchAbility').setAttribute('aria-label',rewindTargeting?'Confirm rewind target':player.abilityCooldown>0?'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
     const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
     const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/(2*cooldownFactor())));
     $('#touchDash').style.setProperty('--skill-charge',`${dashCharge.toFixed(3)}turn`);
@@ -1750,6 +1781,18 @@
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
     drawItems();drawAnchors();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();
+    if(rewindTargeting&&classChoice==='rewinder'){
+      const selected=chosenRewindTarget(),cx=player.x*TILE,cy=player.y*TILE;
+      ctx.save();ctx.strokeStyle='rgba(175,153,255,.86)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(cx,cy,REWIND_RADIUS*TILE,0,Math.PI*2);ctx.stroke();
+      for(const choice of rewindChoices()){
+        const x=choice.entity.x*TILE,y=choice.entity.y*TILE;
+        ctx.strokeStyle=choice===selected?'#fff3ac':'#b9a7ff';
+        ctx.lineWidth=choice===selected?4:2;
+        ctx.beginPath();ctx.arc(x,y,choice===selected?18:14,0,Math.PI*2);ctx.stroke();
+      }
+      ctx.restore();
+    }
     ctx.restore();
     // Fixed screen-space HUD must never drift with the camera.
     drawDirectionalHUD();drawInteractPrompts();drawTeammateIndicators();
@@ -1805,11 +1848,14 @@
   document.addEventListener('keydown', e => {
     if(activePage!=='play')return;
     if(!soundEnabled)unlockGameAudio();
-    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k))e.preventDefault();
+    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k)||(rewindTargeting&&k==='tab'))e.preventDefault();
     if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole!=='none')sendRoom(guestInputPacket());}
     if(e.repeat)return;
+    if(rewindTargeting&&k==='escape'){cancelRewindTarget();return;}
+    if(rewindTargeting&&k==='tab'){rewindTargetIndex++;return;}
+    if(rewindTargeting&&k==='enter'){commitRewindTarget(chosenRewindTarget());return;}
     if(k==='m'){if(roomRole==='host')developerSkip(e.shiftKey);return;}
-    if(k===' ')dash();else if(k==='q')triggerDecoy();else if(k==='e')interact();else if(k==='f')activateAbility();else if(k==='p'||k==='escape')pause();else if(k==='enter'&&state!=='playing')advance();else if(k==='r'&&state==='playing'&&roomRole==='host'){sendRoom({type:'restart'});}
+    if(k===' ')dash();else if(k==='q')triggerDecoy();else if(k==='e')interact();else if(k==='f')requestAbility();else if(k==='p'||k==='escape')pause();else if(k==='enter'&&state!=='playing')advance();else if(k==='r'&&state==='playing'&&roomRole==='host'){sendRoom({type:'restart'});}
   });
   document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir){moveHeld[dir]=false;if(roomRole!=='none')sendRoom(guestInputPacket());}});
   window.addEventListener('blur',()=>{moveHeld={up:false,down:false,left:false,right:false};if(state==='playing'&&roomRole==='none')pause();});
@@ -1844,8 +1890,24 @@
   bindGameAction('#touchDash',()=>dash(null,true));
   bindGameAction('#touchInteract',interact);
   bindGameAction('#touchDecoy',triggerDecoy);
-  bindGameAction('#touchAbility',activateAbility);
+  bindGameAction('#touchAbility',requestAbility);
   bindGameAction('#touchPause',pause);
+  // Tap/click the selected character or Hollow while Rewinder is targeting.
+  canvas.addEventListener('pointerdown',event=>{
+    if(!rewindTargeting||state!=='playing'||classChoice!=='rewinder')return;
+    event.preventDefault();
+    const rect=canvas.getBoundingClientRect();
+    const px=(event.clientX-rect.left)*W/rect.width;
+    const py=(event.clientY-rect.top)*H/rect.height;
+    const wx=(px/CAMERA_ZOOM+camera.x)/TILE;
+    const wy=(py/CAMERA_ZOOM+camera.y)/TILE;
+    const choices=rewindChoices();
+    const closest=choices.sort((a,b)=>
+      Math.hypot(a.entity.x-wx,a.entity.y-wy)-
+      Math.hypot(b.entity.x-wx,b.entity.y-wy))[0];
+    if(closest&&Math.hypot(closest.entity.x-wx,closest.entity.y-wy)<.65)
+      commitRewindTarget(closest);
+  });
   const joystick=$('#joystick'),stick=$('#joystickKnob');
   let joystickPointer=null;
   function resetJoystick(){
