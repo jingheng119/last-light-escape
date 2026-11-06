@@ -213,7 +213,7 @@
     invisibler:{label:'INVISIBLER',skill:'VANISH · 3 SECONDS',ready:'VANISH READY'},
     teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 5 SECONDS',ready:'GUARD READY'},
     illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'},
-    rewinder:{label:'REWINDER',skill:'REWIND · 3 SECONDS',ready:'REWIND READY'},
+    rewinder:{label:'REWINDER',skill:'AREA REWIND · 5.5 TILES',ready:'REWIND READY'},
     anchor:{label:'ANCHOR',skill:'PLACE ANCHOR · RETURN',ready:'ANCHOR READY'}
   };
   const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
@@ -227,7 +227,8 @@
   let skillWaves = [];
   // Histories live only on the authoritative simulation, never in network snapshots.
   const rewindHistory=new WeakMap();
-  const REWIND_SECONDS=3;
+  const REWIND_SECONDS=3,REWIND_RADIUS=5.5;
+  const hollowRewindHistory=new WeakMap();
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
   const joystickMove={x:0,y:0};
@@ -724,21 +725,20 @@
     }
     notify('Get closer to an ally, relay, or elevator.');
   }
-  function recordRewindPosition(p){
-    let samples=rewindHistory.get(p);
-    if(!samples){samples=[];rewindHistory.set(p,samples);}
-    samples.push({t:clock,x:p.x,y:p.y});
-    // Retain a small bounded position timeline (3 seconds plus margin).
+  function recordPosition(historyMap,entity){
+    let samples=historyMap.get(entity);
+    if(!samples){samples=[];historyMap.set(entity,samples);}
+    samples.push({t:clock,x:entity.x,y:entity.y});
     while(samples.length>1&&samples[1].t<clock-REWIND_SECONDS-.15)
       samples.shift();
   }
-  function rewindDestination(p){
-    const history=rewindHistory.get(p)||[];
+  function recordRewindPosition(p){recordPosition(rewindHistory,p);}
+  function rewindDestination(p,historyMap=rewindHistory){
+    const history=historyMap.get(p)||[];
     const cutoff=clock-REWIND_SECONDS;
     const prior=[...history].reverse().find(sample=>sample.t<=cutoff)||
       history[0]||{x:p.x,y:p.y};
-    // Always return to the recorded position, even if a Hollow is there.
-    // The ability grants two seconds of invincibility on arrival.
+    // Return to the recorded position even when another entity occupies it.
     return {x:prior.x,y:prior.y};
   }
   function activateAbility(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability'))return;
@@ -780,18 +780,35 @@
       notify('TELEPORTER — Phase Guard active for 5 seconds!');
       beep(700,.24,'triangle',.025);
     }else if(classChoice==='rewinder'){
-      const destination=rewindDestination(player);
-      const from={x:player.x,y:player.y};
-      player.x=destination.x;player.y=destination.y;
-      player.invincible=Math.max(player.invincible,2);
-      player.dashTime=0;
-      // Begin a new history after the jump; do not let consecutive uses
-      // refer to an old position across the teleport.
-      rewindHistory.set(player,[{t:clock,x:player.x,y:player.y}]);
+      const center={x:player.x,y:player.y};
+      const nearbyPlayers=allPlayers().filter(p=>p.hp>0&&dist(p,center)<=REWIND_RADIUS);
+      const nearbyHollows=hollows.filter(h=>dist(h,center)<=REWIND_RADIUS);
+      for(const target of nearbyPlayers){
+        const destination=rewindDestination(target);
+        const from={x:target.x,y:target.y};
+        target.x=destination.x;target.y=destination.y;
+        target.invincible=Math.max(target.invincible,2);
+        target.dashTime=0;
+        rewindHistory.set(target,[{t:clock,x:target.x,y:target.y}]);
+        skillWaves.push({x:from.x,y:from.y,radius:.75,age:0,duration:.48,color:'rewinder'});
+        skillWaves.push({x:target.x,y:target.y,radius:.75,age:0,duration:.48,color:'rewinder'});
+      }
+      for(const h of nearbyHollows){
+        const destination=rewindDestination(h,hollowRewindHistory);
+        const from={x:h.x,y:h.y};
+        h.x=destination.x;h.y=destination.y;
+        // A rewound Hollow must rebuild navigation from its new position.
+        h.dashTime=0;h.path=[];h.pathIndex=0;h.repath=0;
+        h.target=null;h.chasedPlayer=null;h.chaseUntil=clock;
+        h.mode='search';
+        hollowRewindHistory.set(h,[{t:clock,x:h.x,y:h.y}]);
+        skillWaves.push({x:from.x,y:from.y,radius:.65,age:0,duration:.48,color:'rewinder'});
+        skillWaves.push({x:h.x,y:h.y,radius:.65,age:0,duration:.48,color:'rewinder'});
+      }
       player.abilityCooldown=SKILL_COOLDOWN.rewinder*cooldownFactor();
-      skillWaves.push({x:from.x,y:from.y,radius:1.6,age:0,duration:.5,color:'teleporter'});
-      skillWaves.push({x:player.x,y:player.y,radius:1.6,age:0,duration:.5,color:'teleporter'});
-      notify('REWINDER — returned three seconds! Invincible for 2 seconds.');
+      skillWaves.push({x:center.x,y:center.y,radius:REWIND_RADIUS,age:0,duration:.65,color:'rewinder'});
+      notify('REWINDER — '+nearbyHollows.length+' Hollows and '+
+        Math.max(0,nearbyPlayers.length-1)+' teammates rewound! 2s protection.');
       beep(1080,.22,'triangle',.028);
     }else if(classChoice==='anchor'){
       if(!player.anchor){
@@ -1260,6 +1277,8 @@
     for(let slot=3;slot<=5;slot++)withExtra(slot,()=>updatePlayer(dt));
     if(state!=='playing')return;
     updateSurvivor(dt);updateIllusions(dt);updateHollows(dt);
+    // Record Hollow histories on the authoritative simulation each frame.
+    for(const h of hollows)recordPosition(hollowRewindHistory,h);
     for(const wave of skillWaves)wave.age+=dt;
     skillWaves=skillWaves.filter(wave=>wave.age<wave.duration);
     // Check AFTER ghosts move, including when the player is stationary.
@@ -1684,7 +1703,7 @@
       }
       const radius=wave.radius*TILE*(.035+.965*(1-Math.pow(1-t,2)));
       const alpha=Math.pow(1-t,.8);
-      const rgb='110,255,223';
+      const rgb=wave.color==='rewinder'?'170,153,255':'110,255,223';
       ctx.save();
       ctx.globalAlpha=alpha;
       ctx.fillStyle=`rgba(${rgb},.075)`;
