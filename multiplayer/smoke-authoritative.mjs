@@ -1,6 +1,51 @@
 import assert from 'node:assert/strict';
 import { createRoomEngine } from './headless-engine.js';
 
+// Medic heals the caster first, then exactly one random injured teammate
+// within 5.5 cells. Failed heals must not consume the skill cooldown.
+function readyMedicRoom(){
+  const room=createRoomEngine();
+  room.join(2);room.join(3);room.join(4);room.join(5);
+  room.role(2,'medic');room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  const players=room.snapshot(false).players;
+  for(const p of players){p.x=3.5;p.y=3.5;p.invincible=100;}
+  return {room,players};
+}
+{
+  const {room,players}=readyMedicRoom();
+  players[1].hp=2;players[0].hp=1;players[2].hp=2;
+  room.action(2,'ability');
+  assert.equal(players[1].hp,3,'Medic must heal themselves before teammates');
+  assert.equal(players[0].hp,1,'Self-heal must not also heal a teammate');
+  assert.equal(players[2].hp,2,'One activation must heal exactly one heart');
+  assert(players[1].abilityCooldown>0,'Successful self-heal consumes cooldown');
+}
+{
+  const {room,players}=readyMedicRoom();
+  players[0].hp=2;players[2].hp=1;players[3].hp=2;
+  players[4].hp=2;players[4].x=100;players[4].y=100;
+  room.action(2,'ability');
+  const newlyHealed=[players[0],players[2],players[3]].filter((p,i)=>
+    p.hp>[2,1,2][i]);
+  assert.equal(newlyHealed.length,1,'Only one injured teammate may be healed');
+  assert.equal(players[1].hp,3,'Healthy Medic stays at full health');
+  assert.equal(players[4].hp,2,'Out-of-range teammate must not be healed');
+  assert(players[1].abilityCooldown>0,'Healing teammate consumes cooldown');
+}
+{
+  const {room,players}=readyMedicRoom();
+  players[0].hp=2;players[0].x=100;
+  players[2].hp=0;
+  room.action(2,'ability');
+  assert.equal(players[0].hp,2,'Out-of-range teammate is unchanged');
+  assert.equal(players[2].hp,0,'Medic skill must not revive downed players');
+  assert.equal(players[1].abilityCooldown,0,'Failed heal must not consume cooldown');
+  players[0].x=3.5;
+  room.action(2,'ability');
+  assert.equal(players[0].hp,3,'Medic can heal after an unsuccessful attempt');
+}
+
 // A diagonal mobile dash must slide along an impassable wall instead of
 // reversing direction or stopping on contact. Straight-on dashes still stop.
 function testWallDash(direction,{touch=false,atWall=false}={}){
