@@ -1378,7 +1378,7 @@
   grid-template-columns:repeat(3,minmax(0,1fr));
   column-gap:3px;
   row-gap:0;
-  grid-auto-rows:26px;
+  grid-auto-rows:19px;
   width:100%;
   overflow:hidden;
   padding:0 0 4px;
@@ -1389,13 +1389,13 @@
   align-items:center;
   justify-content:center;
   min-width:0;
-  height:26px;
+  height:19px;
   min-height:0;
-  padding:1px 2px;
+  padding:0 1px;
   border-radius:0;
   font-size:8px;
   font-weight:400;
-  line-height:1.1;
+  line-height:1;
   text-align:center;
   white-space:normal;
   overflow-wrap:anywhere;
