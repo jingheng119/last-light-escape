@@ -1672,7 +1672,8 @@
       const padding=9,boxH=23;
       const boxW=Math.min(196,Math.max(43,ctx.measureText(bubble.text).width+padding*2));
       const left=x-boxW/2,top=y-boxH/2,r=7;
-      // Opaque fill hides maze-wall edges behind the bubble; no pointer/tail.
+      // One continuous outline with an integrated V-shaped speech tail.
+      // Crucially, no bottom border crosses behind the tail.
       ctx.fillStyle='#061d26';
       ctx.strokeStyle=colorForPlayer(slot);
       ctx.lineWidth=1.3;
@@ -1681,6 +1682,9 @@
       ctx.quadraticCurveTo(left+boxW,top,left+boxW,top+r);
       ctx.lineTo(left+boxW,top+boxH-r);
       ctx.quadraticCurveTo(left+boxW,top+boxH,left+boxW-r,top+boxH);
+      ctx.lineTo(x+6,top+boxH);
+      ctx.lineTo(x,top+boxH+7);
+      ctx.lineTo(x-6,top+boxH);
       ctx.lineTo(left+r,top+boxH);
       ctx.quadraticCurveTo(left,top+boxH,left,top+boxH-r);
       ctx.lineTo(left,top+r);ctx.quadraticCurveTo(left,top,left+r,top);
