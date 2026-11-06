@@ -1226,3 +1226,20 @@
     right:8px;bottom:110px;width:min(270px,calc(100% - 16px));padding:11px 12px;
   }
 }
+
+/* Ring count correction: the button's original solid border sat beneath
+   the cooldown pseudo-element and looked like an additional charge.
+   Keep the cooldown arc as the ONLY visible ring on one-charge actions.
+   Two-charge skills receive exactly one additional ::after arc. */
+.mobile-controls .mobile-actions #touchAbility,
+.mobile-controls .mobile-actions #touchDash{
+  border-color:transparent;
+}
+/* Avoid a persistent keyboard-focus outline after tapping on touchscreens.
+   Desktop keyboard focus remains visible for accessibility. */
+@media(pointer:coarse){
+  .mobile-controls .mobile-actions #touchAbility:focus-visible,
+  .mobile-controls .mobile-actions #touchDash:focus-visible{
+    outline:none;
+  }
+}
