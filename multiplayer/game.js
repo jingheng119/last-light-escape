@@ -566,10 +566,10 @@
     beep(frequency,number===1?.32:.16,number===1?'triangle':'sine',
       number===1?.065:.045);
   }
-  // Original generative dark-ambient score. All notes are composed here and
-  // synthesized locally; no third-party recordings or background downloads.
-  // Stage I is restrained and ominous; Stage II adds brighter circuitry and
-  // a stronger electronic pulse. Sound starts only after a user click.
+  // Stage I retains its original procedural soundscape. Stage II uses a
+  // browser-synthesized arrangement of the original Gentle Clockwork demo:
+  // Cmaj7–Fmaj9–Am7–G6, 108 BPM, warm pads, soft keys and chimes.
+  // Music starts only after the player explicitly starts/resumes the game.
   const MUSIC_SCALE={
     1:{bass:[55.00,55.00,51.91,48.99],notes:[164.81,146.83,155.56,130.81],beat:.88},
     2:{bass:[65.41,61.74,58.27,61.74],notes:[196.00,207.65,174.61,185.00],beat:.70}
@@ -599,6 +599,69 @@
     g.connect(musicBus);
     o.start(at);o.stop(at+duration+.03);
   }
+  const COPPER_CHORDS=[[48,52,55,59],[53,57,60,64],[57,60,64,67],[55,59,62,64]];
+  const COPPER_BASS=[[36,43],[41,48],[45,52],[43,50]];
+  const COPPER_MELODY=[
+    [76,79,76,74],[77,76,72,76],[79,76,72,74],[74,76,79,74],
+    [76,79,81,79],[77,76,74,72],[76,79,76,72],[74,72,76,79]
+  ];
+  function copperVoice(midi,at,duration,volume,kind,pan=0){
+    if(!musicBus)return;
+    const hz=440*Math.pow(2,(midi-69)/12);
+    const out=audioCtx.createGain();
+    const stereo=typeof audioCtx.createStereoPanner==='function'?audioCtx.createStereoPanner():null;
+    if(stereo){stereo.pan.value=pan;out.connect(stereo);stereo.connect(musicBus);}
+    else out.connect(musicBus);
+    const end=at+duration;
+    out.gain.setValueAtTime(.0001,at);
+    if(kind==='pad'){
+      out.gain.linearRampToValueAtTime(volume,at+Math.min(.44,duration*.27));
+      out.gain.setValueAtTime(volume,Math.max(at+.45,end-.5));
+      out.gain.linearRampToValueAtTime(.0001,end);
+    }else{
+      const attack=kind==='bass'?.028:.011;
+      out.gain.linearRampToValueAtTime(volume,at+attack);
+      out.gain.exponentialRampToValueAtTime(.0001,end);
+    }
+    const harmonics=kind==='pad'?[1,1.002,2]:kind==='bass'?[1,2]:kind==='plucks'?[1,2,3]:[1,2.002];
+    const levels=kind==='pad'?[1,.24,.10]:kind==='bass'?[1,.13]:kind==='plucks'?[1,.22,.05]:[1,.12];
+    for(let i=0;i<harmonics.length;i++){
+      const osc=audioCtx.createOscillator(),mix=audioCtx.createGain();
+      osc.type='sine';osc.frequency.setValueAtTime(hz*harmonics[i],at);
+      mix.gain.value=levels[i];
+      osc.connect(mix).connect(out);
+      osc.start(at);osc.stop(end+.02);
+    }
+  }
+  function copperPercussion(at,type){
+    // Very light mechanical rhythm; deliberately soft and non-threatening.
+    const duration=type==='kick'?.19:type==='brush'?.14:.07;
+    const osc=audioCtx.createOscillator(),envelope=audioCtx.createGain();
+    osc.type=type==='kick'?'sine':'triangle';
+    const freq=type==='kick'?106:type==='brush'?730:1600;
+    osc.frequency.setValueAtTime(freq,at);
+    if(type==='kick')osc.frequency.exponentialRampToValueAtTime(60,at+duration);
+    envelope.gain.setValueAtTime(type==='kick'?.017:type==='brush'?.0045:.0025,at);
+    envelope.gain.exponentialRampToValueAtTime(.0001,at+duration);
+    osc.connect(envelope).connect(musicBus);osc.start(at);osc.stop(at+duration+.02);
+  }
+  function scheduleCopperBar(t,beat,bar){
+    const chord=COPPER_CHORDS[bar%4],basses=COPPER_BASS[bar%4],melody=COPPER_MELODY[bar%8];
+    // Warm, legato copper pads and lightly pulsing midrange keys.
+    for(let i=0;i<4;i++)
+      copperVoice(chord[i],t,beat*4,.012,'pad',-.5+i/3);
+    for(let i=0;i<2;i++)
+      copperVoice(basses[i],t+i*beat*2,beat*1.55,.025,'bass',-.12);
+    for(let i=0;i<8;i++)
+      copperVoice(chord[i%4]+12,t+i*beat*.5,beat*.38,.015,'plucks',i%2?.36:-.36);
+    const offsets=[0,.75,2,3];
+    for(let i=0;i<4;i++)
+      copperVoice(melody[i],t+offsets[i]*beat,beat*.82,.031,'chime',i%2?.16:-.16);
+    for(let i=0;i<4;i++){
+      copperPercussion(t+i*beat,i%2?'brush':'kick');
+      copperPercussion(t+(i+.5)*beat,'tick');
+    }
+  }
   function updateMusic(){
     if(!soundEnabled||state!=='playing'||!player){
       stopMusic();return;
@@ -620,7 +683,13 @@
       // Schedule only a short look-ahead. No accumulating timers or intervals.
       let scheduled=0;
       while(musicNextAt<audioCtx.currentTime+.12&&scheduled++<3){
-        const beat=score.beat,step=musicStep++,t=musicNextAt;
+        const beat=stage===2?60/108:score.beat,step=musicStep++,t=musicNextAt;
+        if(stage===2){
+          // Eight-bar Gentle Clockwork arrangement, loops continuously.
+          if(step%8===0)scheduleCopperBar(t,beat,Math.floor(step/8)%8);
+          musicNextAt+=beat*.5;
+          continue;
+        }
         const group=Math.floor(step/8)%score.bass.length;
         if(step%8===0){
           // The low bass (49–65 Hz) is hard to hear on phone speakers.
