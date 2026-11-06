@@ -54,8 +54,9 @@
 @media (min-width:981px) and (min-height:560px) and (pointer:fine) {
   html,body{height:100%;overflow:hidden}
   .shell{
-    height:100vh;height:100dvh;max-width:1100px;
-    margin:0 auto;padding:9px 14px;
+    /* Fill the monitor in desktop fullscreen/F11 instead of a centered 1100px column. */
+    height:100vh;height:100dvh;width:100%;max-width:none;
+    margin:0 auto;padding:9px clamp(10px,1.1vw,22px);
     display:flex;flex-direction:column;overflow:hidden;
   }
   .topbar{
@@ -80,7 +81,7 @@
   .canvas-wrap{
     flex:1 1 auto;min-height:0;
     width:min(100%, calc((100dvh - 168px) * 1.47619));
-    max-width:992px;height:100%;
+    max-width:none;height:100%;
     margin:0 auto;
     display:flex;align-items:stretch;justify-content:center;
   }
