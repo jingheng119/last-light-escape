@@ -10,6 +10,9 @@ const PORT=Number(process.env.PORT||3001);
 const HOST=process.env.HOST||'0.0.0.0';
 const MAX_ROOMS=16, MAX_PLAYERS=5;
 const RECONNECT_GRACE_MS=90000;
+const CHAT_HISTORY_LIMIT=50,CHAT_MAX_LENGTH=240,CHAT_MIN_INTERVAL_MS=850;
+const CHAT_BURST_WINDOW_MS=10000,CHAT_BURST_LIMIT=6;
+const QUICK_MESSAGES=new Set(['Help!','Follow me!','Relay activated!','Hollow nearby!','I need healing!','Meet at the elevator!']);
 const rooms=new Map(),lobbyClients=new Set();
 const matchStore=makeMatchStore();
 const MIME={'/':'text/html; charset=utf-8','/play':'text/html; charset=utf-8','/play/':'text/html; charset=utf-8','/game.js':'text/javascript; charset=utf-8',
@@ -33,6 +36,34 @@ const safeNickname=(input,id)=>{
     ?input.replace(/[<>\u0000-\u001f\u007f]/g,'').trim().slice(0,20):'';
   return clean||'Survivor '+id;
 };
+const cleanChatText=input=>typeof input==='string'
+  ?input.replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g,' ').replace(/\s+/g,' ').trim()
+  : '';
+function sendChatHistory(room,ws){
+  send(ws,{type:'chat-history',messages:room.chatHistory});
+}
+function receiveChat(room,ws,input){
+  if(room.clients.get(ws.playerId)!==ws)return;
+  const text=cleanChatText(input.text);
+  if(!text||text.length>CHAT_MAX_LENGTH){
+    send(ws,{type:'chat-error',message:'Message must be 1–240 characters.'});return;
+  }
+  if(input.quick===true&&!QUICK_MESSAGES.has(text)){
+    send(ws,{type:'chat-error',message:'Invalid quick message.'});return;
+  }
+  const now=Date.now();
+  const recent=Array.isArray(ws.chatTimes)?ws.chatTimes.filter(t=>now-t<CHAT_BURST_WINDOW_MS):[];
+  if(now-(ws.lastChatAt||0)<CHAT_MIN_INTERVAL_MS||recent.length>=CHAT_BURST_LIMIT){
+    send(ws,{type:'chat-error',message:'Slow down — wait before sending another message.'});return;
+  }
+  ws.chatTimes=[...recent,now];ws.lastChatAt=now;
+  const message={id:++room.chatSerial,playerId:ws.playerId,
+    name:room.members.get(ws.playerId)?.name||safeNickname(ws.nickname,ws.playerId),
+    text,at:now,quick:input.quick===true};
+  room.chatHistory.push(message);
+  if(room.chatHistory.length>CHAT_HISTORY_LIMIT)room.chatHistory.shift();
+  for(const client of room.clients.values())send(client,{type:'chat-message',message});
+}
 function makeCode(){
   let value;
   do{value=randomBytes(3).toString('hex').toUpperCase();}while(rooms.has(value));
@@ -78,6 +109,7 @@ function persistCompletedMatch(room){
 function createRoom(name){
   const room={code:makeCode(),name:safeRoomName(name),engine:createRoomEngine(),
     clients:new Map(),members:new Map(),hostId:1,ticks:0,
+    chatHistory:[],chatSerial:0,
     matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0};
   rooms.set(room.code,room);
   let last=performance.now();
@@ -129,6 +161,7 @@ function join(ws,room){
   if(room.members.size===1)room.hostId=id;
   send(ws,{type:'joined',code:room.code,name:room.name,id,
     host:id===room.hostId,nickname:ws.nickname,reconnectToken:token,resumed:false});
+  sendChatHistory(room,ws);
   notifyRoom(room);publish(room,true);
 }
 function resume(ws,code,token){
@@ -157,6 +190,7 @@ function resume(ws,code,token){
   member.token=randomBytes(32).toString('hex');
   send(ws,{type:'joined',code:room.code,name:room.name,id,
     host:id===room.hostId,nickname:ws.nickname,reconnectToken:member.token,resumed:true});
+  sendChatHistory(room,ws);
   notifyRoom(room);publish(room,true);
 }
 function leave(ws,temporary=false){
@@ -229,6 +263,7 @@ wss.on('connection',(ws,req)=>{
     if(m.type==='leave')return leave(ws);
     const room=ws.room,id=ws.playerId;
     if(!room)return;
+    if(m.type==='chat')return receiveChat(room,ws,m);
     if(m.type==='input'){
       const now=Date.now();
       if(now-lastInputAt<20)return;
