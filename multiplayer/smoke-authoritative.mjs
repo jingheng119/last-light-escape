@@ -11,7 +11,7 @@ function makeRewindRoom(){
   for(let y=0;y<snap.grid.length;y++)
     for(let x=0;x<snap.grid[y].length;x++)
       snap.grid[y][x]=y===3&&x>=1&&x<=24?0:1;
-  for(const h of snap.hollows){h.x=25;h.y=15;h.stunned=100;}
+  for(let i=0;i<snap.hollows.length;i++)room.testPlaceHollow(i,25,15,100);
   p.x=2.5;p.y=3.5;p.hp=2;p.invincible=100;
   return {room,snap,p};
 }
@@ -42,7 +42,7 @@ function makeRewindRoom(){
   for(let i=0;i<91;i++)room.tick(.033);
   room.input(1,{}, {x:0,y:0});
   // Mark the exact recorded position as occupied by a stunned Hollow.
-  snap.hollows[0].x=oldX;snap.hollows[0].y=3.5;
+  room.testPlaceHollow(0,oldX,3.5,100);
   room.action(1,'ability');
   assert(Math.hypot(p.x-oldX,p.y-3.5)<=3.01,
     'Blocked rewind must use a safe tile within three cells of recorded location');
