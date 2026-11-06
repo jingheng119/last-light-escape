@@ -1,15 +1,20 @@
 // Dedicated authoritative rooms + public five-player lobby.
 import http from 'node:http';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createRoomEngine } from './headless-engine.js';
+import { makeMatchStore, buildMatchResult } from './match-store.js';
 
 const PORT=Number(process.env.PORT||3001);
 const HOST=process.env.HOST||'0.0.0.0';
 const MAX_ROOMS=16, MAX_PLAYERS=5;
 const RECONNECT_GRACE_MS=90000;
+const CHAT_HISTORY_LIMIT=50,CHAT_MAX_LENGTH=240,CHAT_MIN_INTERVAL_MS=850;
+const CHAT_BURST_WINDOW_MS=10000,CHAT_BURST_LIMIT=6;
+const QUICK_MESSAGES=new Set(['Help!','Follow!','Relay on!','Hollow!','Healing!','Elevator!']);
 const rooms=new Map(),lobbyClients=new Set();
+const matchStore=makeMatchStore();
 const MIME={'/':'text/html; charset=utf-8','/play':'text/html; charset=utf-8','/play/':'text/html; charset=utf-8','/game.js':'text/javascript; charset=utf-8',
   '/style.css':'text/css; charset=utf-8','/favicon.svg':'image/svg+xml'};
 const FILE={'/':'index.html','/play':'index.html','/play/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg'};
@@ -31,6 +36,34 @@ const safeNickname=(input,id)=>{
     ?input.replace(/[<>\u0000-\u001f\u007f]/g,'').trim().slice(0,20):'';
   return clean||'Survivor '+id;
 };
+const cleanChatText=input=>typeof input==='string'
+  ?input.replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g,' ').replace(/\s+/g,' ').trim()
+  : '';
+function sendChatHistory(room,ws){
+  send(ws,{type:'chat-history',messages:room.chatHistory});
+}
+function receiveChat(room,ws,input){
+  if(room.clients.get(ws.playerId)!==ws)return;
+  const text=cleanChatText(input.text);
+  if(!text||text.length>CHAT_MAX_LENGTH){
+    send(ws,{type:'chat-error',message:'Message must be 1–240 characters.'});return;
+  }
+  if(input.quick===true&&!QUICK_MESSAGES.has(text)){
+    send(ws,{type:'chat-error',message:'Invalid quick message.'});return;
+  }
+  const now=Date.now();
+  const recent=Array.isArray(ws.chatTimes)?ws.chatTimes.filter(t=>now-t<CHAT_BURST_WINDOW_MS):[];
+  if(now-(ws.lastChatAt||0)<CHAT_MIN_INTERVAL_MS||recent.length>=CHAT_BURST_LIMIT){
+    send(ws,{type:'chat-error',message:'Slow down — wait before sending another message.'});return;
+  }
+  ws.chatTimes=[...recent,now];ws.lastChatAt=now;
+  const message={id:++room.chatSerial,playerId:ws.playerId,
+    name:room.members.get(ws.playerId)?.name||safeNickname(ws.nickname,ws.playerId),
+    text,at:now,quick:input.quick===true};
+  room.chatHistory.push(message);
+  if(room.chatHistory.length>CHAT_HISTORY_LIMIT)room.chatHistory.shift();
+  for(const client of room.clients.values())send(client,{type:'chat-message',message});
+}
 function makeCode(){
   let value;
   do{value=randomBytes(3).toString('hex').toUpperCase();}while(rooms.has(value));
@@ -62,9 +95,22 @@ function notifyRoom(room){
   for(const ws of room.clients.values())send(ws,update);
   broadcastLobby();
 }
+function persistCompletedMatch(room){
+  if(!matchStore.enabled||room.matchRecorded||room.matchRecording||
+    Date.now()<(room.matchRetryAt||0))return;
+  const result=buildMatchResult(room);
+  if(!result)return;
+  room.matchRecording=true;
+  void matchStore.save(result).then(saved=>{
+    if(saved)room.matchRecorded=true;
+    else room.matchRetryAt=Date.now()+30000;
+  }).finally(()=>{room.matchRecording=false;});
+}
 function createRoom(name){
   const room={code:makeCode(),name:safeRoomName(name),engine:createRoomEngine(),
-    clients:new Map(),members:new Map(),hostId:1,ticks:0};
+    clients:new Map(),members:new Map(),hostId:1,ticks:0,
+    chatHistory:[],chatSerial:0,
+    matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0};
   rooms.set(room.code,room);
   let last=performance.now();
   room.timer=setInterval(()=>{
@@ -73,6 +119,7 @@ function createRoom(name){
     try{
       if(!room.clients.size)return;
       room.engine.tick(dt);
+      persistCompletedMatch(room);
       if(++room.ticks%2===0)publish(room,room.ticks%150===0);
     }catch(error){
       console.error('Room simulation failed',room.code,error);
@@ -114,6 +161,7 @@ function join(ws,room){
   if(room.members.size===1)room.hostId=id;
   send(ws,{type:'joined',code:room.code,name:room.name,id,
     host:id===room.hostId,nickname:ws.nickname,reconnectToken:token,resumed:false});
+  sendChatHistory(room,ws);
   notifyRoom(room);publish(room,true);
 }
 function resume(ws,code,token){
@@ -142,6 +190,7 @@ function resume(ws,code,token){
   member.token=randomBytes(32).toString('hex');
   send(ws,{type:'joined',code:room.code,name:room.name,id,
     host:id===room.hostId,nickname:ws.nickname,reconnectToken:member.token,resumed:true});
+  sendChatHistory(room,ws);
   notifyRoom(room);publish(room,true);
 }
 function leave(ws,temporary=false){
@@ -214,14 +263,19 @@ wss.on('connection',(ws,req)=>{
     if(m.type==='leave')return leave(ws);
     const room=ws.room,id=ws.playerId;
     if(!room)return;
+    if(m.type==='chat')return receiveChat(room,ws,m);
     if(m.type==='input'){
       const now=Date.now();
       if(now-lastInputAt<20)return;
       lastInputAt=now;
       room.engine.input(id,safeKeys(m.keys),safeStick(m.joystick));
     }else if(m.type==='action'&&['dash','interact','decoy','ability'].includes(m.name))
-      room.engine.action(id,m.name,safeDirection(m.direction));
-    else if(m.type==='role'&&['scout','medic'].includes(m.role)){
+      room.engine.action(id,m.name,safeDirection(m.direction),m.name==='dash'&&m.touch===true,
+         m.name==='ability'&&m.target&&typeof m.target==='object'&&(
+           (m.target.kind==='player'&&Number.isInteger(m.target.slot)&&m.target.slot>=1&&m.target.slot<=5)||
+           (m.target.kind==='hollow'&&Number.isInteger(m.target.index)&&m.target.index>=0&&m.target.index<100)
+         )?{kind:m.target.kind,...(m.target.kind==='player'?{slot:m.target.slot}:{index:m.target.index})}:null);
+    else if(m.type==='role'&&['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor'].includes(m.role)){
       if(['menu','dead','victory'].includes(room.engine.status())){
         room.engine.role(id,m.role);
         notifyRoom(room);
@@ -232,7 +286,14 @@ wss.on('connection',(ws,req)=>{
       if(member)member.name=ws.nickname;
       notifyRoom(room);
     }else if(id===room.hostId){
-      if(m.type==='start'){room.engine.start();publish(room,true);broadcastLobby();}
+      if(m.type==='start'){
+        const previous=room.engine.status();
+        room.engine.start();
+        if(room.engine.status()==='countdown'&&previous!=='countdown'){
+          room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;
+        }
+        publish(room,true);broadcastLobby();
+      }
       else if(m.type==='next'){room.engine.next();publish(room,true);broadcastLobby();}
       else if(m.type==='restart'){room.engine.restart();publish(room,true);}
       else if(m.type==='skip'){room.engine.skip(m.fullStage===true);publish(room,true);}

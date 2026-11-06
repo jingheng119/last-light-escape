@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "start": "node server-authoritative.js",
-    "test": "node smoke-authoritative.mjs && node integration-authoritative.mjs"
+    "test": "node match-store.test.mjs && node smoke-authoritative.mjs && node integration-authoritative.mjs"
   },
   "dependencies": {
-    "ws": "^8.18.0"
+    "ws": "^8.18.0",
+    "pg": "^8.13.0"
   }
 }

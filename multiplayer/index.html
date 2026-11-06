@@ -7,14 +7,18 @@
   <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/style.css?v=pinned-room-card-1" />
-  <script src="/game.js?v=pinned-room-card-1" defer></script>
+  <link rel="stylesheet" href="/style.css?v=desktop-fullwidth-1" />
+  <script src="/game.js?v=teleporter-arrival-guard-2s-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
   <main class="shell">
     <header class="topbar">
       <div class="brand"><div class="brand-mark" aria-hidden="true"><span></span></div><div><strong>LAST LIGHT</strong><small>THE HOLLOW WARD</small></div></div>
+      <div class="game-room-details top-room-details" aria-label="Current multiplayer room">
+        <strong id="gameRoomName">HOLLOW WARD</strong>
+        <span id="gameRoomCount">1 / 5 SURVIVORS</span>
+      </div>
       <div class="top-links"><span class="edition" id="missionLevel">BROWSER GAME V4.19 · STAGE 01 · FLOOR 01 / 09</span></div>
     </header>
 
@@ -39,6 +43,11 @@
         <select id="lobbyClass" aria-label="Choose player class">
           <option value="scout">Scout · Stun shockwave</option>
           <option value="medic">Medic · Healing burst</option>
+          <option value="invisibler">Invisibler · Vanish for 3 seconds</option>
+          <option value="teleporter">Teleporter · Phase Guard</option>
+          <option value="illusioner">Illusioner · Phantom Double</option>
+          <option value="rewinder">Rewinder · Targeted rewind (5.5 tiles)</option>
+          <option value="anchor">Anchor · Place and return</option>
         </select>
         <span class="lobby-profile-hint">Role is locked while a run is active.</span>
       </div>
@@ -59,6 +68,11 @@
             <strong>ROOM CLASSES</strong>
             <span class="class-summary-item">◇ SCOUT <b id="scoutCount">0</b></span>
             <span class="class-summary-item">✚ MEDIC <b id="medicCount">0</b></span>
+            <span class="class-summary-item">◌ INVISIBLER <b id="invisiblerCount">0</b></span>
+            <span class="class-summary-item">✧ TELEPORTER <b id="teleporterCount">0</b></span>
+            <span class="class-summary-item">◈ ILLUSIONER <b id="illusionerCount">0</b></span>
+            <span class="class-summary-item">↶ REWINDER <b id="rewinderCount">0</b></span>
+            <span class="class-summary-item">⌖ ANCHOR <b id="anchorCount">0</b></span>
             <span class="class-summary-total" id="rosterCount">0 / 5 players</span>
           </div>
         </section>
@@ -82,19 +96,14 @@
     </section>
     </div>
     <div id="playPage" class="page-play" hidden>
-      <nav class="game-page-nav" aria-label="Game room navigation">
-        <button type="button" id="backToLobby" class="game-nav-back">← Survivor Lobby</button>
-        <div class="game-room-details">
-          <strong id="gameRoomName">HOLLOW WARD</strong>
-          <span id="gameRoomCount">1 / 5 SURVIVORS</span>
-        </div>
-        <button type="button" id="leaveGameRoom" class="game-nav-leave">Leave Room</button>
-      </nav>
     <section class="game-shell" aria-label="Game area">
       <div class="statusbar"><div class="status-item"><span class="status-label">ROLE</span><strong id="classStatus">SCOUT</strong></div><div class="status-item"><span class="status-label" id="allyStatusLabel">SURVIVOR</span><strong id="survivorStatus">TRAPPED</strong></div><div class="status-item"><span class="status-label">VITAL SIGNS</span><strong id="health" class="health">♥ ♥ ♥</strong></div><div class="status-item"><span class="status-label">POWER CORES</span><strong id="cores">0 / 2</strong></div><div class="status-item"><span class="status-label">RELAY</span><strong id="relay">OFFLINE</strong></div><div class="status-item"><span class="status-label">TIME</span><strong id="timer">00:00</strong></div><div class="status-item status-item-last"><span class="status-label">THREAT LEVEL</span><strong id="threat" class="threat-calm">LOW</strong></div></div>
+      <nav class="game-page-nav" aria-label="Game room navigation">
+        <button type="button" id="backToLobby" class="game-nav-back">← Lobby</button>
+        <button type="button" id="leaveGameRoom" class="game-nav-leave">Leave</button>
+      </nav>
       <div id="gameWrapper" class="canvas-wrap"><canvas id="game" width="992" height="672" role="img" aria-label="Top-down maze escape game"></canvas>
         <button id="touchFullscreen" class="mobile-fullscreen-toggle" type="button" aria-label="Enter fullscreen" aria-pressed="false">⛶</button>
-        <button id="touchPause" class="mobile-pause-toggle" type="button" aria-label="Pause game">Ⅱ</button>
         
         <div id="overlay" class="overlay"><div class="overlay-panel" id="overlayPanel"><div class="overlay-kicker">SURVIVAL PROTOCOL / 001</div><div class="overlay-glyph" aria-hidden="true">◇</div><h2 id="overlayTitle">THE HOLLOW WARD</h2><p id="overlayText">The emergency elevator is offline. Restore its power and avoid the things lurking in the corridors.</p><div class="objectives"><span>◈ Collect power cores</span><span id="rescueObjective">✚ Rescue the survivor</span><span>⌁ Activate the relay</span><span>⇧ Escape together</span></div><div class="role-selection" id="roleSelection">
           <div class="role-choice-label" id="roleChoiceLabel">CHOOSE YOUR ROLE <span>· LOCKED FOR THE RUN</span></div>
@@ -106,7 +115,32 @@
             </button>
             <button class="role-option" data-role="medic" aria-pressed="false" type="button">
               <span class="role-option-icon" aria-hidden="true">✚</span>
-              <span class="role-option-copy"><strong>MEDIC</strong><small>RESTORE ONE HEART</small><span class="role-option-key">F · Healing burst</span></span>
+              <span class="role-option-copy"><strong>MEDIC</strong><small>HEAL YOURSELF OR AN ALLY</small><span class="role-option-key">F · Healing burst</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="role-option" data-role="invisibler" aria-pressed="false" type="button">
+              <span class="role-option-icon" aria-hidden="true">◌</span>
+              <span class="role-option-copy"><strong>INVISIBLER</strong><small>HIDE FROM HOLLOWS FOR 3 SECONDS</small><span class="role-option-key">F · Vanish</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="role-option" data-role="teleporter" aria-pressed="false" type="button">
+              <span class="role-option-icon" aria-hidden="true">✧</span>
+              <span class="role-option-copy"><strong>TELEPORTER</strong><small>GUARD 5S · TELEPORT WHEN HIT</small><span class="role-option-key">F · Phase Guard</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="role-option" data-role="illusioner" aria-pressed="false" type="button">
+              <span class="role-option-icon" aria-hidden="true">◈</span>
+              <span class="role-option-copy"><strong>ILLUSIONER</strong><small>INVINCIBLE MOVING PHANTOM · 5S</small><span class="role-option-key">F · Phantom Double</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="role-option" data-role="rewinder" aria-pressed="false" type="button">
+              <span class="role-option-icon" aria-hidden="true">↶</span>
+              <span class="role-option-copy"><strong>REWINDER</strong><small>TARGET ONE ALLY OR HOLLOW · 3S</small><span class="role-option-key">F · Rewind</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="role-option" data-role="anchor" aria-pressed="false" type="button">
+              <span class="role-option-icon" aria-hidden="true">⌖</span>
+              <span class="role-option-copy"><strong>ANCHOR</strong><small>PLACE ANCHOR · RETURN THROUGH WALLS</small><span class="role-option-key">F · Place / Return</span></span>
               <span class="role-option-check" aria-hidden="true">✓</span>
             </button>
           </div>
@@ -129,9 +163,35 @@
           </div>
           <div id="mobileStageInfo" class="mobile-stage-info" aria-label="Current stage and floor"><span>BROWSER GAME V4.19</span><span>STAGE 01 · FLOOR 01 / 09</span></div>
         </div>
+        <div id="skillTooltip" class="skill-tooltip" role="tooltip" aria-hidden="true">
+          <strong class="skill-description-title">SCOUT · STUN SHOCKWAVE</strong>
+          <p class="skill-description-body">Release a shockwave that stuns Hollows within 5.5 tiles for 2.5 seconds.</p>
+          <small class="skill-description-meta">1 CHARGE · 13s RECHARGE</small>
+        </div>
         <div id="toast" class="toast" aria-live="polite"></div>
         <div id="screenFlash" class="screen-flash"></div>
       </div>
+        <section class="room-chat" id="roomChat" aria-label="Team chat">
+          <div id="chatDrawer" class="chat-drawer">
+            <div class="chat-heading"><strong>TEAM CHAT</strong></div>
+            <div id="chatMessages" class="chat-messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Recent room messages">
+              <p class="chat-placeholder">Chat with your teammates in this room.</p>
+            </div>
+            <div class="chat-quick" aria-label="Quick messages">
+              <button type="button" data-quick-chat="Help!">Help!</button>
+              <button type="button" data-quick-chat="Follow!">Follow!</button>
+              <button type="button" data-quick-chat="Relay on!">Relay on!</button>
+              <button type="button" data-quick-chat="Hollow!">Hollow!</button>
+              <button type="button" data-quick-chat="Healing!">Healing!</button>
+              <button type="button" data-quick-chat="Elevator!">Elevator!</button>
+            </div>
+            <form id="chatForm" class="chat-form" autocomplete="off">
+              <input id="chatInput" type="text" maxlength="240" placeholder="Message your team…" aria-label="Message teammates" enterkeyhint="send" />
+              <button id="chatSend" type="submit" aria-label="Send message">SEND</button>
+            </form>
+            <p id="chatFeedback" class="chat-feedback" role="status" aria-live="polite"></p>
+          </div>
+        </section>
       <div class="footerbar"><div class="footer-left"><span class="key">WASD</span> MOVE <span class="sep">·</span> <span class="key">SPACE</span> DASH <span class="sep">·</span> <span class="key">E</span> ACTIVATE <span class="sep">·</span> <span class="key">Q</span> DECOY <span class="sep">·</span> <span class="key">F</span> ABILITY <span class="sep">·</span> <span class="key">P</span> PAUSE <span class="sep">·</span> <span class="key">F11</span> FULLSCREEN</div><div class="footer-right"><span id="abilityStatus">PULSE READY</span><span class="sep">/</span><span id="dashStatus">DASH READY</span><span class="sep">/</span><span id="decoys">DECOYS × 3</span></div></div>
     </section>
 

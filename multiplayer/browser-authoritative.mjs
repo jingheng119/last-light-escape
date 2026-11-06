@@ -40,6 +40,14 @@ try{
   assert.equal(new URL(first.url()).pathname,'/play');
   assert(await first.locator('#playPage').isVisible());
   assert(await first.locator('#lobbyPage').isHidden());
+  // The room identity belongs in the original brand header; short buttons
+  // sit at the sides of the game rather than adding a full-width header row.
+  assert.equal((await first.locator('#backToLobby').textContent()).trim(),'← Lobby');
+  assert.equal((await first.locator('#leaveGameRoom').textContent()).trim(),'Leave');
+  assert.equal(await first.locator('.topbar #gameRoomName').count(),1);
+  assert.equal(await first.locator('.topbar #gameRoomCount').count(),1);
+  assert.equal(await first.locator('.game-shell > .game-page-nav').count(),1);
+  assert.equal(await first.locator('#playPage > .game-page-nav').count(),0);
   // Navigation is client-side: returning to lobby must retain room membership.
   await first.locator('#backToLobby').click();
   assert.equal(new URL(first.url()).pathname,'/');

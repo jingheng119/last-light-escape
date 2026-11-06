@@ -44,11 +44,14 @@
     roleOptions: $('#roleOptions'), roleLocked: $('#roleLocked'), lockedRoleText: $('#lockedRoleText'), roleLabel: $('#roleChoiceLabel')
   };
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
-  let roomTiles = new Set(), noiseEvents = [], survivor = null, technician = null;
+  let roomTiles = new Set(), noiseEvents = [], illusions = [], survivor = null, technician = null;
   // Slots 3–5 are simulated on the server, with the same original rules.
   // Browser snapshots use remotePlayers to render every teammate.
   let extraPlayers=[null,null,null],remotePlayers=[],roomPlayerId=0;
   let roomIdentity=new Map();
+  // Short-lived, client-only speech bubbles for accepted room chat messages.
+  const chatBubbles=new Map();
+  const CHAT_BUBBLE_MS=3200;
   // The two screens share a single live WebSocket connection. Switching
   // screens never removes a player from their server-side room.
   let activePage='lobby';
@@ -115,7 +118,7 @@
       (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
-  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.trail=[];}
+  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.anchor=null;guestPlayer.trail=[];}
   let extraContextGuest=null;
   function allPlayers(){
     // A player action temporarily swaps the global 'player' reference.
@@ -176,7 +179,7 @@
       moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.18:.21,.30);
     }
   }
-  function guestAction(name){
+  function guestAction(name,touch=false,target=null){
     if(roomRole==='none')return false;
     // The authoritative server owns movement and dash activation. Do NOT
     // move the character or start a local dash before server confirmation:
@@ -187,13 +190,18 @@
       const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
       const magnitude=Math.hypot(vx,vy);
       const facing=player?.facing||{x:1,y:0};
+      // Preserve the exact joystick heading, including diagonal input.
+      // Wall contact is resolved by the server's axis-by-axis collision.
       action.direction=magnitude>.08?{x:vx/magnitude,y:vy/magnitude}:{x:facing.x,y:facing.y};
     }
+    if(name==='dash'&&touch)action.touch=true;
+    if(name==='ability'&&target)action.target=target;
     sendRoom(action);
     return true;
   }
 
   // Temporary developer shortcut. Skipped runs never enter the best-time record.
+  let rewindTargeting=false,rewindTargetIndex=0;
   let developerSkipped=false;
   let classChoice = 'scout';
   let elapsed = 0, overallElapsed = 0, clock = 0, toastUntil = 0, hitFlash = 0, alertLevel = 0;
@@ -202,7 +210,56 @@
   let nextAmbientAt = 0, nextWarningAt = 0, previousThreat = 0;
   const CAMERA_ZOOM = 1.65;
   const SCOUT_STUN_RADIUS = 5.5;
-  const SKILL_COOLDOWN = {scout:13,medic:16};
+  const MEDIC_HEAL_RADIUS = 5.5;
+  const SKILL_COOLDOWN = {scout:13,medic:26,invisibler:14,teleporter:16,illusioner:27,rewinder:13,anchor:10};
+  const SKILL_MAX_CHARGES = {scout:1,medic:2,invisibler:1,teleporter:1,illusioner:2,rewinder:2,anchor:1};
+  const ROLE_DETAILS={
+    scout:{label:'SCOUT',skill:'STUN SHOCKWAVE',ready:'PULSE READY'},
+    medic:{label:'MEDIC',skill:'HEALING BURST',ready:'HEAL READY'},
+    invisibler:{label:'INVISIBLER',skill:'VANISH · 3 SECONDS',ready:'VANISH READY'},
+    teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 5 SECONDS',ready:'GUARD READY'},
+    illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'},
+    rewinder:{label:'REWINDER',skill:'TARGET REWIND · 5.5 TILES',ready:'REWIND READY'},
+    anchor:{label:'ANCHOR',skill:'PLACE ANCHOR · RETURN',ready:'ANCHOR READY'}
+  };
+  const ROLE_DESCRIPTIONS={
+    scout: "Release a shockwave that stuns Hollows within 5.5 tiles for 2.5 seconds.",
+    medic: "Restore 1 heart to yourself. At full health, heal one randomly chosen injured teammate within 5.5 tiles. No charge is spent if nobody needs healing.",
+    invisibler: "Become invisible for 3 seconds, breaking Hollow pursuit and hiding your trail.",
+    teleporter: "Activate Phase Guard for 5 seconds. If a Hollow strikes during this period, teleport to safety.",
+    illusioner: "Summon an invincible roaming phantom that distracts Hollows for 5 seconds. Two phantoms can roam at once without replacing each other.",
+    rewinder: "Choose yourself, a teammate, or a Hollow within 5.5 tiles; return that target to its position 3 seconds ago. Players gain 2 seconds of protection.",
+    anchor: "Press Skill once to place an anchor. Press again to teleport back through walls with 2 seconds of protection. The charge is spent on return."
+};
+  function skillDescription(role){
+    const charges=SKILL_MAX_CHARGES[role];
+    return `${charges} ${charges===1?'CHARGE':'CHARGES'} · ${SKILL_COOLDOWN[role]}s COOLDOWN`;
+  }
+  function refreshActionDescription(action){
+    const details=$('#skillTooltip');
+    if(!details)return;
+    const role=validRole(classChoice);
+    const descriptions={
+      skill:{title:ROLE_DETAILS[role].skill.split(' · ')[0],
+        body:ROLE_DESCRIPTIONS[role],
+        meta:skillDescription(role)},
+      dash:{title:'DASH · QUICK ESCAPE',
+        body:'Surge in your movement or facing direction for 0.24 seconds at 2.5 tiles. Dashing makes noise unless you are invisible.',
+        meta:'3.5s COOLDOWN · DIRECTIONAL'},
+      decoy:{title:'DECOY · SOUND DISTRACTION',
+        body:'Throw a sound decoy about 3.3 tiles ahead to lure Hollows. It lasts 5 seconds and creates a noise pulse with an 11-tile radius.',
+        meta:'3 CHARGES · 2s COOLDOWN · 11-TILE NOISE RADIUS'},
+      use:{title:'USE · INTERACT',
+        body:'Interact with nearby survivors, the technician, and the relays.',
+        meta:'RANGE: ABOUT 1.5 TILES · NO COOLDOWN'}
+    };
+    const info=descriptions[action]||descriptions.skill;
+    details.querySelector('.skill-description-title').textContent=info.title;
+    details.querySelector('.skill-description-body').textContent=info.body;
+    details.querySelector('.skill-description-meta').textContent=info.meta+
+      (technician?.rescued&&action!=='use'?' · TECHNICIAN: 30% FASTER':'');
+  }
+  const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
   const cooldownFactor=()=>technician?.rescued?TECHNICIAN_COOLDOWN_FACTOR:1;
   const alliesReady=()=>survivor.rescued&&dist(survivor,exit)<2.0&&(!technician||(technician.rescued&&dist(technician,exit)<2.0));
@@ -211,6 +268,10 @@
   // All living players must reach the elevator; a downed player spectates.
   const playersAtExit=()=>allPlayers().every(p=>p.hp<=0||dist(p,exit)<1.1);
   let skillWaves = [];
+  // Histories live only on the authoritative simulation, never in network snapshots.
+  const rewindHistory=new WeakMap();
+  const REWIND_SECONDS=3,REWIND_RADIUS=5.5;
+  const hollowRewindHistory=new WeakMap();
   const camera = {x:0,y:0};
   let moveHeld = { up: false, down: false, left: false, right: false }, frameIndex = 0;
   const joystickMove={x:0,y:0};
@@ -357,11 +418,13 @@
       const techSpot=selectSpot(reserved,13,distances,false);reserved.push(techSpot);
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
-    player={...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
+    player={slot:1,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,abilityCharges:SKILL_MAX_CHARGES[classChoice],anchor:null};
     if(roomRole==='host'&&guestPlayer){newGuest();guestPlayer.hp=guestCarriedHealth;}
     for(let i=0;i<3;i++){
       if(extraActive[i]){
         extraPlayers[i]=structuredClone(player);
+        extraPlayers[i].slot=i+3;
+        extraPlayers[i].abilityCharges=SKILL_MAX_CHARGES[extraControls[i].role];
         extraPlayers[i].hp=extraCarriedHealth[i];
       }
     }
@@ -374,7 +437,7 @@
         wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100,stunned:0,
         dashCooldown:variant==='dasher'?2+rand()*1.5:0,dashTime:0,dashDir:{x:0,y:0}});
     }
-    decoys=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
+    decoys=[];illusions=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
     ui.level.textContent=`BROWSER GAME V4.19 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
@@ -495,10 +558,18 @@
     if(!soundEnabled)return;
     try {audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();const osc=audioCtx.createOscillator(),g=audioCtx.createGain();osc.type=type;osc.frequency.setValueAtTime(freq,audioCtx.currentTime);g.gain.setValueAtTime(volume,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+duration);osc.connect(g).connect(audioCtx.destination);osc.start();osc.stop(audioCtx.currentTime+duration);}catch(e){}
   }
-  // Original generative dark-ambient score. All notes are composed here and
-  // synthesized locally; no third-party recordings or background downloads.
-  // Stage I is restrained and ominous; Stage II adds brighter circuitry and
-  // a stronger electronic pulse. Sound starts only after a user click.
+  // One short cue per server-confirmed countdown number, not per render
+  // frame or snapshot. A brighter final tone signals the start is imminent.
+  function countdownBeep(number){
+    if(!soundEnabled||activePage!=='play'||number<1||number>5)return;
+    const frequency=[0,880,740,660,587,523][number];
+    beep(frequency,number===1?.32:.16,number===1?'triangle':'sine',
+      number===1?.065:.045);
+  }
+  // Stage I retains its original procedural soundscape. Stage II uses a
+  // browser-synthesized arrangement of the original Gentle Clockwork demo:
+  // Cmaj7–Fmaj9–Am7–G6, 108 BPM, warm pads, soft keys and chimes.
+  // Music starts only after the player explicitly starts/resumes the game.
   const MUSIC_SCALE={
     1:{bass:[55.00,55.00,51.91,48.99],notes:[164.81,146.83,155.56,130.81],beat:.88},
     2:{bass:[65.41,61.74,58.27,61.74],notes:[196.00,207.65,174.61,185.00],beat:.70}
@@ -528,6 +599,69 @@
     g.connect(musicBus);
     o.start(at);o.stop(at+duration+.03);
   }
+  const COPPER_CHORDS=[[48,52,55,59],[53,57,60,64],[57,60,64,67],[55,59,62,64]];
+  const COPPER_BASS=[[36,43],[41,48],[45,52],[43,50]];
+  const COPPER_MELODY=[
+    [76,79,76,74],[77,76,72,76],[79,76,72,74],[74,76,79,74],
+    [76,79,81,79],[77,76,74,72],[76,79,76,72],[74,72,76,79]
+  ];
+  function copperVoice(midi,at,duration,volume,kind,pan=0){
+    if(!musicBus)return;
+    const hz=440*Math.pow(2,(midi-69)/12);
+    const out=audioCtx.createGain();
+    const stereo=typeof audioCtx.createStereoPanner==='function'?audioCtx.createStereoPanner():null;
+    if(stereo){stereo.pan.value=pan;out.connect(stereo);stereo.connect(musicBus);}
+    else out.connect(musicBus);
+    const end=at+duration;
+    out.gain.setValueAtTime(.0001,at);
+    if(kind==='pad'){
+      out.gain.linearRampToValueAtTime(volume,at+Math.min(.44,duration*.27));
+      out.gain.setValueAtTime(volume,Math.max(at+.45,end-.5));
+      out.gain.linearRampToValueAtTime(.0001,end);
+    }else{
+      const attack=kind==='bass'?.028:.011;
+      out.gain.linearRampToValueAtTime(volume,at+attack);
+      out.gain.exponentialRampToValueAtTime(.0001,end);
+    }
+    const harmonics=kind==='pad'?[1,1.002,2]:kind==='bass'?[1,2]:kind==='plucks'?[1,2,3]:[1,2.002];
+    const levels=kind==='pad'?[1,.24,.10]:kind==='bass'?[1,.13]:kind==='plucks'?[1,.22,.05]:[1,.12];
+    for(let i=0;i<harmonics.length;i++){
+      const osc=audioCtx.createOscillator(),mix=audioCtx.createGain();
+      osc.type='sine';osc.frequency.setValueAtTime(hz*harmonics[i],at);
+      mix.gain.value=levels[i];
+      osc.connect(mix).connect(out);
+      osc.start(at);osc.stop(end+.02);
+    }
+  }
+  function copperPercussion(at,type){
+    // Very light mechanical rhythm; deliberately soft and non-threatening.
+    const duration=type==='kick'?.19:type==='brush'?.14:.07;
+    const osc=audioCtx.createOscillator(),envelope=audioCtx.createGain();
+    osc.type=type==='kick'?'sine':'triangle';
+    const freq=type==='kick'?106:type==='brush'?730:1600;
+    osc.frequency.setValueAtTime(freq,at);
+    if(type==='kick')osc.frequency.exponentialRampToValueAtTime(60,at+duration);
+    envelope.gain.setValueAtTime(type==='kick'?.017:type==='brush'?.0045:.0025,at);
+    envelope.gain.exponentialRampToValueAtTime(.0001,at+duration);
+    osc.connect(envelope).connect(musicBus);osc.start(at);osc.stop(at+duration+.02);
+  }
+  function scheduleCopperBar(t,beat,bar){
+    const chord=COPPER_CHORDS[bar%4],basses=COPPER_BASS[bar%4],melody=COPPER_MELODY[bar%8];
+    // Warm, legato copper pads and lightly pulsing midrange keys.
+    for(let i=0;i<4;i++)
+      copperVoice(chord[i],t,beat*4,.012,'pad',-.5+i/3);
+    for(let i=0;i<2;i++)
+      copperVoice(basses[i],t+i*beat*2,beat*1.55,.025,'bass',-.12);
+    for(let i=0;i<8;i++)
+      copperVoice(chord[i%4]+12,t+i*beat*.5,beat*.38,.015,'plucks',i%2?.36:-.36);
+    const offsets=[0,.75,2,3];
+    for(let i=0;i<4;i++)
+      copperVoice(melody[i],t+offsets[i]*beat,beat*.82,.031,'chime',i%2?.16:-.16);
+    for(let i=0;i<4;i++){
+      copperPercussion(t+i*beat,i%2?'brush':'kick');
+      copperPercussion(t+(i+.5)*beat,'tick');
+    }
+  }
   function updateMusic(){
     if(!soundEnabled||state!=='playing'||!player){
       stopMusic();return;
@@ -539,7 +673,9 @@
       if(!musicBus||musicStage!==stage){
         stopMusic();
         musicBus=audioCtx.createGain();
-        musicBus.gain.value=1.30;
+        // Use a normal master gain. Individual score voices are mixed
+        // audibly at the source, rather than amplifying a near-silent mix.
+        musicBus.gain.value=1.0;
         musicBus.connect(audioCtx.destination);
         musicStage=stage;musicStep=0;musicNextAt=audioCtx.currentTime+.07;
       }
@@ -547,19 +683,29 @@
       // Schedule only a short look-ahead. No accumulating timers or intervals.
       let scheduled=0;
       while(musicNextAt<audioCtx.currentTime+.12&&scheduled++<3){
-        const beat=score.beat,step=musicStep++,t=musicNextAt;
+        const beat=stage===2?60/108:score.beat,step=musicStep++,t=musicNextAt;
+        if(stage===2){
+          // Eight-bar Gentle Clockwork arrangement, loops continuously.
+          if(step%8===0)scheduleCopperBar(t,beat,Math.floor(step/8)%8);
+          musicNextAt+=beat*.5;
+          continue;
+        }
         const group=Math.floor(step/8)%score.bass.length;
         if(step%8===0){
-          musicTone(score.bass[group],t,beat*7.9,'sine',.026,420);
-          musicTone(score.bass[group]*2,t+.04,beat*6.6,'triangle',.009,360);
+          // The low bass (49–65 Hz) is hard to hear on phone speakers.
+          // Give it audible harmonics without losing the dark foundation.
+          musicTone(score.bass[group],t,beat*7.9,'sine',.060,420);
+          musicTone(score.bass[group]*2,t+.04,beat*6.6,'triangle',.042,700);
+          musicTone(score.bass[group]*4,t+.08,beat*5.2,'sine',.020,1100);
         }
         // Soft pulsing rhythm that becomes more urgent when Hollows pursue.
-        const pulse=alertLevel===2?.016:alertLevel===1?.011:.007;
-        musicTone(stage===1?73.42:98,t,beat*.36,'sine',pulse,300);
+        const pulse=alertLevel===2?.045:alertLevel===1?.035:.025;
+        musicTone(stage===1?146.84:196,t,beat*.36,'triangle',pulse,620);
         if(step%4===2){
           const note=score.notes[(Math.floor(step/4)+group)%score.notes.length];
-          musicTone(note,t,beat*3.3,stage===1?'sine':'triangle',stage===1?.011:.013,880);
-          musicTone(note*.5,t+.12,beat*3.1,'sine',.006,440);
+          musicTone(note,t,beat*3.3,'triangle',stage===1?.065:.070,1250);
+          musicTone(note*2,t+.08,beat*2.6,'sine',.030,1800);
+          musicTone(note*.5,t+.12,beat*3.1,'sine',.018,560);
         }
         musicNextAt+=beat*(alertLevel===2?.88:1);
       }
@@ -595,7 +741,7 @@
     ui.roleOptions.hidden=!choosing;
     ui.roleLocked.hidden=choosing;
     ui.roleLabel.firstChild.textContent=choosing?'CHOOSE YOUR ROLE ':'YOUR ROLE ';
-    ui.lockedRoleText.textContent=classChoice==='medic'?'MEDIC · HEALING BURST':'SCOUT · STUN SHOCKWAVE';
+    ui.lockedRoleText.textContent=ROLE_DETAILS[classChoice].label+' · '+ROLE_DETAILS[classChoice].skill;
     if($('#lobbyClass'))$('#lobbyClass').value=classChoice;
     document.querySelectorAll('.role-option').forEach(card=>{
       const selected=card.dataset.role===classChoice;
@@ -660,14 +806,18 @@
     notify('Sound decoy deployed — they heard it!');beep(850,.22,'square',.016);
     updateUI();
   }
-  function dash(directionOverride=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('dash'))return;if(state!=='playing'||player.hp<=0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
+  function dash(directionOverride=null,touch=false){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('dash',touch))return;if(state!=='playing'||player.hp<=0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
+    // Keep the mobile collision radius for the whole dash, even if the
+    // joystick's next input packet arrives after the DASH action.
+    player.dashTouch=touch===true;
     const vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     const vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     if(directionOverride&&Number.isFinite(directionOverride.x)&&Number.isFinite(directionOverride.y)&&Math.hypot(directionOverride.x,directionOverride.y)>.1){
       const len=Math.hypot(directionOverride.x,directionOverride.y);
       player.dashDir={x:directionOverride.x/len,y:directionOverride.y/len};
     }else if(vx||vy){const len=Math.hypot(vx,vy);player.dashDir={x:vx/len,y:vy/len};}else player.dashDir={...player.facing};
-    noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
+    if(!(player.invisibleTime>0))
+      noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
     beep(220,.17,'sawtooth',.019);updateUI();
   }
   function interact(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0)return;
@@ -689,17 +839,182 @@
     }
     notify('Get closer to an ally, relay, or elevator.');
   }
-  function activateAbility(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability'))return;
-    if(state!=='playing'||player.hp<=0||player.abilityCooldown>0)return;
+  function recordPosition(historyMap,entity){
+    let samples=historyMap.get(entity);
+    if(!samples){samples=[];historyMap.set(entity,samples);}
+    samples.push({t:clock,x:entity.x,y:entity.y});
+    while(samples.length>1&&samples[1].t<clock-REWIND_SECONDS-.15)
+      samples.shift();
+  }
+  function recordRewindPosition(p){recordPosition(rewindHistory,p);}
+  function rewindDestination(p,historyMap=rewindHistory){
+    const history=historyMap.get(p)||[];
+    const cutoff=clock-REWIND_SECONDS;
+    const prior=[...history].reverse().find(sample=>sample.t<=cutoff)||
+      history[0]||{x:p.x,y:p.y};
+    // Return to the recorded position even when another entity occupies it.
+    return {x:prior.x,y:prior.y};
+  }
+  function rewindChoices(){
+    if(!player||state!=='playing')return [];
+    const self={kind:'player',slot:roomPlayerId||1,entity:player,label:'SELF'};
+    const allies=remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&dist(p,player)<=REWIND_RADIUS)
+      .map(p=>({kind:'player',slot:p.slot,entity:p,label:'ALLY '+p.slot}));
+    const enemies=hollows.map((h,index)=>({kind:'hollow',index,entity:h,label:'HOLLOW'}))
+      .filter(t=>dist(t.entity,player)<=REWIND_RADIUS);
+    // Desktop TAB order: self, nearest eligible entity, then outward.
+    // Sort teammates and Hollows together so type does not affect priority.
+    // Equal distances use a deterministic slot/index ordering.
+    const nearby=[...allies,...enemies].sort((a,b)=>{
+      const difference=dist(a.entity,player)-dist(b.entity,player);
+      if(Math.abs(difference)>1e-7)return difference;
+      if(a.kind!==b.kind)return a.kind==='player'?-1:1;
+      return (a.kind==='player'?a.slot:a.index)-(b.kind==='player'?b.slot:b.index);
+    });
+    return [self,...nearby];
+  }
+  function chosenRewindTarget(){
+    const choices=rewindChoices();
+    if(!choices.length)return null;
+    rewindTargetIndex=((rewindTargetIndex%choices.length)+choices.length)%choices.length;
+    return choices[rewindTargetIndex];
+  }
+  function cancelRewindTarget(){rewindTargeting=false;}
+  function commitRewindTarget(choice){
+    if(!choice)return;
+    rewindTargeting=false;
+    activateAbility({kind:choice.kind,...(choice.kind==='hollow'?{index:choice.index}:{slot:choice.slot})});
+  }
+  function maxSkillCharges(role=classChoice){return SKILL_MAX_CHARGES[role]||1;}
+  function skillCharges(p=player,role=classChoice){
+    return Number.isFinite(p.abilityCharges)?
+      Math.max(0,Math.min(maxSkillCharges(role),p.abilityCharges)):maxSkillCharges(role);
+  }
+  function canUseSkill(){return player&&skillCharges()>0;}
+  function consumeSkillCharge(){
+    const before=skillCharges();
+    if(before<=0)return false;
+    player.abilityCharges=before-1;
+    // Server-authoritative activation counter for reliable sound playback,
+    // including second charges while the first recharge is running.
+    player.abilityUseSerial=(player.abilityUseSerial||0)+1;
+    // Sequential recharge: a second use queues behind the first timer.
+    if(before===maxSkillCharges())player.abilityCooldown=SKILL_COOLDOWN[classChoice]*cooldownFactor();
+    return true;
+  }
+  function requestAbility(){
+    if(classChoice!=='rewinder'){activateAbility();return;}
+    if(state!=='playing'||!player||player.hp<=0||!canUseSkill())return;
+    if(!rewindTargeting){
+      rewindTargeting=true;rewindTargetIndex=0;
+      notify('REWINDER — tap a target to rewind, or tap outside the ring to cancel.',3);
+    }else commitRewindTarget(chosenRewindTarget());
+  }
+  function activateAbility(rewindTarget=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability',false,rewindTarget))return;
+    if(state!=='playing'||player.hp<=0||(!canUseSkill()&&!(classChoice==='anchor'&&player.anchor)))return;
     if(classChoice==='medic'){
-      if(player.hp>=3){notify('Already at full health.');return;}
-      player.hp=Math.min(3,player.hp+1);player.abilityCooldown=SKILL_COOLDOWN.medic*cooldownFactor();
-      skillWaves.push({x:player.x,y:player.y,radius:0,age:0,duration:.7,color:'medic'});
-      notify('MEDIC — one health restored!');beep(880,.25);
+      // Self-healing always takes priority. When healthy, heal exactly one
+      // randomly selected injured, connected, living teammate in range.
+      const target=player.hp<3?player:(()=>{
+        const candidates=allPlayers().filter(p=>p!==player&&p.hp>0&&p.hp<3&&
+          dist(p,player)<=MEDIC_HEAL_RADIUS);
+        return candidates.length?candidates[Math.floor(Math.random()*candidates.length)]:null;
+      })();
+      if(!target){notify('MEDIC — no injured teammate within range.');return;}
+      target.hp=Math.min(3,target.hp+1);
+      consumeSkillCharge();
+      skillWaves.push({x:player.x,y:player.y,healX:target.x,healY:target.y,
+        radius:MEDIC_HEAL_RADIUS,age:0,duration:.7,color:'medic'});
+      notify(target===player?'MEDIC — one health restored!':
+        'MEDIC — teammate healed for one heart!');
+      beep(880,.25);
+    }else if(classChoice==='invisibler'){
+      player.invisibleTime=3;
+      consumeSkillCharge();
+      // Break pursuit immediately: Hollows must not retain the caster's
+      // prior position as a target while invisibility is active.
+      for(const h of hollows){
+        if(h.mode==='chase'&&h.chasedPlayer===player){
+          h.mode='search';h.target=null;h.chasedPlayer=null;
+          h.path=[];h.pathIndex=0;
+          h.repath=0;h.chaseUntil=clock;
+          if(h.variant==='dasher')h.dashTime=0;
+        }
+      }
+      notify('INVISIBLER — Hollows lost your trail for 3 seconds!');
+      beep(1040,.24,'triangle',.024);
+    }else if(classChoice==='teleporter'){
+      player.phaseGuardTime=5;
+      consumeSkillCharge();
+      notify('TELEPORTER — Phase Guard active for 5 seconds!');
+      beep(700,.24,'triangle',.025);
+    }else if(classChoice==='rewinder'){
+      // A single explicitly chosen target. The authoritative simulation checks
+      // distance again so clients cannot target out-of-range enemies or allies.
+      const chosen=rewindTarget&&rewindTarget.kind==='hollow'&&Number.isInteger(rewindTarget.index)
+        ?hollows[rewindTarget.index]
+        :rewindTarget&&rewindTarget.kind==='player'&&Number.isInteger(rewindTarget.slot)
+          ?allPlayers().find(p=>p.slot===rewindTarget.slot):null;
+      if(!chosen||chosen.disconnected||chosen.hp===0||
+         dist(chosen,player)>REWIND_RADIUS){
+        notify('REWINDER — select a valid target within range.');return;
+      }
+      const isHollow=rewindTarget.kind==='hollow';
+      const destination=rewindDestination(chosen,isHollow?hollowRewindHistory:rewindHistory);
+      const from={x:chosen.x,y:chosen.y};
+      chosen.x=destination.x;chosen.y=destination.y;
+      chosen.dashTime=0;
+      if(isHollow){
+        chosen.path=[];chosen.pathIndex=0;chosen.repath=0;
+        chosen.target=null;chosen.chasedPlayer=null;chosen.chaseUntil=clock;
+        chosen.mode='search';
+        hollowRewindHistory.set(chosen,[{t:clock,x:chosen.x,y:chosen.y}]);
+      }else{
+        chosen.invincible=Math.max(chosen.invincible,2);
+        rewindHistory.set(chosen,[{t:clock,x:chosen.x,y:chosen.y}]);
+      }
+      consumeSkillCharge();
+      skillWaves.push({x:from.x,y:from.y,radius:.8,age:0,duration:.5,color:'rewinder'});
+      skillWaves.push({x:chosen.x,y:chosen.y,radius:1.3,age:0,duration:.55,color:'rewinder'});
+      notify('REWINDER — target returned 3 seconds!'+(isHollow?'':' 2s protection.'));
+      beep(1080,.22,'triangle',.028);
+    }else if(classChoice==='anchor'){
+      if(!player.anchor){
+        player.anchor={x:player.x,y:player.y};
+        notify('ANCHOR — placed. Press F again to return!');
+        beep(760,.18,'triangle',.024);
+      }else{
+        const destination=player.anchor;
+        // Anchor records a walkable position. Return bypasses wall paths,
+        // and invulnerability applies before the next collision test.
+        player.x=destination.x;player.y=destination.y;
+        player.anchor=null;
+        player.invincible=Math.max(player.invincible,2);
+        player.dashTime=0;
+        consumeSkillCharge();
+        skillWaves.push({x:player.x,y:player.y,radius:1.6,age:0,duration:.6,color:'teleporter'});
+        notify('ANCHOR — returned! Invincible for 2 seconds.');
+        beep(1040,.23,'triangle',.03);
+      }
+    }else if(classChoice==='illusioner'){
+      // The illusion is independent of its caster: it never takes damage,
+      // collects objectives, or blocks real survivors.
+      const heading=Math.hypot(player.facing.x,player.facing.y)||1;
+      const ownerSlot=allPlayers().indexOf(player)+1;
+      // Each charge summons its own phantom; existing phantoms keep moving
+      // and expire individually after their original five seconds.
+      const axisX=Math.abs(player.facing.x)>=Math.abs(player.facing.y);
+      const facing=axisX?{x:Math.sign(player.facing.x)||1,y:0}:
+        {x:0,y:Math.sign(player.facing.y)||1};
+      illusions.push({x:player.x,y:player.y,
+        direction:facing,waypoint:null,life:5,ownerSlot});
+      consumeSkillCharge();
+      notify('ILLUSIONER — Phantom Double deployed!');
+      beep(920,.25,'triangle',.026);
     }else{
       const stunned=hollows.filter(h=>dist(h,player)<SCOUT_STUN_RADIUS);
       for(const h of stunned){h.stunned=2.5;h.mode='search';h.target=null;h.path=[];h.repath=0;h.chaseUntil=clock+3;}
-      player.abilityCooldown=SKILL_COOLDOWN.scout*cooldownFactor();
+      consumeSkillCharge();
       skillWaves.push({x:player.x,y:player.y,radius:SCOUT_STUN_RADIUS,age:0,duration:.62,color:'scout'});
       notify('SCOUT — '+stunned.length+' Hollows stunned!');beep(1160,.23);
     }
@@ -774,7 +1089,48 @@
     // The soul artwork stays visible; only show a timer during an active revive.
     if(progress>0)ctx.fillText('REVIVING '+(REVIVE_SECONDS-(soul.reviveProgress||0)).toFixed(1)+'s',x,y-28);
   }
+  // Phase Guard passes through walls along the facing direction. Only the
+  // landing position must be walkable and clear of nearby Hollows.
+  function phaseGuardDestination(origin,direction){
+    const size=Math.hypot(direction?.x||0,direction?.y||0);
+    const facing=size>.01?{x:direction.x/size,y:direction.y/size}:{x:1,y:0};
+    const target={x:origin.x+facing.x*3,y:origin.y+facing.y*3};
+    const clear=(p)=>canStand(p.x,p.y,.21)&&
+      hollows.every(h=>dist(p,h)>.85);
+    if(clear(target))return target;
+
+    // If the intended landing is inside a wall or Hollow, choose the
+    // nearest safe floor tile to that target. Crossing a wall is allowed,
+    // but never place the player inside one or more than 3 cells away.
+    const candidates=[];
+    for(let y=Math.max(0,Math.floor(target.y)-3);y<=Math.min(ROWS-1,Math.ceil(target.y)+3);y++){
+      for(let x=Math.max(0,Math.floor(target.x)-3);x<=Math.min(COLS-1,Math.ceil(target.x)+3);x++){
+        const p=TILE_CENTER(x,y);
+        if(dist(origin,p)>3.001||!clear(p))continue;
+        candidates.push(p);
+      }
+    }
+    candidates.sort((a,b)=>dist(a,target)-dist(b,target)||
+      dist(b,origin)-dist(a,origin));
+    return candidates[0]||{x:origin.x,y:origin.y};
+  }
   function damage(){if(player.hp<=0||player.disconnected||player.invincible>0||player.dashTime>0||state!=='playing')return;
+    if(player.phaseGuardTime>0){
+      player.phaseGuardTime=0;
+      const from={x:player.x,y:player.y};
+      const to=phaseGuardDestination(from,player.facing);
+      player.x=to.x;player.y=to.y;
+      // A short arrival grace prevents the same Hollow from immediately
+      // inflicting damage on the next server tick.
+      player.invincible=Math.max(player.invincible,2);
+      player.dashTime=0;
+      skillWaves.push({x:from.x,y:from.y,radius:1.2,age:0,duration:.45,color:'teleporter'});
+      skillWaves.push({x:to.x,y:to.y,radius:1.2,age:0,duration:.45,color:'teleporter'});
+      notify('TELEPORTER — Phase Guard triggered!');
+      beep(1320,.23,'triangle',.035);
+      updateUI();
+      return;
+    }
     player.hp--;player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
     // On the final hit, keep the soul at the exact place the player fell.
     // Surviving players are still teleported to start as in the original game.
@@ -800,7 +1156,22 @@
   function updatePlayer(dt){
     if(player.hp<=0||player.disconnected)return;
     player.invincible=Math.max(0,player.invincible-dt);player.dashCooldown=Math.max(0,player.dashCooldown-dt);
-    player.abilityCooldown=Math.max(0,player.abilityCooldown-dt);
+    // Recharge one charge at a time, preserving elapsed progress if a large
+    // simulation step finishes a charge mid-frame.
+    if(!Number.isFinite(player.abilityCharges))
+      player.abilityCharges=SKILL_MAX_CHARGES[classChoice];
+    const maximum=maxSkillCharges();
+    if(player.abilityCharges<maximum){
+      player.abilityCooldown-=dt;
+      const recharge=SKILL_COOLDOWN[classChoice]*cooldownFactor();
+      while(player.abilityCooldown<=0&&player.abilityCharges<maximum){
+        player.abilityCharges++;
+        player.abilityCooldown+=recharge;
+      }
+      if(player.abilityCharges===maximum)player.abilityCooldown=0;
+    }else player.abilityCooldown=0;
+    player.invisibleTime=Math.max(0,(player.invisibleTime||0)-dt);
+    player.phaseGuardTime=Math.max(0,(player.phaseGuardTime||0)-dt);
     player.decoyCooldown=Math.max(0,player.decoyCooldown-dt);
     let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
@@ -810,8 +1181,15 @@
     if(player.dashTime>0){
       player.dashTime=Math.max(0,player.dashTime-dt);
       const touchDash=Math.hypot(joystickMove.x,joystickMove.y)>.08;
-      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,touchDash?.18:.21,.32);
-      if(hitWall)player.dashTime=0; // Return joystick control immediately on collision.
+      const beforeX=player.x,beforeY=player.y;
+      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,
+        player.dashTouch||touchDash?.18:.21,.32);
+      // When dashing diagonally into a wall, the open axis should keep
+      // moving along the wall. Stop only when both axes are blocked.
+      // Straight-on wall collisions still end the dash immediately.
+      const diagonal=Math.abs(player.dashDir.x)>.08&&Math.abs(player.dashDir.y)>.08;
+      const stuck=Math.hypot(player.x-beforeX,player.y-beforeY)<.001;
+      if(hitWall&&(!diagonal||stuck))player.dashTime=0;
       if(Math.random()<.8)player.trail.push({x:player.x,y:player.y,life:.36});
     }
     else if(vx||vy){
@@ -821,6 +1199,7 @@
       moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.18:.21,.30);
     }
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
+    recordRewindPosition(player);
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
   function checkGhostContact(){
@@ -830,12 +1209,57 @@
     // Require a clear path to avoid hitting through a wall.
     if(hollows.some(h=>!(h.stunned>0)&&dist(player,h)<.80&&clearLine(player,h)))damage();
   }
+  function updateIllusions(dt){
+    for(const illusion of illusions){
+      illusion.life=Math.max(0,illusion.life-dt);
+      if(illusion.life<=0)continue;
+      let remaining=3.5*dt;
+      // Follow tile centres so a phantom can turn 90 degrees at corners.
+      // Continue forward at intersections whenever possible, then choose
+      // a side passage; reverse only at a dead end.
+      for(let steps=0;steps<8&&remaining>.0001;steps++){
+        if(!illusion.waypoint){
+          const tile=tileAt(illusion);
+          const middle=TILE_CENTER(tile.x,tile.y);
+          if(dist(illusion,middle)>.04){
+            illusion.waypoint=middle;
+          }else{
+            const forward=illusion.direction;
+            const options=dirs.filter(([dx,dy])=>floorAt(tile.x+dx,tile.y+dy));
+            const straight=options.find(([dx,dy])=>dx===forward.x&&dy===forward.y);
+            const nonReverse=options.filter(([dx,dy])=>dx!==-forward.x||dy!==-forward.y);
+            const sideways=nonReverse.length?nonReverse:options;
+            const chosen=straight||sideways[Math.floor(rand()*sideways.length)];
+            if(!chosen)break;
+            illusion.direction={x:chosen[0],y:chosen[1]};
+            illusion.waypoint=TILE_CENTER(tile.x+chosen[0],tile.y+chosen[1]);
+          }
+        }
+        const target=illusion.waypoint,d=dist(illusion,target);
+        if(d<.001){illusion.x=target.x;illusion.y=target.y;illusion.waypoint=null;continue;}
+        const move=Math.min(remaining,d);
+        illusion.x+=(target.x-illusion.x)/d*move;
+        illusion.y+=(target.y-illusion.y)/d*move;
+        remaining-=move;
+        if(move>=d-.0001){illusion.x=target.x;illusion.y=target.y;illusion.waypoint=null;}
+      }
+    }
+    illusions=illusions.filter(illusion=>illusion.life>0);
+  }
   function updateHollows(dt){
     let danger=0;
     for(const h of hollows){
-      // Avoid targeting a downed player if their teammate is still alive.
-      const nearest=allPlayers().filter(p=>p.hp>0)
-        .sort((a,b)=>dist(h,a)-dist(h,b))[0]||player;
+      // Illusions are decoys that take precedence over real survivors
+      // within their attraction radius. A Hollow cannot destroy one.
+      const phantom=illusions.filter(i=>dist(h,i)<=8)
+        .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
+      // Ignore downed or invisible survivors as regular chase targets.
+      const nearest=allPlayers().filter(p=>p.hp>0&&!(p.invisibleTime>0))
+        .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
+      if(!phantom&&h.mode==='illusion'){
+        h.mode='search';h.target=null;h.path=[];h.pathIndex=0;
+        h.chaseUntil=clock;h.repath=0;
+      }
       if(h.stunned>0){h.stunned=Math.max(0,h.stunned-dt);h.dashTime=0;h.wobble+=dt*5;continue;}
       // Five Stage II Dashers lunge along their movement/chase direction.
       if(h.variant==='dasher'){
@@ -851,43 +1275,55 @@
             h.path=[];h.pathIndex=0;h.repath=0;
           }
           h.wobble+=dt*10;
-          if(dist(h,nearest)<3)danger=Math.max(danger,1);
+          if(nearest&&dist(h,nearest)<3)danger=Math.max(danger,1);
           continue;
         }
         h.dashCooldown-=dt;
         // Start any burst only after the chase/patrol route is updated below,
         // so the lunge follows the Hollow's actual movement direction.
       }
-      const distance=dist(h,nearest);
+      const distance=nearest?dist(h,nearest):Infinity;
       const lookX=Math.cos(h.angle),lookY=Math.sin(h.angle);
-      const dot=distance>0?((nearest.x-h.x)*lookX+(nearest.y-h.y)*lookY)/distance:1;
+      const dot=nearest&&distance>0?((nearest.x-h.x)*lookX+(nearest.y-h.y)*lookY)/distance:1;
       // A Hollow can notice a nearby nearest in any direction, but sees further ahead.
-      const visible=h.variant==='hunter'||distance<1.7||(distance<(h.mode==='chase'?8:6.6)&&dot>.12&&clearLine(h,nearest));
+      const visible=!!nearest&&(h.variant==='hunter'||distance<1.7||
+        (distance<(h.mode==='chase'?8:6.6)&&dot>.12&&clearLine(h,nearest)));
       const heard=noiseEvents.filter(n=>n.expires>clock&&dist(h,n)<n.radius)
         .sort((a,b)=>dist(h,a)-dist(h,b))[0];
-      if(visible){
+      if(phantom){
+        const prior=h.target;
+        const tileChanged=!prior||Math.floor(prior.x)!==Math.floor(phantom.x)||
+          Math.floor(prior.y)!==Math.floor(phantom.y);
+        h.mode='illusion';h.chasedPlayer=null;
+        h.target={x:phantom.x,y:phantom.y};
+        h.chaseUntil=clock+1;
+        h.searchPoints=0;
+        if(tileChanged)h.repath=0;
+      }else if(visible){
         // Repath when the nearest changes tile, not every animation frame:
         // resetting pathIndex every frame leaves chasing ghosts circling.
         const prior=h.target;
         const tileChanged=!prior||Math.floor(prior.x)!==Math.floor(nearest.x)||
           Math.floor(prior.y)!==Math.floor(nearest.y);
         h.mode='chase';h.target={x:nearest.x,y:nearest.y};
+        h.chasedPlayer=nearest;
         h.chaseUntil=clock+2.8;
         if(tileChanged)h.repath=0;
         h.searchPoints=0;
       } else if(h.mode==='chase'&&clock>h.chaseUntil){
         // Investigate the last seen location rather than knowing where the nearest moved.
-        h.mode='search';h.chaseUntil=clock+4.5;h.searchPoints=0;h.repath=0;
+        h.mode='search';h.chasedPlayer=null;
+        h.chaseUntil=clock+4.5;h.searchPoints=0;h.repath=0;
       }
-      if(!visible&&heard&&h.mode!=='chase'&&(h.mode!=='lure'||h.heardAt<clock-0.65)){
-        h.mode='lure';h.target={x:heard.x,y:heard.y};h.heardAt=clock;
+      if(!phantom&&!visible&&heard&&h.mode!=='chase'&&(h.mode!=='lure'||h.heardAt<clock-0.65)){
+        h.mode='lure';h.chasedPlayer=null;h.target={x:heard.x,y:heard.y};h.heardAt=clock;
         h.chaseUntil=clock+3.5;h.repath=0;h.searchPoints=0;
       }
       if(h.mode==='lure'&&(clock>h.chaseUntil||h.target&&dist(h,h.target)<.5)){
         h.mode='search';h.chaseUntil=clock+3.3;h.searchPoints=0;h.repath=0;
       }
       if(h.mode==='search'&&clock>h.chaseUntil){
-        h.mode='patrol';h.target=null;h.repath=0;
+        h.mode='patrol';h.target=null;h.chasedPlayer=null;h.repath=0;
       }
       if(h.mode==='search'&&h.target&&dist(h,h.target)<.6&&h.searchPoints<2){
         // Check neighboring passages before returning to patrol.
@@ -897,6 +1333,14 @@
       }
       if(h.mode==='chase')danger=Math.max(danger,distance<3.5?2:1);
       if(h.mode==='lure'&&distance<5)danger=Math.max(danger,1);
+      if(h.mode==='illusion'&&phantom&&dist(h,phantom)<1.5&&clearLine(h,phantom)){
+        const d=dist(h,phantom);
+        const step=Math.min(h.speed*1.55*dt,Math.max(0,d-.13));
+        h.angle=Math.atan2(phantom.y-h.y,phantom.x-h.x);
+        moveEntity(h,Math.cos(h.angle)*step,Math.sin(h.angle)*step,.13);
+        h.wobble+=dt*5;
+        continue;
+      }
       if(h.mode==='chase'&&distance<1.5&&clearLine(h,nearest)){
         // When a Hollow reaches the nearest's tile, navigate to the nearest,
         // not just the tile centre. This also works when the nearest is still.
@@ -916,12 +1360,12 @@
           target=TILE_CENTER(chosen.x,chosen.y);
         }
         if(target)h.path=pathTo(h,target);
-        h.pathIndex=0;h.repath=h.mode==='chase'?.23:(h.mode==='lure'?.65:1.25);
+        h.pathIndex=0;h.repath=h.mode==='chase'||h.mode==='illusion'?.23:(h.mode==='lure'?.65:1.25);
       }else h.repath-=dt;
       if(h.variant==='dasher'&&h.dashCooldown<=0){
         // If the nearest is visible, dash right at them; otherwise lunge along
         // the next path waypoint (including around corners rather than walls).
-        const canAimAtPlayer=h.mode==='chase'&&clearLine(h,nearest);
+        const canAimAtPlayer=!!nearest&&h.mode==='chase'&&clearLine(h,nearest);
         const dashTarget=canAimAtPlayer?nearest:h.path[h.pathIndex];
         if(dashTarget){
           const distanceToTarget=dist(h,dashTarget);
@@ -951,7 +1395,7 @@
         const p=h.path[h.pathIndex],delta=dist(h,p);
         if(delta<.07)h.pathIndex++;
         else{
-          const speed=h.speed*(h.mode==='chase'?1.55:1)*(h.mode==='lure'?1.20:1);
+          const speed=h.speed*((h.mode==='chase'||h.mode==='illusion')?1.55:1)*(h.mode==='lure'?1.20:1);
           const step=Math.min(speed*dt,delta);
           h.angle=Math.atan2(p.y-h.y,p.x-h.x);
           if(h.variant==='dasher'){
@@ -973,19 +1417,35 @@
     ui.cores.textContent=`${cores.filter(c=>c.collected).length} / ${cores.length}`;
     ui.relay.textContent=relay.active?'ACTIVE':'OFFLINE';ui.relay.style.color=relay.active?'#78e8bc':'#d6f4ee';
     ui.decoys.textContent=`DECOYS × ${player.decoys}`;ui.timer.textContent=formatTime(elapsed);
-    ui.classStatus.textContent=classChoice==='medic'?'MEDIC':'SCOUT';
+    ui.classStatus.textContent=ROLE_DETAILS[classChoice].label;
     ui.survivorStatus.textContent=technician
       ?`${Number(survivor.rescued)+Number(technician.rescued)} / 2 ALLIES`
       :(survivor.rescued?'FOLLOWING':'TRAPPED');
-    ui.abilityStatus.textContent=player.abilityCooldown<=0?(classChoice==='medic'?'HEAL READY':'PULSE READY'):'ABILITY RECHARGING';
+    const available=skillCharges();
+    const maximum=maxSkillCharges();
+    ui.abilityStatus.textContent=rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':
+      player.phaseGuardTime>0?'PHASE GUARD · '+player.phaseGuardTime.toFixed(1)+'s':
+      player.invisibleTime>0?'VANISH ACTIVE · '+player.invisibleTime.toFixed(1)+'s':
+      classChoice==='anchor'&&player.anchor?'ANCHOR PLACED · F TO RETURN':
+      classChoice==='illusioner'&&illusions.some(i=>i.ownerSlot===allPlayers().indexOf(player)+1)?
+        'PHANTOM DOUBLE ACTIVE':
+      available>0?ROLE_DETAILS[classChoice].ready:'ABILITY RECHARGING';
     if(technician?.rescued)ui.abilityStatus.textContent+=' · CD -30%';
     ui.dash.textContent=player.dashCooldown<=0?'DASH READY':`DASH ${player.dashCooldown.toFixed(1)}s`;
-    // On-screen cooldowns reflect the exact timers used by keyboard actions.
     const skillTotal=SKILL_COOLDOWN[classChoice]*cooldownFactor();
-    const skillCharge=Math.max(0,Math.min(1,1-player.abilityCooldown/skillTotal));
-    $('#touchAbility').style.setProperty('--skill-charge',`${skillCharge.toFixed(3)}turn`);
+    const refill=Math.max(0,Math.min(1,1-player.abilityCooldown/skillTotal));
+    // Inner ring = first charge; outer ring = second charge.
+    // 0 charge: inner refills; 1 charge: outer refills.
+    const inner=available>0?1:refill;
+    const outer=maximum===2?(available===2?1:available===1?refill:0):0;
+    const skillButton=$('#touchAbility');
+    skillButton.style.setProperty('--skill-charge',`${inner.toFixed(3)}turn`);
+    skillButton.style.setProperty('--skill-charge-outer',`${outer.toFixed(3)}turn`);
+    skillButton.classList.toggle('two-charges',maximum===2);
     ui.skillCD.textContent='';
-    $('#touchAbility').setAttribute('aria-label',player.abilityCooldown>0?'Skill recharging':'Use skill');
+    skillButton.querySelector('.action-name').textContent='SKILL';
+    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':available===0&&!(classChoice==='anchor'&&player.anchor)?
+      'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
     const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
     const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/(2*cooldownFactor())));
     $('#touchDash').style.setProperty('--skill-charge',`${dashCharge.toFixed(3)}turn`);
@@ -994,7 +1454,7 @@
     ui.decoyCD.textContent=`×${player.decoys}`;
     $('#touchDash').setAttribute('aria-label',player.dashCooldown>0?'Dash recharging':'Dash ready');
     $('#touchDecoy').setAttribute('aria-label',player.decoyCooldown>0?'Decoy recharging':`Decoy, ${player.decoys} remaining`);
-    $('#touchAbility').classList.toggle('on-cooldown',player.abilityCooldown>0);
+    $('#touchAbility').classList.toggle('on-cooldown',available===0&&!(classChoice==='anchor'&&player.anchor));
     $('#touchDash').classList.toggle('on-cooldown',player.dashCooldown>0);
     $('#touchDecoy').classList.toggle('on-cooldown',player.decoyCooldown>0||player.decoys===0);
     ui.threat.textContent=['LOW','ALERT','PURSUIT'][alertLevel];ui.threat.className=['threat-calm','threat-alert','threat-danger'][alertLevel];
@@ -1008,7 +1468,9 @@
     if(guestPlayer)asGuest(()=>updatePlayer(dt));
     for(let slot=3;slot<=5;slot++)withExtra(slot,()=>updatePlayer(dt));
     if(state!=='playing')return;
-    updateSurvivor(dt);updateHollows(dt);
+    updateSurvivor(dt);updateIllusions(dt);updateHollows(dt);
+    // Record Hollow histories on the authoritative simulation each frame.
+    for(const h of hollows)recordPosition(hollowRewindHistory,h);
     for(const wave of skillWaves)wave.age+=dt;
     skillWaves=skillWaves.filter(wave=>wave.age<wave.duration);
     // Check AFTER ghosts move, including when the player is stationary.
@@ -1162,6 +1624,17 @@
     }
     for(const d of decoys){const x=d.x*TILE,y=d.y*TILE,rad=(d.age*50)%80;ctx.strokeStyle=`rgba(244,191,101,${Math.min(.7,d.life/5)})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(x,y,Math.max(0,rad-24),0,Math.PI*2);ctx.stroke();diamond(x,y,7,'#ffd179');}
   }
+  function drawAnchors(){
+    const people=roomRole==='none'?[player]:[player,...remotePlayers];
+    for(const p of people){
+      if(!p?.anchor||p.hp<=0)continue;
+      const x=p.anchor.x*TILE,y=p.anchor.y*TILE;
+      const pulse=1+Math.sin(clock*4)*.12;
+      ctx.save();halo(x,y,40,'#6be7ff3f');ctx.translate(x,y);ctx.rotate(Math.PI/4);
+      ctx.strokeStyle='#80eaff';ctx.lineWidth=2.5;ctx.strokeRect(-9*pulse,-9*pulse,18*pulse,18*pulse);
+      ctx.fillStyle='#a9f9ff';ctx.fillRect(-4,-4,8,8);ctx.restore();
+    }
+  }
   function drawHollows(){for(let i=0;i<hollows.length;i++){const h=hollows[i];
     let x=h.x*TILE,y=h.y*TILE,red=h.mode==='chase'&&!(h.stunned>0);
     const hunter=h.variant==='hunter',dasher=h.variant==='dasher';
@@ -1190,11 +1663,39 @@
     const x=player.x*TILE,y=player.y*TILE,flicker=player.invincible>0&&Math.sin(clock*31)>0;
     const color=colorForPlayer(roomPlayerId);
     if(flicker)return;
+    ctx.save();
+    if(player.invisibleTime>0)ctx.globalAlpha=.28;
+    if(player.phaseGuardTime>0){
+      ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.arc(x,y,18+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
+    }
     halo(x,y,70,color+'25');ctx.fillStyle='#061d23';ctx.beginPath();ctx.ellipse(x,y+6,12,6,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#0d3940';ctx.beginPath();ctx.arc(x,y-2,5,0,Math.PI*2);ctx.fill();
     const fx=player.facing.x,fy=player.facing.y;ctx.strokeStyle='#e6fff7';ctx.lineWidth=2.7;ctx.beginPath();ctx.moveTo(x+fx*6,y+fy*6);ctx.lineTo(x+fx*14,y+fy*14);ctx.stroke();
     ctx.strokeStyle=color;ctx.lineWidth=player.dashTime>0?3:1.7;ctx.beginPath();ctx.arc(x,y,13,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
+  function drawIllusions(){
+    for(const illusion of illusions){
+      const x=illusion.x*TILE,y=illusion.y*TILE;
+      const color=colorForPlayer(illusion.ownerSlot);
+      ctx.save();
+      ctx.globalAlpha=Math.min(.54,.2+illusion.life*.065);
+      halo(x,y,50,color+'50');
+      ctx.setLineDash([3,4]);
+      ctx.strokeStyle='#b9c7ff';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(x,y,14,0,Math.PI*2);ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle=color;
+      ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#122d45';
+      ctx.beginPath();ctx.arc(x,y-2,5,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#e7f5ff';ctx.lineWidth=2.5;
+      ctx.beginPath();ctx.moveTo(x+illusion.direction.x*6,y+illusion.direction.y*6);
+      ctx.lineTo(x+illusion.direction.x*14,y+illusion.direction.y*14);ctx.stroke();
+      ctx.restore();
+    }
   }
   function drawOtherPlayer(){
     for(let i=0;i<remotePlayers.length;i++){
@@ -1202,8 +1703,15 @@
       if(!teammate)continue;
       if(teammate.hp<=0){drawSoul(teammate);continue;}
       const x=teammate.x*TILE,y=teammate.y*TILE,color=colorForPlayer(teammate.slot);
+      ctx.save();
+      if(teammate.invisibleTime>0)ctx.globalAlpha=.28;
+      if(teammate.phaseGuardTime>0){
+        ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
+        ctx.beginPath();ctx.arc(x,y,17+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
+      }
       halo(x,y,30,color+'36');
       ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+      ctx.restore();
     }
   }
   function drawNameplates(){
@@ -1222,7 +1730,45 @@
       ctx.shadowBlur=5;
       ctx.shadowOffsetY=1;
       ctx.fillStyle=colorForPlayer(person.slot);
+      if(person.invisibleTime>0)ctx.globalAlpha=.40;
       ctx.fillText(name,x,y);
+      ctx.restore();
+    }
+  }
+  function drawChatBubbles(){
+    if(roomRole==='none'||!player)return;
+    const now=performance.now();
+    for(const [slot,bubble] of chatBubbles){
+      if(now>=bubble.until){chatBubbles.delete(slot);continue;}
+      const character=slot===roomPlayerId?player:remotePlayers.find(p=>p.slot===slot);
+      if(!character||character.hp<=0)continue;
+      const x=character.x*TILE,y=character.y*TILE-51;
+      const fade=Math.min(1,(bubble.until-now)/450);
+      ctx.save();
+      ctx.globalAlpha=fade;
+      ctx.font='10px system-ui, sans-serif';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      const padding=9,boxH=23;
+      const boxW=Math.min(196,Math.max(43,ctx.measureText(bubble.text).width+padding*2));
+      const left=x-boxW/2,top=y-boxH/2,r=7;
+      // One continuous outline with an integrated V-shaped speech tail.
+      // Crucially, no bottom border crosses behind the tail.
+      ctx.fillStyle='#061d26';
+      ctx.strokeStyle=colorForPlayer(slot);
+      ctx.lineWidth=1.3;
+      ctx.beginPath();
+      ctx.moveTo(left+r,top);ctx.lineTo(left+boxW-r,top);
+      ctx.quadraticCurveTo(left+boxW,top,left+boxW,top+r);
+      ctx.lineTo(left+boxW,top+boxH-r);
+      ctx.quadraticCurveTo(left+boxW,top+boxH,left+boxW-r,top+boxH);
+      ctx.lineTo(x+6,top+boxH);
+      ctx.lineTo(x,top+boxH+7);
+      ctx.lineTo(x-6,top+boxH);
+      ctx.lineTo(left+r,top+boxH);
+      ctx.quadraticCurveTo(left,top+boxH,left,top+boxH-r);
+      ctx.lineTo(left,top+r);ctx.quadraticCurveTo(left,top,left+r,top);
+      ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.fillStyle='#e9fff6';ctx.fillText(bubble.text,x,y,boxW-padding*2);
       ctx.restore();
     }
   }
@@ -1357,11 +1903,20 @@
       const t=Math.min(1,wave.age/wave.duration);
       const x=wave.x*TILE,y=wave.y*TILE;
       if(wave.color==='medic'){
-        // Medic: a bright central healing cross with six drifting plus signs.
-        // No circular radius effect; healing is self-targeted.
+        // Show the full actual healing range around the Medic, with the
+        // healing-cross animation on the character who receives the heart.
         ctx.save();
         const ease=1-Math.pow(1-t,2);
         const opacity=Math.pow(1-t,1.1);
+        const ringRadius=wave.radius*TILE*(.05+.95*ease);
+        ctx.globalAlpha=opacity;
+        ctx.fillStyle='rgba(118,255,202,.09)';
+        ctx.strokeStyle='#7dffd0';ctx.lineWidth=3.5-t*2;
+        ctx.beginPath();ctx.arc(x,y,ringRadius,0,Math.PI*2);
+        ctx.fill();ctx.stroke();
+        ctx.globalAlpha=1;
+        const healX=(wave.healX??wave.x)*TILE;
+        const healY=(wave.healY??wave.y)*TILE;
         const cross=(px,py,size,alpha)=>{
           ctx.save();
           ctx.globalAlpha=alpha;
@@ -1373,12 +1928,12 @@
           ctx.restore();
         };
         const centerSize=(25+13*Math.sin(Math.min(1,t*2)*Math.PI/2))*(1-.18*t);
-        cross(x,y-7*t,centerSize,opacity);
+        cross(healX,healY-7*t,centerSize,opacity);
         for(let i=0;i<6;i++){
           const angle=i*Math.PI/3-Math.PI/2;
           const distance=(18+i%2*8)+ease*(38+i%3*10);
-          const px=x+Math.cos(angle)*distance;
-          const py=y+Math.sin(angle)*distance-14*ease;
+          const px=healX+Math.cos(angle)*distance;
+          const py=healY+Math.sin(angle)*distance-14*ease;
           cross(px,py,9+(i%2)*3,opacity*(.74-.17*(i%3)/2));
         }
         ctx.restore();
@@ -1386,7 +1941,7 @@
       }
       const radius=wave.radius*TILE*(.035+.965*(1-Math.pow(1-t,2)));
       const alpha=Math.pow(1-t,.8);
-      const rgb='110,255,223';
+      const rgb=wave.color==='rewinder'?'170,153,255':'110,255,223';
       ctx.save();
       ctx.globalAlpha=alpha;
       ctx.fillStyle=`rgba(${rgb},.075)`;
@@ -1432,7 +1987,19 @@
     const y1=Math.min(ROWS,Math.ceil((camera.y+H/CAMERA_ZOOM)/TILE)+1);
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
-    drawItems();drawHollows();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();
+    drawItems();drawAnchors();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();drawChatBubbles();
+    if(rewindTargeting&&classChoice==='rewinder'){
+      const selected=chosenRewindTarget(),cx=player.x*TILE,cy=player.y*TILE;
+      ctx.save();ctx.strokeStyle='rgba(175,153,255,.86)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(cx,cy,REWIND_RADIUS*TILE,0,Math.PI*2);ctx.stroke();
+      for(const choice of rewindChoices()){
+        const x=choice.entity.x*TILE,y=choice.entity.y*TILE;
+        ctx.strokeStyle=selected&&choice.kind===selected.kind&&choice.slot===selected.slot&&choice.index===selected.index?'#fff3ac':'#b9a7ff';
+        ctx.lineWidth=selected&&choice.kind===selected.kind&&choice.slot===selected.slot&&choice.index===selected.index?4:2;
+        ctx.beginPath();ctx.arc(x,y,choice===selected?18:14,0,Math.PI*2);ctx.stroke();
+      }
+      ctx.restore();
+    }
     ctx.restore();
     // Fixed screen-space HUD must never drift with the camera.
     drawDirectionalHUD();drawInteractPrompts();drawTeammateIndicators();
@@ -1478,6 +2045,7 @@
     }
     if(activePage==='play'){
       updateMusic();
+      if(roomRole!=='none')ambientAudio();
       if(state==='playing')updateCamera(dt);
       draw();
     }
@@ -1486,11 +2054,16 @@
   const keyMap={w:'up',arrowup:'up',s:'down',arrowdown:'down',a:'left',arrowleft:'left',d:'right',arrowright:'right'};
   document.addEventListener('keydown', e => {
     if(activePage!=='play')return;
-    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k))e.preventDefault();
+    if(e.target instanceof HTMLElement&&e.target.closest('input, textarea, select, [contenteditable="true"]'))return;
+    if(!soundEnabled)unlockGameAudio();
+    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k)||(rewindTargeting&&k==='tab'))e.preventDefault();
     if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole!=='none')sendRoom(guestInputPacket());}
     if(e.repeat)return;
+    if(rewindTargeting&&k==='escape'){cancelRewindTarget();return;}
+    if(rewindTargeting&&k==='tab'){rewindTargetIndex++;return;}
+    if(rewindTargeting&&k==='enter'){commitRewindTarget(chosenRewindTarget());return;}
     if(k==='m'){if(roomRole==='host')developerSkip(e.shiftKey);return;}
-    if(k===' ')dash();else if(k==='q')triggerDecoy();else if(k==='e')interact();else if(k==='f')activateAbility();else if(k==='p'||k==='escape')pause();else if(k==='enter'&&state!=='playing')advance();else if(k==='r'&&state==='playing'&&roomRole==='host'){sendRoom({type:'restart'});}
+    if(k===' ')dash();else if(k==='q')triggerDecoy();else if(k==='e')interact();else if(k==='f')requestAbility();else if(k==='p'||k==='escape')pause();else if(k==='enter'&&state!=='playing')advance();else if(k==='r'&&state==='playing'&&roomRole==='host'){sendRoom({type:'restart'});}
   });
   document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir){moveHeld[dir]=false;if(roomRole!=='none')sendRoom(guestInputPacket());}});
   window.addEventListener('blur',()=>{moveHeld={up:false,down:false,left:false,right:false};if(state==='playing'&&roomRole==='none')pause();});
@@ -1498,7 +2071,7 @@
   document.querySelectorAll('.role-option').forEach(card=>{
     card.addEventListener('click',()=>{
       if(state!=='menu'&&state!=='dead'&&state!=='victory')return;
-      classChoice=card.dataset.role==='medic'?'medic':'scout';
+      classChoice=validRole(card.dataset.role);
       refreshRoleSelection();
       if(roomRole!=='none')sendRoom({type:'role',role:classChoice});
     });
@@ -1522,11 +2095,97 @@
       action();
     });
   }
-  bindGameAction('#touchDash',dash);
-  bindGameAction('#touchInteract',interact);
-  bindGameAction('#touchDecoy',triggerDecoy);
-  bindGameAction('#touchAbility',activateAbility);
-  bindGameAction('#touchPause',pause);
+  // Tooltip for all four actions: mouse hover or one-second touch hold.
+  // Short touches activate on release. Long holds never spend resources.
+  const actionTooltip=$('#skillTooltip');
+  let activeActionHelp=null;
+  const hideActionTooltip=(button=null)=>{
+    if(button&&activeActionHelp!==button)return;
+    activeActionHelp=null;
+    actionTooltip.classList.remove('is-visible');
+    actionTooltip.setAttribute('aria-hidden','true');
+  };
+  const showActionTooltip=(button,actionName)=>{
+    if(activePage!=='play'||state!=='playing')return;
+    activeActionHelp=button;
+    refreshActionDescription(actionName);
+    actionTooltip.classList.add('is-visible');
+    actionTooltip.setAttribute('aria-hidden','false');
+  };
+  function bindDescribedAction(selector,actionName,activate){
+    const button=$(selector);
+    let touchPointer=null,holdTimer=null,held=false,suppressClickUntil=0;
+    const clearHold=()=>{
+      if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null;}
+    };
+    button.addEventListener('pointerenter',e=>{
+      if(e.pointerType==='mouse')showActionTooltip(button,actionName);
+    });
+    button.addEventListener('pointerleave',e=>{
+      if(e.pointerType==='mouse')hideActionTooltip(button);
+    });
+    button.addEventListener('focus',()=>showActionTooltip(button,actionName));
+    button.addEventListener('blur',()=>hideActionTooltip(button));
+    button.addEventListener('pointerdown',e=>{
+      if(e.pointerType==='mouse')return;
+      e.preventDefault();
+      if(touchPointer!==null)return;
+      touchPointer=e.pointerId;
+      held=false;
+      suppressClickUntil=Date.now()+1500;
+      try{button.setPointerCapture(e.pointerId);}catch(_){}
+      clearHold();
+      holdTimer=setTimeout(()=>{
+        holdTimer=null;
+        if(touchPointer===e.pointerId){
+          held=true;
+          showActionTooltip(button,actionName);
+        }
+      },500);
+    });
+    const finish=(e,cancelled=false)=>{
+      if(touchPointer!==e.pointerId)return;
+      const wasHeld=held;
+      touchPointer=null;held=false;
+      clearHold();hideActionTooltip(button);
+      suppressClickUntil=Date.now()+800;
+      if(!cancelled&&!wasHeld)activate();
+    };
+    button.addEventListener('pointerup',e=>finish(e));
+    button.addEventListener('pointercancel',e=>finish(e,true));
+    button.addEventListener('lostpointercapture',e=>finish(e,true));
+    button.addEventListener('click',e=>{
+      if(e.detail!==0&&Date.now()<suppressClickUntil)return;
+      activate();
+    });
+  }
+  bindDescribedAction('#touchAbility','skill',requestAbility);
+  bindDescribedAction('#touchDash','dash',()=>dash(null,true));
+  bindDescribedAction('#touchDecoy','decoy',triggerDecoy);
+  bindDescribedAction('#touchInteract','use',interact);
+  // Tap a valid target within the Rewinder ring, or tap outside it to cancel.
+  // Account for object-fit:contain letterboxing in mobile landscape/fullscreen.
+  canvas.addEventListener('pointerdown',event=>{
+    if(!rewindTargeting||state!=='playing'||classChoice!=='rewinder')return;
+    event.preventDefault();
+    const rect=canvas.getBoundingClientRect();
+    const scale=Math.min(rect.width/W,rect.height/H);
+    if(scale<=0)return;
+    const px=(event.clientX-rect.left-(rect.width-W*scale)/2)/scale;
+    const py=(event.clientY-rect.top-(rect.height-H*scale)/2)/scale;
+    const wx=(px/CAMERA_ZOOM+camera.x)/TILE;
+    const wy=(py/CAMERA_ZOOM+camera.y)/TILE;
+    if(Math.hypot(wx-player.x,wy-player.y)>REWIND_RADIUS){
+      cancelRewindTarget();
+      return;
+    }
+    const choices=rewindChoices();
+    const closest=choices.sort((a,b)=>
+      Math.hypot(a.entity.x-wx,a.entity.y-wy)-
+      Math.hypot(b.entity.x-wx,b.entity.y-wy))[0];
+    if(closest&&Math.hypot(closest.entity.x-wx,closest.entity.y-wy)<.65)
+      commitRewindTarget(closest);
+  });
   const joystick=$('#joystick'),stick=$('#joystickKnob');
   let joystickPointer=null;
   function resetJoystick(){
@@ -1624,6 +2283,8 @@
       lastLevel=d.levelIndex;runSeed=d.runSeed;buildLevel(d.levelIndex);
     }
     const previous=state;
+    const priorAudioPlayer=previous==='playing'&&player&&
+      lastLevel===d.levelIndex?player:null;
     if(Array.isArray(d.grid))grid=d.grid;
     if(Array.isArray(d.cells))cells=d.cells;
     if(Array.isArray(d.roomTiles))roomTiles=new Set(d.roomTiles);
@@ -1639,17 +2300,31 @@
       notify(authoritative.hp>0?'A HOLLOW HIT YOU!':'SIGNAL LOST — WAIT FOR RESCUE',1.5);
     }
     guestPreviousHP=authoritative.hp;
+    // In multiplayer the server executes actions, so browser-side dash(),
+    // interact() and skill() return before their sound effects. Play local
+    // feedback only after the server confirms the action in a snapshot.
+    // Never predict cooldowns or movement here.
+    if(priorAudioPlayer&&d.state==='playing'&&soundEnabled&&activePage==='play'){
+      if(authoritative.dashTime>0&&priorAudioPlayer.dashTime<=0&&
+         authoritative.dashCooldown>priorAudioPlayer.dashCooldown+.05)
+        beep(220,.17,'sawtooth',.019);
+      if((authoritative.abilityUseSerial||0)>(priorAudioPlayer.abilityUseSerial||0))
+        beep(classChoice==='medic'?740:620,.20,'triangle',.018);
+      if(authoritative.decoys<priorAudioPlayer.decoys)
+        beep(850,.22,'square',.016);
+    }
     player=authoritative;
     remotePlayers=occupants.map((p,i)=>p&&i!==roomPlayerId-1?{...p,slot:i+1}:null).filter(Boolean);
     guestPlayer=remotePlayers[0]||null;
     if(Array.isArray(d.playerRoles)){
       const actualRole=d.playerRoles[roomPlayerId-1];
-      if(actualRole==='medic'||actualRole==='scout')classChoice=actualRole;
+      if(Object.hasOwn(ROLE_DETAILS,actualRole))classChoice=actualRole;
     }
     cores=d.cores;relay=d.relay;exit=d.exit;
     // Hollows must be drawn where the server checks their collisions.
     // No visual extrapolation that can put their sprites ahead of the hitbox.
     if(Array.isArray(d.hollows))hollows=d.hollows;
+    illusions=Array.isArray(d.illusions)?d.illusions:[];
     decoys=d.decoys;
     noiseEvents=Array.isArray(d.noiseEvents)?d.noiseEvents:[];
     skillWaves=d.skillWaves||[];survivor=d.survivor;technician=d.technician;
@@ -1659,6 +2334,7 @@
       const number=Math.max(1,Math.ceil(d.countdownRemaining||0));
       if(number!==lastCountdownNumber||previous!=='countdown'){
         lastCountdownNumber=number;
+        countdownBeep(number);
         setOverlay(''+number,'GET READY · THE WARD OPENS SOON','STARTING…',
           'ALL SURVIVORS BEGIN TOGETHER');
       }
@@ -1692,7 +2368,108 @@
     }
     // Smooth camera motion in the render loop, not per network packet.
   }
+  function setupRoomChat(){
+    const panel=$('#roomChat'),log=$('#chatMessages');
+    const input=$('#chatInput'),form=$('#chatForm'),feedback=$('#chatFeedback');
+    let messages=[];
+    // The chat is in the empty right gutter, outside the centered maze.
+    // Measure that gutter because the canvas size changes with aspect ratio,
+    // screen height, and fullscreen mode.
+    const positionChat=()=>{
+      const shell=$('.game-shell'),canvas=$('#game');
+      if(!shell||!canvas)return;
+      const sr=shell.getBoundingClientRect(),cr=canvas.getBoundingClientRect();
+      // object-fit:contain can leave a wide unused gutter INSIDE the
+      // canvas element in landscape fullscreen. Measure the painted maze.
+      const paintedWidth=Math.min(cr.width,cr.height*(canvas.width/canvas.height));
+      const mazeRight=cr.left+(cr.width+paintedWidth)/2;
+      const gap=Math.max(0,sr.right-mazeRight);
+      // On touch/mobile the chat sits 8px from the right edge. Reserve another
+      // 0px before the painted maze (with an 8px right offset); desktop retains wider clearance.
+      const mobileChat=window.matchMedia('(max-width:650px), (hover:none) and (pointer:coarse)').matches;
+      panel.style.setProperty('--chat-gutter-width',Math.max(0,Math.floor(gap-(mobileChat?8:24)))+'px');
+      panel.classList.toggle('chat-no-gutter',gap<180);
+    };
+    window.addEventListener('resize',positionChat,{passive:true});
+    document.addEventListener('fullscreenchange',positionChat);
+    if(typeof ResizeObserver!=='undefined'){
+      const observer=new ResizeObserver(positionChat);
+      observer.observe($('#gameWrapper'));
+      observer.observe($('.game-shell'));
+    }
+    requestAnimationFrame(positionChat);
+    const clear=()=>{
+      messages=[];chatBubbles.clear();feedback.textContent='';input.value='';render();
+    };
+    const render=()=>{
+      const nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<35;
+      log.replaceChildren();
+      if(!messages.length){
+        const empty=document.createElement('p');
+        empty.className='chat-placeholder';
+        empty.textContent='Chat with your teammates in this room.';
+        log.appendChild(empty);
+      }
+      for(const message of messages){
+        const item=document.createElement('div');
+        item.className='chat-item'+(message.playerId===roomPlayerId?' is-self':'');
+        const author=document.createElement('span');
+        author.className='chat-author';
+        author.textContent=message.name+(message.playerId===roomPlayerId?' (you)':'');
+        const body=document.createElement('span');
+        body.className='chat-text';
+        body.textContent=message.text;
+        item.append(author,body);log.appendChild(item);
+      }
+      if(nearBottom)log.scrollTop=log.scrollHeight;
+    };
+    const validMessage=m=>m&&Number.isInteger(m.id)&&
+      Number.isInteger(m.playerId)&&typeof m.name==='string'&&
+      typeof m.text==='string'&&m.text.length<=240;
+    const receive=message=>{
+      if(!validMessage(message)||messages.some(m=>m.id===message.id))return;
+      messages.push(message);
+      // Show the first five words only; full text remains in the chat log.
+      const words=message.text.trim().split(/\s+/).filter(Boolean);
+      if(words.length&&message.playerId>=1&&message.playerId<=5){
+        const text=words.slice(0,5).map(word=>word.slice(0,24)).join(' ')+
+          (words.length>5?'…':'');
+        chatBubbles.set(message.playerId,{text,until:performance.now()+CHAT_BUBBLE_MS});
+      }
+      if(messages.length>50)messages.shift();
+      render();
+    };
+    const send=(text,quick=false)=>{
+      const value=String(text||'').replace(/\s+/g,' ').trim();
+      if(!value||value.length>240||roomRole==='none')return;
+      if(roomSocket?.readyState!==WebSocket.OPEN){
+        feedback.textContent='Not connected. Reconnecting…';return;
+      }
+      feedback.textContent='';
+      sendRoom({type:'chat',text:value,quick});
+      input.value='';
+    };
+    form.addEventListener('submit',e=>{e.preventDefault();send(input.value);});
+    for(const button of panel.querySelectorAll('[data-quick-chat]')){
+      button.addEventListener('click',()=>send(button.dataset.quickChat,true));
+    }
+    input.addEventListener('focus',()=>{
+      moveHeld={up:false,down:false,left:false,right:false};
+      if(roomRole!=='none')sendRoom(guestInputPacket());
+    });
+    return {
+      clear,
+      history:entries=>{
+        messages=Array.isArray(entries)?entries.filter(validMessage).slice(-50):[];
+        feedback.textContent='';render();
+        log.scrollTop=log.scrollHeight;
+      },
+      receive,
+      error:text=>{feedback.textContent=String(text||'Please slow down.').slice(0,120)}
+    };
+  }
   function connectRoom(){
+    const chat=setupRoomChat();
     const status=$('#roomStatus'),invite=$('#roomInvite'),
       create=$('#createRoom'),join=$('#joinRoom'),code=$('#joinRoomCode'),
       roomName=$('#roomName'),directory=$('#roomList'),roomBrowser=$('#roomBrowser'),
@@ -1723,8 +2500,18 @@
       roomIdentity=new Map(players.map(person=>[person.id,person]));
       const scouts=players.filter(person=>person.role==='scout').length;
       const medics=players.filter(person=>person.role==='medic').length;
+      const teleporters=players.filter(person=>person.role==='teleporter').length;
+      const invisiblers=players.filter(person=>person.role==='invisibler').length;
+      const illusioners=players.filter(person=>person.role==='illusioner').length;
+      const rewinders=players.filter(person=>person.role==='rewinder').length;
+      const anchors=players.filter(person=>person.role==='anchor').length;
       $('#scoutCount').textContent=String(scouts);
       $('#medicCount').textContent=String(medics);
+      $('#teleporterCount').textContent=String(teleporters);
+      $('#invisiblerCount').textContent=String(invisiblers);
+      $('#illusionerCount').textContent=String(illusioners);
+      $('#rewinderCount').textContent=String(rewinders);
+      $('#anchorCount').textContent=String(anchors);
       $('#rosterCount').textContent=players.length+' / 5 players';
     };
     nicknameInput.addEventListener('change',()=>{
@@ -1743,7 +2530,7 @@
       if(!['menu','dead','victory'].includes(state)){
         lobbyClass.value=classChoice;return;
       }
-      classChoice=lobbyClass.value==='medic'?'medic':'scout';
+      classChoice=validRole(lobbyClass.value);
       refreshRoleSelection();
       if(roomRole!=='none')sendRoom({type:'role',role:classChoice});
     });
@@ -1831,14 +2618,17 @@
         showNetworkStatus();
       }
       if(m.type==='error')status.textContent=m.message;
+      if(m.type==='chat-history')chat.history(m.messages);
+      if(m.type==='chat-message')chat.receive(m.message);
+      if(m.type==='chat-error')chat.error(m.message);
       if(m.type==='resume-error'){
-        clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
+        chat.clear();clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
         setJoined(false);state='menu';showPage('lobby',true);
         status.textContent=m.message+'. Please join a room again.';
       }
       if(m.type==='rooms'&&Array.isArray(m.rooms))drawRooms(m.rooms);
       if(m.type==='joined'){
-        roomPlayerId=m.id;roomRole=m.host?'host':'guest';roomCount=1;
+        chat.clear();roomPlayerId=m.id;roomRole=m.host?'host':'guest';roomCount=1;
         if(m.reconnectToken)saveSession(m.code,m.reconnectToken);
         code.value=m.code;showNetworkStatus();
         if(m.resumed&&typeof m.nickname==='string')nicknameInput.value=m.nickname;
@@ -1874,7 +2664,7 @@
             'WAIT FOR HOST ';
         }
       }else if(m.type==='left'){
-        clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
+        chat.clear();clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
         guestPlayer=null;remotePlayers=[];
         lastLevel=-1;guestPreviousHP=null;
         setJoined(false);
@@ -1890,10 +2680,12 @@
     connectSocket();
     create.addEventListener('click',()=>{
       if(roomRole!=='none')return;
+      unlockGameAudio();
       sendRoom({type:'create',name:roomName.value.trim()||'Hollow Ward',
         nickname:nameForServer()});
     });
     join.addEventListener('click',()=>{
+      unlockGameAudio();
       const value=code.value.trim().toUpperCase();
       if(!/^[0-9A-F]{6}$/.test(value)){
         status.textContent='Enter a valid six-character room code.';return;
@@ -1904,7 +2696,17 @@
     $('#leaveRoom').addEventListener('click',()=>{clearSession();sendRoom({type:'leave'});});
     $('#leaveGameRoom').addEventListener('click',()=>{clearSession();sendRoom({type:'leave'});});
     $('#backToLobby').addEventListener('click',()=>showPage('lobby'));
-    $('#returnToGame').addEventListener('click',()=>showPage('play'));
+    $('#returnToGame').addEventListener('click',()=>{unlockGameAudio();showPage('play');});
+    // Room cards and invitation links may join directly without using the
+    // Join by Code button. Unlock sound on their actual click gesture too.
+    directory.addEventListener('click',event=>{
+      if(event.target.closest('button'))unlockGameAudio();
+    });
+    // Direct invite/reconnect visitors can unlock sound with their first
+    // in-game input. Do not attempt autoplay on unsolicited socket messages.
+    document.addEventListener('pointerdown',()=>{
+      if(activePage==='play'&&!soundEnabled)unlockGameAudio();
+    },{capture:true});
     window.addEventListener('popstate',()=>{
       showPage(location.pathname==='/play'?'play':'lobby',false);
     });

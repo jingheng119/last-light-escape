@@ -54,8 +54,9 @@
 @media (min-width:981px) and (min-height:560px) and (pointer:fine) {
   html,body{height:100%;overflow:hidden}
   .shell{
-    height:100vh;height:100dvh;max-width:1100px;
-    margin:0 auto;padding:9px 14px;
+    /* Fill the monitor in desktop fullscreen/F11 instead of a centered 1100px column. */
+    height:100vh;height:100dvh;width:100%;max-width:none;
+    margin:0 auto;padding:9px clamp(10px,1.1vw,22px);
     display:flex;flex-direction:column;overflow:hidden;
   }
   .topbar{
@@ -80,7 +81,7 @@
   .canvas-wrap{
     flex:1 1 auto;min-height:0;
     width:min(100%, calc((100dvh - 168px) * 1.47619));
-    max-width:992px;height:100%;
+    max-width:none;height:100%;
     margin:0 auto;
     display:flex;align-items:stretch;justify-content:center;
   }
@@ -1056,23 +1057,46 @@
 .show-lobby .room-entry{padding:18px}
 .show-lobby #roomSession{padding:24px 0 8px}
 .show-lobby .lobby-session-actions{display:flex;gap:9px;flex-wrap:wrap}
-.game-page-nav{display:flex;align-items:center;gap:16px;justify-content:space-between;
-  background:#0c242c;border:1px solid #356467;border-radius:12px;padding:13px 16px;margin:12px 0 16px;color:#ccf6ed}
-.game-page-nav button{background:#124c49;color:#dffff5;border:1px solid #489b8f;border-radius:8px;
-  padding:9px 13px;font-family:inherit;font-weight:700;cursor:pointer}
+/* Compact multiplayer game controls: room title shares the main top bar.
+   Lobby/Leave live in the unused gutters beside the canvas, not in an
+   additional full-width row that shrinks the playing area. */
+.topbar{display:grid;grid-template-columns:minmax(205px,1fr) auto minmax(280px,1fr);gap:16px}
+.topbar .brand{justify-self:start}
+.topbar .top-links{justify-self:end}
+.top-room-details{display:flex;align-items:center;gap:12px;white-space:nowrap;
+  color:#ccf6ed;justify-self:center;min-width:0}
+.top-room-details strong{font-size:12px;letter-spacing:.03em}
+.top-room-details span{font:10px monospace;color:#83c9c5}
+.show-lobby .top-room-details{display:none}
+.show-lobby .topbar{grid-template-columns:1fr auto}
+.game-shell{position:relative}
+.game-page-nav{position:absolute;top:91px;left:16px;right:16px;
+  z-index:6;display:flex;justify-content:space-between;align-items:flex-start;
+  pointer-events:none}
+.game-page-nav button{pointer-events:auto;cursor:pointer;font:700 12px inherit;
+  font-family:inherit;font-weight:750;font-size:12px;
+  background:#124c49;color:#dffff5;border:1px solid #489b8f;
+  border-radius:8px;padding:9px 12px;box-shadow:0 4px 16px #0005}
 .game-page-nav button:hover{background:#1b6c62}
-.game-room-details{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}
-.game-room-details strong{font-size:13px;letter-spacing:.5px}
-.game-room-details span{font:11px monospace;color:#83c9c5}
 .game-nav-leave{border-color:#806068!important;background:#382e38!important}
 .game-nav-leave:hover{background:#66404b!important}
-@media(max-width:650px){
-  .show-lobby .online-lobby{margin:16px 0 30px;padding:16px}
-  .game-page-nav{gap:9px;flex-wrap:wrap}
-  .game-room-details{order:-1;width:100%;justify-content:space-between}
-  .game-page-nav button{flex:1}
+/* In a narrow viewport the side gutters are too small: use a modest
+   control strip without covering the canvas or the game HUD. */
+@media(max-width:1150px){
+  .game-page-nav{position:relative;top:auto;left:auto;right:auto;
+    padding:7px 12px;background:#0c242c}
+  .topbar{grid-template-columns:minmax(120px,1fr) auto;gap:8px}
+  .top-room-details{grid-column:1/-1;grid-row:2;justify-self:center;gap:8px}
+  .top-room-details strong{font-size:11px}
+  .topbar .top-links{grid-column:2;grid-row:1}
 }
-
+@media(max-width:650px){
+  .topbar .edition{font-size:8px;letter-spacing:.04em}
+  .topbar .brand strong{font-size:12px}
+  .top-room-details{max-width:100%;white-space:normal;text-align:center;flex-wrap:wrap;justify-content:center}
+  .game-page-nav button{font-size:11px;padding:7px 11px}
+}
+.game-shell:fullscreen .game-page-nav{display:none}
 /* The lobby is an independent destination, not a game HUD wrapper. */
 .show-lobby .top-links{display:none}
 .show-lobby .site-footer{margin-top:24px}
@@ -1153,3 +1177,227 @@
 #myRoomCard .lobby-class-summary{padding:13px 0 0;margin-top:15px;border-top:1px solid #366662}
 #myRoomCard .room-current-label{align-self:flex-start}
 @media(max-width:600px){#myRoomCard.own-room-card{padding:15px}.own-room-actions{width:100%}.own-room-actions button{flex:1}}
+
+/* Sequential dual-charge skill: both rings begin at 270 degrees (top)
+   and progress clockwise. The inner ring is the first charge; the outer
+   ring is the queued second charge. Single-charge roles retain one ring. */
+.mobile-controls .mobile-actions #touchAbility{
+  --skill-charge-outer:0turn;
+}
+.mobile-controls .mobile-actions #touchAbility.two-charges::after{
+  content:'';
+  position:absolute;
+  inset:-9px;
+  border-radius:50%;
+  pointer-events:none;
+  background:conic-gradient(from 270deg,
+    #8af5d2 0turn var(--skill-charge-outer),
+    rgba(93,145,151,.30) var(--skill-charge-outer) 1turn);
+  -webkit-mask:radial-gradient(farthest-side,
+    transparent calc(100% - 2.5px),#000 calc(100% - 1px));
+  mask:radial-gradient(farthest-side,
+    transparent calc(100% - 2.5px),#000 calc(100% - 1px));
+}
+
+
+/* Game-only skill tooltip. Stays inside the fullscreen canvas wrapper. */
+.game-shell .canvas-wrap .skill-tooltip{
+  position:absolute;z-index:8;right:clamp(12px,3%,28px);
+  bottom:clamp(122px,23%,170px);width:min(310px,calc(100% - 24px));
+  padding:13px 15px;border:1px solid #64d9bd;border-radius:12px;
+  background:rgba(8,29,37,.97);box-shadow:0 7px 28px #000a,0 0 18px #56d9ac25;
+  color:#d3f5ea;line-height:1.45;pointer-events:none;
+  opacity:0;visibility:hidden;transform:translateY(5px);
+  transition:opacity .12s ease,transform .12s ease,visibility .12s;
+}
+.game-shell .canvas-wrap .skill-tooltip.is-visible{
+  opacity:1;visibility:visible;transform:translateY(0);
+}
+.skill-tooltip .skill-description-title{
+  display:block;color:#a2f6d8;font:800 12px/1.45 monospace;letter-spacing:.04em;
+}
+.skill-tooltip .skill-description-body{
+  margin:7px 0 9px;color:#d0e6e1;font-size:12px;line-height:1.5;overflow-wrap:anywhere;
+}
+.skill-tooltip .skill-description-meta{
+  display:block;color:#87cbbc;font:700 10px/1.5 monospace;letter-spacing:.02em;
+}
+@media(max-width:550px){
+  .game-shell .canvas-wrap .skill-tooltip{
+    right:8px;bottom:110px;width:min(270px,calc(100% - 16px));padding:11px 12px;
+  }
+}
+
+/* Ring count correction: the button's original solid border sat beneath
+   the cooldown pseudo-element and looked like an additional charge.
+   Keep the cooldown arc as the ONLY visible ring on one-charge actions.
+   Two-charge skills receive exactly one additional ::after arc. */
+.mobile-controls .mobile-actions #touchAbility,
+.mobile-controls .mobile-actions #touchDash{
+  border-color:transparent;
+}
+/* Avoid a persistent keyboard-focus outline after tapping on touchscreens.
+   Desktop keyboard focus remains visible for accessibility. */
+@media(pointer:coarse){
+  .mobile-controls .mobile-actions #touchAbility:focus-visible,
+  .mobile-controls .mobile-actions #touchDash:focus-visible{
+    outline:none;
+  }
+}
+
+/* Only the charge pseudo-elements may draw circular outlines.
+   The browser's :focus-visible outline creates a third ring after
+   activating a two-charge Skill with a pointer. Replace it with a
+   subtle brightness cue, keeping keyboard focus discernible. */
+.mobile-controls .mobile-actions #touchAbility:focus-visible,
+.mobile-controls .mobile-actions #touchDash:focus-visible{
+  outline:none;
+  filter:brightness(1.13);
+}
+
+/* Always-on multiplayer chat, occupying the UNUSED right maze gutter.
+   Width follows the painted game canvas, including object-fit in fullscreen. */
+.game-shell .room-chat{
+  position:absolute;z-index:5;top:145px;right:10px;bottom:48px;
+  width:min(410px,var(--chat-gutter-width,300px));
+  display:flex;flex-direction:column;pointer-events:auto;
+  font-family:Inter,ui-sans-serif,system-ui,sans-serif;line-height:1.4;
+}
+.game-shell .room-chat.chat-no-gutter{
+  width:min(230px,calc(100% - 20px));top:130px;bottom:auto;
+  height:min(200px,33%);
+}
+.room-chat button,.room-chat input{font:inherit}
+.room-chat button{cursor:pointer}
+.room-chat .chat-drawer{
+  pointer-events:auto;display:flex;flex-direction:column;
+  width:100%;height:100%;min-height:0;max-height:none;
+  padding:10px;border:1px solid #4b9d8e;border-radius:12px;
+  background:rgba(6,26,35,.96);box-shadow:0 12px 32px #000a;
+  overflow:hidden;color:#d5f5eb;
+}
+.room-chat .chat-heading{
+  display:flex;align-items:center;justify-content:space-between;
+  margin:0 0 8px;color:#9ff5d7;font:800 11px monospace;letter-spacing:.1em;
+}
+.room-chat .chat-messages{
+  min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;
+  display:flex;flex-direction:column;gap:7px;
+  padding:7px 6px;margin-bottom:8px;background:#071922;border-radius:7px;
+  scrollbar-width:thin;scrollbar-color:#457d75 transparent;
+  font-size:11px;line-height:1.45;
+}
+.room-chat .chat-placeholder{margin:5px 3px;color:#82a9a8;font-size:11px}
+.room-chat .chat-item{display:flex;flex-direction:column;gap:2px;overflow-wrap:anywhere}
+.room-chat .chat-item.is-self .chat-author{color:#96f5ca}
+.room-chat .chat-author{color:#91cddd;font-size:10px;font-weight:850}
+.room-chat .chat-text{color:#dfefec;white-space:pre-wrap;overflow-wrap:anywhere}
+.room-chat .chat-quick{
+  display:flex;gap:5px;overflow-x:auto;padding:0 0 8px;
+  flex:none;scrollbar-width:thin;
+}
+.room-chat .chat-quick button{
+  flex:none;border:1px solid #376d68;background:#16413e;
+  color:#c7f8e9;border-radius:20px;padding:6px 8px;
+  font-size:10px;font-weight:700;white-space:nowrap;
+}
+.room-chat .chat-quick button:active{background:#286759}
+.room-chat .chat-form{display:flex;gap:5px;min-width:0}
+.room-chat .chat-form input{
+  flex:1;min-width:0;height:35px;padding:7px 9px;
+  border:1px solid #4c7775;border-radius:7px;outline-offset:2px;
+  background:#102c34;color:#effff8;font-size:12px;
+}
+.room-chat .chat-form button{
+  border:0;border-radius:7px;padding:7px 9px;
+  background:#70e1bb;color:#0a2927;font-size:10px;font-weight:850;
+}
+.room-chat .chat-feedback{
+  margin:5px 0 0;min-height:0;color:#ffc88f;font-size:10px;
+}
+.room-chat .chat-feedback:empty{display:none}
+@media(max-width:1150px){
+  /* Navigation becomes a compact strip; leave room above chat. */
+  .game-shell .room-chat{top:115px;bottom:155px}
+}
+
+/* Mobile chat positioning */
+@media (max-width:650px), (hover:none) and (pointer:coarse){
+
+  .game-shell .room-chat,
+  .game-shell .room-chat.chat-no-gutter{
+    top:50px;
+    right:4px;
+    bottom:auto;
+    /* Fit the actual space beside the maze, with a small safety gap. */
+    width:min(235px, var(--chat-gutter-width, 235px));
+    height:160px;
+  }
+
+  .room-chat .chat-drawer{
+    padding:6px;
+    border-radius:9px;
+  }
+
+  .room-chat .chat-heading{
+    margin-bottom:3px;
+    font-size:9px;
+  }
+
+  .room-chat .chat-messages{
+    margin-bottom:4px;
+    padding:4px;
+    font-size:8px;
+    line-height:1.2;
+  }
+
+  .room-chat .chat-author,
+  .room-chat .chat-text,
+  .room-chat .chat-placeholder{
+    font-size:8px;
+  }
+
+  .room-chat .chat-form{
+    gap:3px;
+  }
+
+  .room-chat .chat-form input{
+    height:26px;
+    font-size:9px;
+    padding:4px 6px;
+  }
+
+  .room-chat .chat-form button{
+    font-size:8px;
+    padding:4px 6px;
+  }
+}
+
+/* Compact quick messages: two rows of three individually rounded buttons. */
+.game-shell .room-chat .chat-quick{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  column-gap:2px;
+  row-gap:2px;
+  grid-auto-rows:17px;
+  width:100%;
+  overflow:hidden;
+  padding:0 0 3px;
+}
+
+.game-shell .room-chat .chat-quick button{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-width:0;
+  height:17px;
+  min-height:0;
+  padding:0 1px;
+  border-radius:6px;
+  font-size:7.5px;
+  font-weight:400;
+  line-height:1;
+  text-align:center;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}

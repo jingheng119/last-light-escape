@@ -19,13 +19,13 @@ const bridge=`
     x:Number.isFinite(value.x)?clamp(value.x,-1,1):0,
     y:Number.isFinite(value.y)?clamp(value.y,-1,1):0
   });
-  const perform=(id,action,direction)=>{
+  const perform=(id,action,direction,touch=false,target=null)=>{
     if(state!=='playing')return;
     const run=()=>{
-      if(action==='dash')dash(direction);
+      if(action==='dash')dash(direction,touch);
       else if(action==='decoy')triggerDecoy();
       else if(action==='interact')interact();
-      else if(action==='ability')activateAbility();
+      else if(action==='ability')activateAbility(target);
     };
     if(id===1)run();
     else if(id===2&&guestPlayer)asGuest(run);
@@ -37,6 +37,8 @@ const bridge=`
       if(id===2&&!guestPlayer)newGuest();
       else if(id>=3&&id<=5&&!extraPlayers[id-3]){
         extraPlayers[id-3]=structuredClone(player);
+        extraPlayers[id-3].slot=id;
+        extraPlayers[id-3].abilityCharges=SKILL_MAX_CHARGES[extraControls[id-3].role];
         extraPlayers[id-3].x=1.5;extraPlayers[id-3].y=1.5;
         extraPlayers[id-3].hp=3;extraPlayers[id-3].dashTime=0;
         extraPlayers[id-3].dashCooldown=0;extraPlayers[id-3].trail=[];
@@ -81,7 +83,7 @@ const bridge=`
       return true;
     },
     role(id,value){
-      const role=value==='medic'?'medic':'scout';
+      const role=['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor'].includes(value)?value:'scout';
       if(id===1)classChoice=role;
       else if(id===2)guestClassChoice=role;
       else if(id>=3&&id<=5)extraControls[id-3].role=role;
@@ -119,6 +121,15 @@ const bridge=`
       }
     },
     action:perform,
+    // Only local regression tests may reposition an authoritative Hollow.
+    // This helper is never exposed to WebSocket clients.
+    testPlaceHollow(index,x,y,stun=100){
+      const h=hollows[index];
+      if(!h)return false;
+      h.x=x;h.y=y;h.stunned=stun;h.dashTime=0;
+      h.mode='patrol';h.target=null;h.path=[];h.repath=0;
+      return true;
+    },
     // Used only by local/CI engine tests. There is no WebSocket command for it.
     testHit(id){
       const hit=()=>{player.invincible=0;player.dashTime=0;damage();};
@@ -152,7 +163,7 @@ const bridge=`
         countdownRemaining:state==='countdown'?countdownRemaining:0,
         player,guestPlayer,players:[player.disconnected?null:player,guestPlayer?.disconnected?null:guestPlayer,...extraPlayers.map(p=>p?.disconnected?null:p)],
         playerRoles:[classChoice,guestClassChoice,...extraControls.map(c=>c.role)],
-        cores,relay,exit,decoys,noiseEvents,skillWaves,survivor,technician,
+        cores,relay,exit,decoys,illusions,noiseEvents,skillWaves,survivor,technician,
         classChoice,guestClassChoice,
         hollows:hollows.map(h=>({
           x:h.x,y:h.y,angle:h.angle,variant:h.variant,
@@ -170,7 +181,7 @@ const bridge=`
 // In the headless simulation, every action runs locally in the room engine.
 // The browser-only guestAction hook must never send WebSocket messages.
 const codeText=original.slice(0,cut)
-  .replace('function guestAction(name){','function guestAction(name){return false;')
+  .replace('function guestAction(name,touch=false,target=null){','function guestAction(name,touch=false,target=null){return false;')
   .replace("function developerSkip(fullStage=false){if(roomRole==='host'){sendRoom({type:'skip',fullStage});return;}","function developerSkip(fullStage=false){")
   +bridge;
 const fakeElement=()=>({

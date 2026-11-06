@@ -136,3 +136,33 @@ No database-backed persistence or cross-device restoration is implemented.
 Run `npm test` for server-side token validation, anti-replay and socket
 takeover checks. The Chromium test verifies real page-refresh recovery
 without spawning another survivor.
+
+## Optional PostgreSQL match-result persistence
+
+The server can write **completed matches** into a PostgreSQL database. It
+currently records a generated match ID, room name, outcome (victory or defeat),
+floors cleared, total elapsed time, participant nickname, slot, class and
+remaining hearts. All writes happen on the server with parameterized SQL and
+unique match IDs; the database is never accessed by the browser. Incomplete
+matches are not written.
+
+To enable:
+
+1. Create a PostgreSQL database (for example, using Neon).
+2. In your Render service dashboard, set the **secret environment variable**
+   `DATABASE_URL` to the PostgreSQL connection URI. Do not put it in GitHub,
+   browser code, a screenshot or the public Render Blueprint.
+3. Deploy the `feature/persistent-match-results` branch after tests pass.
+4. Start and finish a match. The server creates the
+   `last_light_matches` table automatically and writes the result once.
+5. Confirm privately in the database's SQL console using:
+   `SELECT outcome, floors_cleared, elapsed_seconds, completed_at
+   FROM last_light_matches ORDER BY completed_at DESC LIMIT 10;`
+
+Without `DATABASE_URL`, all current real-time multiplayer features keep
+working but **no permanent results are stored**. If the database is temporarily
+unreachable, gameplay continues and the server retries a finished result while
+the room remains alive. The current implementation does **not** restore
+unfinished games across Render restarts, persist accounts, or expose leaderboards.
+Match data has nicknames but no authenticated accounts; treat these as
+anonymous match records, not verified identities.
