@@ -8,7 +8,7 @@
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/style.css?v=compact-game-nav-1" />
-  <script src="/game.js?v=rewinder-skill-1" defer></script>
+  <script src="/game.js?v=anchor-skill-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -47,6 +47,7 @@
           <option value="teleporter">Teleporter · Phase Guard</option>
           <option value="illusioner">Illusioner · Phantom Double</option>
           <option value="rewinder">Rewinder · Rewind 3 seconds</option>
+          <option value="anchor">Anchor · Place and return</option>
         </select>
         <span class="lobby-profile-hint">Role is locked while a run is active.</span>
       </div>
@@ -71,6 +72,7 @@
             <span class="class-summary-item">✧ TELEPORTER <b id="teleporterCount">0</b></span>
             <span class="class-summary-item">◈ ILLUSIONER <b id="illusionerCount">0</b></span>
             <span class="class-summary-item">↶ REWINDER <b id="rewinderCount">0</b></span>
+            <span class="class-summary-item">⌖ ANCHOR <b id="anchorCount">0</b></span>
             <span class="class-summary-total" id="rosterCount">0 / 5 players</span>
           </div>
         </section>
@@ -135,6 +137,11 @@
             <button class="role-option" data-role="rewinder" aria-pressed="false" type="button">
               <span class="role-option-icon" aria-hidden="true">↶</span>
               <span class="role-option-copy"><strong>REWINDER</strong><small>RETURN TO YOUR POSITION 3S AGO</small><span class="role-option-key">F · Rewind</span></span>
+              <span class="role-option-check" aria-hidden="true">✓</span>
+            </button>
+            <button class="role-option" data-role="anchor" aria-pressed="false" type="button">
+              <span class="role-option-icon" aria-hidden="true">⌖</span>
+              <span class="role-option-copy"><strong>ANCHOR</strong><small>PLACE ANCHOR · RETURN THROUGH WALLS</small><span class="role-option-key">F · Place / Return</span></span>
               <span class="role-option-check" aria-hidden="true">✓</span>
             </button>
           </div>
