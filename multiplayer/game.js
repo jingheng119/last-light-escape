@@ -834,40 +834,29 @@
     // The soul artwork stays visible; only show a timer during an active revive.
     if(progress>0)ctx.fillText('REVIVING '+(REVIVE_SECONDS-(soul.reviveProgress||0)).toFixed(1)+'s',x,y-28);
   }
-  // Move up to three cells in the facing direction. Stop at the last
-  // safe point before a wall. If forward is blocked, search nearby
-  // reachable floor tiles without ever passing through maze walls.
+  // Phase Guard passes through walls along the facing direction. Only the
+  // landing position must be walkable and clear of nearby Hollows.
   function phaseGuardDestination(origin,direction){
     const size=Math.hypot(direction?.x||0,direction?.y||0);
     const facing=size>.01?{x:direction.x/size,y:direction.y/size}:{x:1,y:0};
-    const clear=(x,y)=>canStand(x,y,.21)&&
-      hollows.every(h=>dist({x,y},h)>.85);
-    let forward=null;
-    for(let t=.1;t<=3.001;t+=.1){
-      const x=origin.x+facing.x*t,y=origin.y+facing.y*t;
-      // Test every increment, preventing crossing even thin walls.
-      if(!canStand(x,y,.21))break;
-      if(clear(x,y))forward={x,y};
-    }
-    if(forward&&dist(origin,forward)>=.5)return forward;
-    const start=tileAt(origin),queue=[start],visited=new Set([keyOf(start.x,start.y)]);
+    const target={x:origin.x+facing.x*3,y:origin.y+facing.y*3};
+    const clear=(p)=>canStand(p.x,p.y,.21)&&
+      hollows.every(h=>dist(p,h)>.85);
+    if(clear(target))return target;
+
+    // If the intended landing is inside a wall or Hollow, choose the
+    // nearest safe floor tile to that target. Crossing a wall is allowed,
+    // but never place the player inside one or more than 3 cells away.
     const candidates=[];
-    for(let i=0;i<queue.length;i++){
-      const current=queue[i];
-      for(const [dx,dy] of dirs){
-        const x=current.x+dx,y=current.y+dy,k=keyOf(x,y);
-        if(visited.has(k)||!floorAt(x,y))continue;
-        visited.add(k);
-        const center=TILE_CENTER(x,y);
-        if(dist(origin,center)>3.15||!canStand(center.x,center.y,.21))continue;
-        queue.push({x,y});
-        if(clear(center.x,center.y)){
-          const projection=(center.x-origin.x)*facing.x+(center.y-origin.y)*facing.y;
-          candidates.push({...center,score:projection*2+dist(origin,center)*.3});
-        }
+    for(let y=Math.max(0,Math.floor(target.y)-3);y<=Math.min(ROWS-1,Math.ceil(target.y)+3);y++){
+      for(let x=Math.max(0,Math.floor(target.x)-3);x<=Math.min(COLS-1,Math.ceil(target.x)+3);x++){
+        const p=TILE_CENTER(x,y);
+        if(dist(origin,p)>3.001||!clear(p))continue;
+        candidates.push(p);
       }
     }
-    candidates.sort((a,b)=>b.score-a.score);
+    candidates.sort((a,b)=>dist(a,target)-dist(b,target)||
+      dist(b,origin)-dist(a,origin));
     return candidates[0]||{x:origin.x,y:origin.y};
   }
   function damage(){if(player.hp<=0||player.disconnected||player.invincible>0||player.dashTime>0||state!=='playing')return;
