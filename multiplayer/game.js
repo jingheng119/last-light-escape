@@ -205,6 +205,7 @@
   let nextAmbientAt = 0, nextWarningAt = 0, previousThreat = 0;
   const CAMERA_ZOOM = 1.65;
   const SCOUT_STUN_RADIUS = 5.5;
+  const MEDIC_HEAL_RADIUS = 5.5;
   const SKILL_COOLDOWN = {scout:13,medic:16};
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
   const cooldownFactor=()=>technician?.rescued?TECHNICIAN_COOLDOWN_FACTOR:1;
@@ -712,10 +713,21 @@
   function activateAbility(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability'))return;
     if(state!=='playing'||player.hp<=0||player.abilityCooldown>0)return;
     if(classChoice==='medic'){
-      if(player.hp>=3){notify('Already at full health.');return;}
-      player.hp=Math.min(3,player.hp+1);player.abilityCooldown=SKILL_COOLDOWN.medic*cooldownFactor();
-      skillWaves.push({x:player.x,y:player.y,radius:0,age:0,duration:.7,color:'medic'});
-      notify('MEDIC — one health restored!');beep(880,.25);
+      // Self-healing always takes priority. When healthy, heal exactly one
+      // randomly selected injured, connected, living teammate in range.
+      const target=player.hp<3?player:(()=>{
+        const candidates=allPlayers().filter(p=>p!==player&&p.hp>0&&p.hp<3&&
+          dist(p,player)<=MEDIC_HEAL_RADIUS);
+        return candidates.length?candidates[Math.floor(Math.random()*candidates.length)]:null;
+      })();
+      if(!target){notify('MEDIC — no injured teammate within range.');return;}
+      target.hp=Math.min(3,target.hp+1);
+      player.abilityCooldown=SKILL_COOLDOWN.medic*cooldownFactor();
+      skillWaves.push({x:target.x,y:target.y,radius:MEDIC_HEAL_RADIUS,
+        age:0,duration:.7,color:'medic'});
+      notify(target===player?'MEDIC — one health restored!':
+        'MEDIC — teammate healed for one heart!');
+      beep(880,.25);
     }else{
       const stunned=hollows.filter(h=>dist(h,player)<SCOUT_STUN_RADIUS);
       for(const h of stunned){h.stunned=2.5;h.mode='search';h.target=null;h.path=[];h.repath=0;h.chaseUntil=clock+3;}
