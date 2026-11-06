@@ -1684,8 +1684,6 @@
       ctx.quadraticCurveTo(left,top+boxH,left,top+boxH-r);
       ctx.lineTo(left,top+r);ctx.quadraticCurveTo(left,top,left+r,top);
       ctx.closePath();ctx.fill();ctx.stroke();
-      ctx.beginPath();ctx.moveTo(x-5,top+boxH);ctx.lineTo(x,top+boxH+6);
-      ctx.lineTo(x+5,top+boxH);ctx.closePath();ctx.fill();ctx.stroke();
       ctx.fillStyle='#e9fff6';ctx.fillText(bubble.text,x,y,boxW-padding*2);
       ctx.restore();
     }
