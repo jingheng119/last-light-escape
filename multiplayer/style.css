@@ -1324,17 +1324,17 @@
 @media (max-width:650px), (hover:none) and (pointer:coarse){
 
   .game-shell .room-chat{
-    top:30px;
+    top:50px;
     right:22px;
     bottom:auto;
-    width:min(240px,var(--chat-gutter-width,240px));
+    width:min(260px,var(--chat-gutter-width,260px));
     height:160px;
   }
 
   .game-shell .room-chat.chat-no-gutter{
-    top:30px;
+    top:50px;
     right:22px;
-    width:min(240px,var(--chat-gutter-width,240px));
+    width:min(260px,var(--chat-gutter-width,260px));
     height:160px;
   }
 
