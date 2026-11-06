@@ -60,19 +60,40 @@ import { createRoomEngine } from './headless-engine.js';
   room.role(1,'illusioner');room.start();
   for(let i=0;i<155;i++)room.tick(.033);
   const snap=room.snapshot(true),p=snap.player;
-  // Build a short corridor ending in a wall. The illusion should remain
-  // stationary against it, not vanish on contact.
+  // A right-angle maze corridor: the phantom must walk forward,
+  // then turn down when the corridor bends instead of stopping.
   for(let y=0;y<snap.grid.length;y++)
     for(let x=0;x<snap.grid[y].length;x++)
-      snap.grid[y][x]=x>=1&&x<=2&&y===3?0:1;
+      snap.grid[y][x]=(y===3&&x>=1&&x<=4)||(x===4&&y>=3&&y<=8)?0:1;
   p.x=2.5;p.y=3.5;p.facing={x:1,y:0};p.invincible=100;
   room.action(1,'ability');
-  for(let i=0;i<15;i++)room.tick(.033);
+  for(let i=0;i<38;i++)room.tick(.033);
   const phantom=room.snapshot(false).illusions[0];
-  assert(phantom,'Phantom remains active after reaching a wall');
-  assert(phantom.stopped,'Phantom should stop upon hitting a wall');
-  assert(phantom.x<3,'Phantom cannot pass through a wall');
-  assert(phantom.life>4,'Phantom remains until its five-second timer ends');
+  assert(phantom,'Phantom stays active after reaching a corner');
+  assert(phantom.x>3.9&&phantom.x<4.1,
+    'Phantom must align with the corner and turn instead of moving through the wall');
+  assert(phantom.y>3.7,
+    'Phantom must turn down into the side passage at a corner');
+  assert(phantom.life>3,'Phantom remains active for its five-second duration');
+  assert.equal(snap.grid[Math.floor(phantom.y)][Math.floor(phantom.x)],0,
+    'Phantom must stay on walkable maze tiles');
+}
+
+{
+  const room=createRoomEngine();
+  room.role(1,'illusioner');room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  const snap=room.snapshot(true),p=snap.player;
+  for(let y=0;y<snap.grid.length;y++)
+    for(let x=0;x<snap.grid[y].length;x++)
+      snap.grid[y][x]=y===3&&x>=1&&x<=3?0:1;
+  p.x=2.5;p.y=3.5;p.facing={x:1,y:0};p.invincible=100;
+  room.action(1,'ability');
+  for(let i=0;i<40;i++)room.tick(.033);
+  const phantom=room.snapshot(false).illusions[0];
+  assert(phantom,'Phantom stays alive after reaching a dead end');
+  assert(phantom.x<3.5,'Phantom turns around at a dead end');
+  assert(phantom.life>3,'Dead end does not shorten phantom duration');
 }
 
 // Teleporter: shield is armed for five seconds, protects exactly one hit,
