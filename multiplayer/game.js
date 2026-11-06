@@ -862,7 +862,16 @@
       .map(p=>({kind:'player',slot:p.slot,entity:p,label:'ALLY '+p.slot}));
     const enemies=hollows.map((h,index)=>({kind:'hollow',index,entity:h,label:'HOLLOW'}))
       .filter(t=>dist(t.entity,player)<=REWIND_RADIUS);
-    return [self,...allies,...enemies];
+    // Desktop TAB order: self, nearest eligible entity, then outward.
+    // Sort teammates and Hollows together so type does not affect priority.
+    // Equal distances use a deterministic slot/index ordering.
+    const nearby=[...allies,...enemies].sort((a,b)=>{
+      const difference=dist(a.entity,player)-dist(b.entity,player);
+      if(Math.abs(difference)>1e-7)return difference;
+      if(a.kind!==b.kind)return a.kind==='player'?-1:1;
+      return (a.kind==='player'?a.slot:a.index)-(b.kind==='player'?b.slot:b.index);
+    });
+    return [self,...nearby];
   }
   function chosenRewindTarget(){
     const choices=rewindChoices();
