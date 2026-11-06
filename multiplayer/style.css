@@ -1323,17 +1323,11 @@
 /* Mobile chat positioning */
 @media (max-width:650px), (hover:none) and (pointer:coarse){
 
-  .game-shell .room-chat{
-    top:50px;
-    right:22px;
-    bottom:auto;
-    width:260px;
-    height:160px;
-  }
-
+  .game-shell .room-chat,
   .game-shell .room-chat.chat-no-gutter{
     top:50px;
     right:22px;
+    bottom:auto;
     width:260px;
     height:160px;
   }
