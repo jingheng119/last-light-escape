@@ -209,7 +209,7 @@
   const SCOUT_STUN_RADIUS = 5.5;
   const MEDIC_HEAL_RADIUS = 5.5;
   const SKILL_COOLDOWN = {scout:13,medic:26,invisibler:14,teleporter:16,illusioner:27,rewinder:29,anchor:10};
-  const SKILL_MAX_CHARGES = {scout:2,medic:2,invisibler:1,teleporter:1,illusioner:2,rewinder:2,anchor:2};
+  const SKILL_MAX_CHARGES = {scout:1,medic:2,invisibler:1,teleporter:1,illusioner:2,rewinder:2,anchor:1};
   const ROLE_DETAILS={
     scout:{label:'SCOUT',skill:'STUN SHOCKWAVE',ready:'PULSE READY'},
     medic:{label:'MEDIC',skill:'HEALING BURST',ready:'HEAL READY'},
@@ -777,6 +777,9 @@
     const before=skillCharges();
     if(before<=0)return false;
     player.abilityCharges=before-1;
+    // Server-authoritative activation counter for reliable sound playback,
+    // including second charges while the first recharge is running.
+    player.abilityUseSerial=(player.abilityUseSerial||0)+1;
     // Sequential recharge: a second use queues behind the first timer.
     if(before===maxSkillCharges())player.abilityCooldown=SKILL_COOLDOWN[classChoice]*cooldownFactor();
     return true;
@@ -2078,7 +2081,7 @@
       if(authoritative.dashTime>0&&priorAudioPlayer.dashTime<=0&&
          authoritative.dashCooldown>priorAudioPlayer.dashCooldown+.05)
         beep(220,.17,'sawtooth',.019);
-      if(authoritative.abilityCooldown>priorAudioPlayer.abilityCooldown+.1)
+      if((authoritative.abilityUseSerial||0)>(priorAudioPlayer.abilityUseSerial||0))
         beep(classChoice==='medic'?740:620,.20,'triangle',.018);
       if(authoritative.decoys<priorAudioPlayer.decoys)
         beep(850,.22,'square',.016);
