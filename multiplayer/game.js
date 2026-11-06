@@ -829,7 +829,7 @@
     if(state!=='playing'||!player||player.hp<=0||!canUseSkill())return;
     if(!rewindTargeting){
       rewindTargeting=true;rewindTargetIndex=0;
-      notify('REWINDER — tap a target, or TAB to choose and F/ENTER to confirm.',3);
+      notify('REWINDER — tap a target to rewind, or tap CANCEL to exit without using a charge.',3);
     }else commitRewindTarget(chosenRewindTarget());
   }
   function activateAbility(rewindTarget=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability',false,rewindTarget))return;
@@ -1365,7 +1365,8 @@
     skillButton.style.setProperty('--skill-charge-outer',`${outer.toFixed(3)}turn`);
     skillButton.classList.toggle('two-charges',maximum===2);
     ui.skillCD.textContent='';
-    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':available===0&&!(classChoice==='anchor'&&player.anchor)?
+    skillButton.querySelector('.action-name').textContent=rewindTargeting&&classChoice==='rewinder'?'CANCEL':'SKILL';
+    skillButton.setAttribute('aria-label',rewindTargeting?'Cancel rewind target selection':available===0&&!(classChoice==='anchor'&&player.anchor)?
       'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
     const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
     const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/(2*cooldownFactor())));
@@ -2080,7 +2081,12 @@
       activate();
     });
   }
-  bindDescribedAction('#touchAbility','skill',requestAbility);
+  // On touch, a second press exits target selection without consuming a charge.
+  // Keyboard F/Enter still confirms the highlighted target; Esc cancels.
+  bindDescribedAction('#touchAbility','skill',()=>{
+    if(classChoice==='rewinder'&&rewindTargeting){cancelRewindTarget();return;}
+    requestAbility();
+  });
   bindDescribedAction('#touchDash','dash',()=>dash(null,true));
   bindDescribedAction('#touchDecoy','decoy',triggerDecoy);
   bindDescribedAction('#touchInteract','use',interact);
