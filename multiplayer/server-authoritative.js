@@ -236,7 +236,7 @@ wss.on('connection',(ws,req)=>{
       room.engine.input(id,safeKeys(m.keys),safeStick(m.joystick));
     }else if(m.type==='action'&&['dash','interact','decoy','ability'].includes(m.name))
       room.engine.action(id,m.name,safeDirection(m.direction),m.name==='dash'&&m.touch===true);
-    else if(m.type==='role'&&['scout','medic','invisibler','teleporter','illusioner'].includes(m.role)){
+    else if(m.type==='role'&&['scout','medic','invisibler','teleporter','illusioner','rewinder'].includes(m.role)){
       if(['menu','dead','victory'].includes(room.engine.status())){
         room.engine.role(id,m.role);
         notifyRoom(room);
