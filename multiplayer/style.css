@@ -1201,5 +1201,5 @@
 /* Compact skill details in both character selection and room lobby. */
 .skill-description{margin:10px 0 8px;padding:10px 12px;border:1px solid #386963;border-radius:10px;background:rgba(12,43,48,.8);text-align:left;color:#cbeee6}
 .skill-description-title{display:block;color:#a2f6d8;font:800 11px/1.5 monospace;letter-spacing:.05em}
-.skill-description-body{margin:5px 0 7px;color:#d0e6e1;font:12px/1.5 inherit;line-height:1.5}
+.skill-description-body{margin:5px 0 7px;color:#d0e6e1;font-size:12px;line-height:1.5}
 .skill-description-meta{display:block;color:#87cbbc;font:700 10px/1.5 monospace;letter-spacing:.025em}
