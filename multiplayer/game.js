@@ -206,14 +206,15 @@
   const CAMERA_ZOOM = 1.65;
   const SCOUT_STUN_RADIUS = 5.5;
   const MEDIC_HEAL_RADIUS = 5.5;
-  const SKILL_COOLDOWN = {scout:13,medic:16,invisibler:18,teleporter:20,illusioner:22,rewinder:25};
+  const SKILL_COOLDOWN = {scout:13,medic:16,invisibler:18,teleporter:20,illusioner:22,rewinder:25,anchor:10};
   const ROLE_DETAILS={
     scout:{label:'SCOUT',skill:'STUN SHOCKWAVE',ready:'PULSE READY'},
     medic:{label:'MEDIC',skill:'HEALING BURST',ready:'HEAL READY'},
     invisibler:{label:'INVISIBLER',skill:'VANISH · 3 SECONDS',ready:'VANISH READY'},
     teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 5 SECONDS',ready:'GUARD READY'},
     illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'},
-    rewinder:{label:'REWINDER',skill:'REWIND · 3 SECONDS',ready:'REWIND READY'}
+    rewinder:{label:'REWINDER',skill:'REWIND · 3 SECONDS',ready:'REWIND READY'},
+    anchor:{label:'ANCHOR',skill:'PLACE ANCHOR · RETURN',ready:'ANCHOR READY'}
   };
   const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
@@ -373,7 +374,7 @@
       const techSpot=selectSpot(reserved,13,distances,false);reserved.push(techSpot);
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
-    player={...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0};
+    player={...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,anchor:null};
     if(roomRole==='host'&&guestPlayer){newGuest();guestPlayer.hp=guestCarriedHealth;}
     for(let i=0;i<3;i++){
       if(extraActive[i]){
@@ -805,6 +806,24 @@
       skillWaves.push({x:player.x,y:player.y,radius:1.6,age:0,duration:.5,color:'teleporter'});
       notify('REWINDER — returned three seconds!');
       beep(1080,.22,'triangle',.028);
+    }else if(classChoice==='anchor'){
+      if(!player.anchor){
+        player.anchor={x:player.x,y:player.y};
+        notify('ANCHOR — placed. Press F again to return!');
+        beep(760,.18,'triangle',.024);
+      }else{
+        const destination=player.anchor;
+        // Anchor records a walkable position. Return bypasses wall paths,
+        // and invulnerability applies before the next collision test.
+        player.x=destination.x;player.y=destination.y;
+        player.anchor=null;
+        player.invincible=Math.max(player.invincible,2);
+        player.dashTime=0;
+        player.abilityCooldown=SKILL_COOLDOWN.anchor*cooldownFactor();
+        skillWaves.push({x:player.x,y:player.y,radius:1.6,age:0,duration:.6,color:'teleporter'});
+        notify('ANCHOR — returned! Invincible for 2 seconds.');
+        beep(1040,.23,'triangle',.03);
+      }
     }else if(classChoice==='illusioner'){
       // The illusion is independent of its caster: it never takes damage,
       // collects objectives, or blocks real survivors.
@@ -1219,6 +1238,7 @@
     ui.abilityStatus.textContent=player.phaseGuardTime>0?
       'PHASE GUARD · '+player.phaseGuardTime.toFixed(1)+'s':
       player.invisibleTime>0?'VANISH ACTIVE · '+player.invisibleTime.toFixed(1)+'s':
+      classChoice==='anchor'&&player.anchor?'ANCHOR PLACED · F TO RETURN':
       classChoice==='illusioner'&&illusions.some(i=>i.ownerSlot===allPlayers().indexOf(player)+1)?
         'PHANTOM DOUBLE ACTIVE':
       player.abilityCooldown<=0?ROLE_DETAILS[classChoice].ready:'ABILITY RECHARGING';
@@ -1226,10 +1246,10 @@
     ui.dash.textContent=player.dashCooldown<=0?'DASH READY':`DASH ${player.dashCooldown.toFixed(1)}s`;
     // On-screen cooldowns reflect the exact timers used by keyboard actions.
     const skillTotal=SKILL_COOLDOWN[classChoice]*cooldownFactor();
-    const skillCharge=Math.max(0,Math.min(1,1-player.abilityCooldown/skillTotal));
+    const skillCharge=classChoice==='anchor'&&player.anchor?1:Math.max(0,Math.min(1,1-player.abilityCooldown/skillTotal));
     $('#touchAbility').style.setProperty('--skill-charge',`${skillCharge.toFixed(3)}turn`);
     ui.skillCD.textContent='';
-    $('#touchAbility').setAttribute('aria-label',player.abilityCooldown>0?'Skill recharging':'Use skill');
+    $('#touchAbility').setAttribute('aria-label',player.abilityCooldown>0?'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
     const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
     const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/(2*cooldownFactor())));
     $('#touchDash').style.setProperty('--skill-charge',`${dashCharge.toFixed(3)}turn`);
@@ -1405,6 +1425,17 @@
       ctx.fillStyle='#15372d';ctx.fillRect(x-6,y-2,12,4);ctx.fillRect(x-2,y-6,4,12);
     }
     for(const d of decoys){const x=d.x*TILE,y=d.y*TILE,rad=(d.age*50)%80;ctx.strokeStyle=`rgba(244,191,101,${Math.min(.7,d.life/5)})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(x,y,Math.max(0,rad-24),0,Math.PI*2);ctx.stroke();diamond(x,y,7,'#ffd179');}
+  }
+  function drawAnchors(){
+    const people=roomRole==='none'?[player]:[player,...remotePlayers];
+    for(const p of people){
+      if(!p?.anchor||p.hp<=0)continue;
+      const x=p.anchor.x*TILE,y=p.anchor.y*TILE;
+      const pulse=1+Math.sin(clock*4)*.12;
+      ctx.save();halo(x,y,40,'#6be7ff3f');ctx.translate(x,y);ctx.rotate(Math.PI/4);
+      ctx.strokeStyle='#80eaff';ctx.lineWidth=2.5;ctx.strokeRect(-9*pulse,-9*pulse,18*pulse,18*pulse);
+      ctx.fillStyle='#a9f9ff';ctx.fillRect(-4,-4,8,8);ctx.restore();
+    }
   }
   function drawHollows(){for(let i=0;i<hollows.length;i++){const h=hollows[i];
     let x=h.x*TILE,y=h.y*TILE,red=h.mode==='chase'&&!(h.stunned>0);
@@ -1712,7 +1743,7 @@
     const y1=Math.min(ROWS,Math.ceil((camera.y+H/CAMERA_ZOOM)/TILE)+1);
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
-    drawItems();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();
+    drawItems();drawAnchors();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();
     ctx.restore();
     // Fixed screen-space HUD must never drift with the camera.
     drawDirectionalHUD();drawInteractPrompts();drawTeammateIndicators();
@@ -2026,12 +2057,14 @@
       const invisiblers=players.filter(person=>person.role==='invisibler').length;
       const illusioners=players.filter(person=>person.role==='illusioner').length;
       const rewinders=players.filter(person=>person.role==='rewinder').length;
+      const anchors=players.filter(person=>person.role==='anchor').length;
       $('#scoutCount').textContent=String(scouts);
       $('#medicCount').textContent=String(medics);
       $('#teleporterCount').textContent=String(teleporters);
       $('#invisiblerCount').textContent=String(invisiblers);
       $('#illusionerCount').textContent=String(illusioners);
       $('#rewinderCount').textContent=String(rewinders);
+      $('#anchorCount').textContent=String(anchors);
       $('#rosterCount').textContent=players.length+' / 5 players';
     };
     nicknameInput.addEventListener('change',()=>{
