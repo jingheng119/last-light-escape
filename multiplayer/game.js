@@ -2244,30 +2244,33 @@
     // Smooth camera motion in the render loop, not per network packet.
   }
   function setupRoomChat(){
-    const toggle=$('#chatToggle'),drawer=$('#chatDrawer'),close=$('#chatClose');
-    const log=$('#chatMessages'),input=$('#chatInput'),form=$('#chatForm');
-    const feedback=$('#chatFeedback'),unread=$('#chatUnread');
-    let messages=[],unreadCount=0;
-    const setOpen=open=>{
-      drawer.hidden=!open;toggle.setAttribute('aria-expanded',String(open));
-      toggle.setAttribute('aria-label',open?'Close room chat':'Open room chat');
-      if(open){
-        unreadCount=0;unread.hidden=true;
-        log.scrollTop=log.scrollHeight;
-      }
+    const panel=$('#roomChat'),log=$('#chatMessages');
+    const input=$('#chatInput'),form=$('#chatForm'),feedback=$('#chatFeedback');
+    let messages=[];
+    // The chat is in the empty right gutter, outside the centered maze.
+    // Measure that gutter because the canvas size changes with aspect ratio,
+    // screen height, and fullscreen mode.
+    const positionChat=()=>{
+      const shell=$('.game-shell'),maze=$('#gameWrapper');
+      if(!shell||!maze)return;
+      const sr=shell.getBoundingClientRect(),mr=maze.getBoundingClientRect();
+      const gap=Math.max(0,sr.right-mr.right);
+      panel.style.setProperty('--chat-gutter-width',Math.max(0,Math.floor(gap-24))+'px');
+      panel.classList.toggle('chat-no-gutter',gap<180);
     };
+    window.addEventListener('resize',positionChat,{passive:true});
+    document.addEventListener('fullscreenchange',positionChat);
+    if(typeof ResizeObserver!=='undefined'){
+      const observer=new ResizeObserver(positionChat);
+      observer.observe($('#gameWrapper'));
+      observer.observe($('.game-shell'));
+    }
+    requestAnimationFrame(positionChat);
     const clear=()=>{
-      messages=[];unreadCount=0;unread.hidden=true;
-      feedback.textContent='';input.value='';
-      log.replaceChildren();
-      const empty=document.createElement('p');
-      empty.className='chat-placeholder';
-      empty.textContent='Chat with your teammates in this room.';
-      log.appendChild(empty);
-      setOpen(false);
+      messages=[];feedback.textContent='';input.value='';render();
     };
     const render=()=>{
-      const scrollToEnd=log.scrollHeight-log.scrollTop-log.clientHeight<35;
+      const nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<35;
       log.replaceChildren();
       if(!messages.length){
         const empty=document.createElement('p');
@@ -2286,7 +2289,7 @@
         body.textContent=message.text;
         item.append(author,body);log.appendChild(item);
       }
-      if(scrollToEnd||!drawer.hidden)log.scrollTop=log.scrollHeight;
+      if(nearBottom)log.scrollTop=log.scrollHeight;
     };
     const validMessage=m=>m&&Number.isInteger(m.id)&&
       Number.isInteger(m.playerId)&&typeof m.name==='string'&&
@@ -2296,13 +2299,7 @@
       messages.push(message);
       if(messages.length>50)messages.shift();
       render();
-      if(drawer.hidden&&message.playerId!==roomPlayerId){
-        unreadCount=Math.min(99,unreadCount+1);
-        unread.textContent=String(unreadCount);unread.hidden=false;
-      }
     };
-    toggle.addEventListener('click',()=>setOpen(drawer.hidden));
-    close.addEventListener('click',()=>{setOpen(false);toggle.focus();});
     const send=(text,quick=false)=>{
       const value=String(text||'').replace(/\s+/g,' ').trim();
       if(!value||value.length>240||roomRole==='none')return;
@@ -2313,10 +2310,8 @@
       sendRoom({type:'chat',text:value,quick});
       input.value='';
     };
-    form.addEventListener('submit',e=>{
-      e.preventDefault();send(input.value);
-    });
-    for(const button of drawer.querySelectorAll('[data-quick-chat]')){
+    form.addEventListener('submit',e=>{e.preventDefault();send(input.value);});
+    for(const button of panel.querySelectorAll('[data-quick-chat]')){
       button.addEventListener('click',()=>send(button.dataset.quickChat,true));
     }
     input.addEventListener('focus',()=>{
@@ -2327,8 +2322,8 @@
       clear,
       history:entries=>{
         messages=Array.isArray(entries)?entries.filter(validMessage).slice(-50):[];
-        unreadCount=0;unread.hidden=true;feedback.textContent='';
-        render();
+        feedback.textContent='';render();
+        log.scrollTop=log.scrollHeight;
       },
       receive,
       error:text=>{feedback.textContent=String(text||'Please slow down.').slice(0,120)}
