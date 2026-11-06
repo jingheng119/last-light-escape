@@ -115,7 +115,7 @@
       (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
-  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.trail=[];}
+  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.trail=[];}
   let extraContextGuest=null;
   function allPlayers(){
     // A player action temporarily swaps the global 'player' reference.
@@ -208,14 +208,15 @@
   const CAMERA_ZOOM = 1.65;
   const SCOUT_STUN_RADIUS = 5.5;
   const MEDIC_HEAL_RADIUS = 5.5;
-  const SKILL_COOLDOWN = {scout:13,medic:16,invisibler:18,teleporter:20,illusioner:22,rewinder:25,anchor:10};
+  const SKILL_COOLDOWN = {scout:13,medic:26,invisibler:14,teleporter:16,illusioner:27,rewinder:29,anchor:10};
+  const SKILL_MAX_CHARGES = {scout:2,medic:2,invisibler:1,teleporter:1,illusioner:2,rewinder:2,anchor:2};
   const ROLE_DETAILS={
     scout:{label:'SCOUT',skill:'STUN SHOCKWAVE',ready:'PULSE READY'},
     medic:{label:'MEDIC',skill:'HEALING BURST',ready:'HEAL READY'},
     invisibler:{label:'INVISIBLER',skill:'VANISH · 3 SECONDS',ready:'VANISH READY'},
     teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 5 SECONDS',ready:'GUARD READY'},
     illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'},
-    rewinder:{label:'REWINDER',skill:'AREA REWIND · 5.5 TILES',ready:'REWIND READY'},
+    rewinder:{label:'REWINDER',skill:'TARGET REWIND · 5.5 TILES',ready:'REWIND READY'},
     anchor:{label:'ANCHOR',skill:'PLACE ANCHOR · RETURN',ready:'ANCHOR READY'}
   };
   const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
@@ -377,7 +378,7 @@
       const techSpot=selectSpot(reserved,13,distances,false);reserved.push(techSpot);
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
-    player={slot:1,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,anchor:null};
+    player={slot:1,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,abilityCharges:SKILL_MAX_CHARGES[classChoice],anchor:null};
     if(roomRole==='host'&&guestPlayer){newGuest();guestPlayer.hp=guestCarriedHealth;}
     for(let i=0;i<3;i++){
       if(extraActive[i]){
@@ -765,16 +766,30 @@
     rewindTargeting=false;
     activateAbility({kind:choice.kind,...(choice.kind==='hollow'?{index:choice.index}:{slot:choice.slot})});
   }
+  function maxSkillCharges(role=classChoice){return SKILL_MAX_CHARGES[role]||1;}
+  function skillCharges(p=player,role=classChoice){
+    return Number.isFinite(p.abilityCharges)?
+      Math.max(0,Math.min(maxSkillCharges(role),p.abilityCharges)):maxSkillCharges(role);
+  }
+  function canUseSkill(){return player&&skillCharges()>0;}
+  function consumeSkillCharge(){
+    const before=skillCharges();
+    if(before<=0)return false;
+    player.abilityCharges=before-1;
+    // Sequential recharge: a second use queues behind the first timer.
+    if(before===maxSkillCharges())player.abilityCooldown=SKILL_COOLDOWN[classChoice]*cooldownFactor();
+    return true;
+  }
   function requestAbility(){
     if(classChoice!=='rewinder'){activateAbility();return;}
-    if(state!=='playing'||!player||player.hp<=0||player.abilityCooldown>0)return;
+    if(state!=='playing'||!player||player.hp<=0||!canUseSkill())return;
     if(!rewindTargeting){
       rewindTargeting=true;rewindTargetIndex=0;
       notify('REWINDER — tap a target, or TAB to choose and F/ENTER to confirm.',3);
     }else commitRewindTarget(chosenRewindTarget());
   }
   function activateAbility(rewindTarget=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability',false,rewindTarget))return;
-    if(state!=='playing'||player.hp<=0||player.abilityCooldown>0)return;
+    if(state!=='playing'||player.hp<=0||(!canUseSkill()&&!(classChoice==='anchor'&&player.anchor)))return;
     if(classChoice==='medic'){
       // Self-healing always takes priority. When healthy, heal exactly one
       // randomly selected injured, connected, living teammate in range.
@@ -785,7 +800,7 @@
       })();
       if(!target){notify('MEDIC — no injured teammate within range.');return;}
       target.hp=Math.min(3,target.hp+1);
-      player.abilityCooldown=SKILL_COOLDOWN.medic*cooldownFactor();
+      consumeSkillCharge();
       skillWaves.push({x:player.x,y:player.y,healX:target.x,healY:target.y,
         radius:MEDIC_HEAL_RADIUS,age:0,duration:.7,color:'medic'});
       notify(target===player?'MEDIC — one health restored!':
@@ -793,7 +808,7 @@
       beep(880,.25);
     }else if(classChoice==='invisibler'){
       player.invisibleTime=3;
-      player.abilityCooldown=SKILL_COOLDOWN.invisibler*cooldownFactor();
+      consumeSkillCharge();
       // Break pursuit immediately: Hollows must not retain the caster's
       // prior position as a target while invisibility is active.
       for(const h of hollows){
@@ -808,7 +823,7 @@
       beep(1040,.24,'triangle',.024);
     }else if(classChoice==='teleporter'){
       player.phaseGuardTime=5;
-      player.abilityCooldown=SKILL_COOLDOWN.teleporter*cooldownFactor();
+      consumeSkillCharge();
       notify('TELEPORTER — Phase Guard active for 5 seconds!');
       beep(700,.24,'triangle',.025);
     }else if(classChoice==='rewinder'){
@@ -836,7 +851,7 @@
         chosen.invincible=Math.max(chosen.invincible,2);
         rewindHistory.set(chosen,[{t:clock,x:chosen.x,y:chosen.y}]);
       }
-      player.abilityCooldown=SKILL_COOLDOWN.rewinder*cooldownFactor();
+      consumeSkillCharge();
       skillWaves.push({x:from.x,y:from.y,radius:.8,age:0,duration:.5,color:'rewinder'});
       skillWaves.push({x:chosen.x,y:chosen.y,radius:1.3,age:0,duration:.55,color:'rewinder'});
       notify('REWINDER — target returned 3 seconds!'+(isHollow?'':' 2s protection.'));
@@ -854,7 +869,7 @@
         player.anchor=null;
         player.invincible=Math.max(player.invincible,2);
         player.dashTime=0;
-        player.abilityCooldown=SKILL_COOLDOWN.anchor*cooldownFactor();
+        consumeSkillCharge();
         skillWaves.push({x:player.x,y:player.y,radius:1.6,age:0,duration:.6,color:'teleporter'});
         notify('ANCHOR — returned! Invincible for 2 seconds.');
         beep(1040,.23,'triangle',.03);
@@ -864,19 +879,20 @@
       // collects objectives, or blocks real survivors.
       const heading=Math.hypot(player.facing.x,player.facing.y)||1;
       const ownerSlot=allPlayers().indexOf(player)+1;
-      illusions=illusions.filter(illusion=>illusion.ownerSlot!==ownerSlot);
+      // Each charge summons its own phantom; existing phantoms keep moving
+      // and expire individually after their original five seconds.
       const axisX=Math.abs(player.facing.x)>=Math.abs(player.facing.y);
       const facing=axisX?{x:Math.sign(player.facing.x)||1,y:0}:
         {x:0,y:Math.sign(player.facing.y)||1};
       illusions.push({x:player.x,y:player.y,
         direction:facing,waypoint:null,life:5,ownerSlot});
-      player.abilityCooldown=SKILL_COOLDOWN.illusioner*cooldownFactor();
+      consumeSkillCharge();
       notify('ILLUSIONER — Phantom Double deployed!');
       beep(920,.25,'triangle',.026);
     }else{
       const stunned=hollows.filter(h=>dist(h,player)<SCOUT_STUN_RADIUS);
       for(const h of stunned){h.stunned=2.5;h.mode='search';h.target=null;h.path=[];h.repath=0;h.chaseUntil=clock+3;}
-      player.abilityCooldown=SKILL_COOLDOWN.scout*cooldownFactor();
+      consumeSkillCharge();
       skillWaves.push({x:player.x,y:player.y,radius:SCOUT_STUN_RADIUS,age:0,duration:.62,color:'scout'});
       notify('SCOUT — '+stunned.length+' Hollows stunned!');beep(1160,.23);
     }
@@ -1018,7 +1034,20 @@
   function updatePlayer(dt){
     if(player.hp<=0||player.disconnected)return;
     player.invincible=Math.max(0,player.invincible-dt);player.dashCooldown=Math.max(0,player.dashCooldown-dt);
-    player.abilityCooldown=Math.max(0,player.abilityCooldown-dt);
+    // Recharge one charge at a time, preserving elapsed progress if a large
+    // simulation step finishes a charge mid-frame.
+    if(!Number.isFinite(player.abilityCharges))
+      player.abilityCharges=SKILL_MAX_CHARGES[classChoice];
+    const maximum=maxSkillCharges();
+    if(player.abilityCharges<maximum){
+      player.abilityCooldown-=dt;
+      const recharge=SKILL_COOLDOWN[classChoice]*cooldownFactor();
+      while(player.abilityCooldown<=0&&player.abilityCharges<maximum){
+        player.abilityCharges++;
+        player.abilityCooldown+=recharge;
+      }
+      if(player.abilityCharges===maximum)player.abilityCooldown=0;
+    }else player.abilityCooldown=0;
     player.invisibleTime=Math.max(0,(player.invisibleTime||0)-dt);
     player.phaseGuardTime=Math.max(0,(player.phaseGuardTime||0)-dt);
     player.decoyCooldown=Math.max(0,player.decoyCooldown-dt);
@@ -1270,21 +1299,30 @@
     ui.survivorStatus.textContent=technician
       ?`${Number(survivor.rescued)+Number(technician.rescued)} / 2 ALLIES`
       :(survivor.rescued?'FOLLOWING':'TRAPPED');
-    ui.abilityStatus.textContent=rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':player.phaseGuardTime>0?
-      'PHASE GUARD · '+player.phaseGuardTime.toFixed(1)+'s':
+    const available=skillCharges();
+    const maximum=maxSkillCharges();
+    ui.abilityStatus.textContent=rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':
+      player.phaseGuardTime>0?'PHASE GUARD · '+player.phaseGuardTime.toFixed(1)+'s':
       player.invisibleTime>0?'VANISH ACTIVE · '+player.invisibleTime.toFixed(1)+'s':
       classChoice==='anchor'&&player.anchor?'ANCHOR PLACED · F TO RETURN':
       classChoice==='illusioner'&&illusions.some(i=>i.ownerSlot===allPlayers().indexOf(player)+1)?
         'PHANTOM DOUBLE ACTIVE':
-      player.abilityCooldown<=0?ROLE_DETAILS[classChoice].ready:'ABILITY RECHARGING';
+      available>0?ROLE_DETAILS[classChoice].ready:'ABILITY RECHARGING';
     if(technician?.rescued)ui.abilityStatus.textContent+=' · CD -30%';
     ui.dash.textContent=player.dashCooldown<=0?'DASH READY':`DASH ${player.dashCooldown.toFixed(1)}s`;
-    // On-screen cooldowns reflect the exact timers used by keyboard actions.
     const skillTotal=SKILL_COOLDOWN[classChoice]*cooldownFactor();
-    const skillCharge=classChoice==='anchor'&&player.anchor?1:Math.max(0,Math.min(1,1-player.abilityCooldown/skillTotal));
-    $('#touchAbility').style.setProperty('--skill-charge',`${skillCharge.toFixed(3)}turn`);
+    const refill=Math.max(0,Math.min(1,1-player.abilityCooldown/skillTotal));
+    // Inner ring = first charge; outer ring = second charge.
+    // 0 charge: inner refills; 1 charge: outer refills.
+    const inner=available>0?1:refill;
+    const outer=maximum===2?(available===2?1:available===1?refill:0):0;
+    const skillButton=$('#touchAbility');
+    skillButton.style.setProperty('--skill-charge',`${inner.toFixed(3)}turn`);
+    skillButton.style.setProperty('--skill-charge-outer',`${outer.toFixed(3)}turn`);
+    skillButton.classList.toggle('two-charges',maximum===2);
     ui.skillCD.textContent='';
-    $('#touchAbility').setAttribute('aria-label',rewindTargeting?'Confirm rewind target':player.abilityCooldown>0?'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
+    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':available===0&&!(classChoice==='anchor'&&player.anchor)?
+      'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
     const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
     const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/(2*cooldownFactor())));
     $('#touchDash').style.setProperty('--skill-charge',`${dashCharge.toFixed(3)}turn`);
@@ -1293,7 +1331,7 @@
     ui.decoyCD.textContent=`×${player.decoys}`;
     $('#touchDash').setAttribute('aria-label',player.dashCooldown>0?'Dash recharging':'Dash ready');
     $('#touchDecoy').setAttribute('aria-label',player.decoyCooldown>0?'Decoy recharging':`Decoy, ${player.decoys} remaining`);
-    $('#touchAbility').classList.toggle('on-cooldown',player.abilityCooldown>0);
+    $('#touchAbility').classList.toggle('on-cooldown',available===0&&!(classChoice==='anchor'&&player.anchor));
     $('#touchDash').classList.toggle('on-cooldown',player.dashCooldown>0);
     $('#touchDecoy').classList.toggle('on-cooldown',player.decoyCooldown>0||player.decoys===0);
     ui.threat.textContent=['LOW','ALERT','PURSUIT'][alertLevel];ui.threat.className=['threat-calm','threat-alert','threat-danger'][alertLevel];
