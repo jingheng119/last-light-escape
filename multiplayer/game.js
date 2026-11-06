@@ -763,9 +763,11 @@
       const heading=Math.hypot(player.facing.x,player.facing.y)||1;
       const ownerSlot=allPlayers().indexOf(player)+1;
       illusions=illusions.filter(illusion=>illusion.ownerSlot!==ownerSlot);
+      const axisX=Math.abs(player.facing.x)>=Math.abs(player.facing.y);
+      const facing=axisX?{x:Math.sign(player.facing.x)||1,y:0}:
+        {x:0,y:Math.sign(player.facing.y)||1};
       illusions.push({x:player.x,y:player.y,
-        direction:{x:player.facing.x/heading,y:player.facing.y/heading},
-        life:5,stopped:false,ownerSlot});
+        direction:facing,waypoint:null,life:5,ownerSlot});
       player.abilityCooldown=SKILL_COOLDOWN.illusioner*cooldownFactor();
       notify('ILLUSIONER — Phantom Double deployed!');
       beep(920,.25,'triangle',.026);
@@ -956,11 +958,37 @@
   function updateIllusions(dt){
     for(const illusion of illusions){
       illusion.life=Math.max(0,illusion.life-dt);
-      if(illusion.life<=0||illusion.stopped)continue;
-      const before={x:illusion.x,y:illusion.y};
-      const hitWall=moveEntity(illusion,illusion.direction.x*3.5*dt,
-        illusion.direction.y*3.5*dt,.18);
-      if(hitWall||dist(before,illusion)<.002)illusion.stopped=true;
+      if(illusion.life<=0)continue;
+      let remaining=3.5*dt;
+      // Follow tile centres so a phantom can turn 90 degrees at corners.
+      // Continue forward at intersections whenever possible, then choose
+      // a side passage; reverse only at a dead end.
+      for(let steps=0;steps<8&&remaining>.0001;steps++){
+        if(!illusion.waypoint){
+          const tile=tileAt(illusion);
+          const middle=TILE_CENTER(tile.x,tile.y);
+          if(dist(illusion,middle)>.04){
+            illusion.waypoint=middle;
+          }else{
+            const forward=illusion.direction;
+            const options=dirs.filter(([dx,dy])=>floorAt(tile.x+dx,tile.y+dy));
+            const straight=options.find(([dx,dy])=>dx===forward.x&&dy===forward.y);
+            const nonReverse=options.filter(([dx,dy])=>dx!==-forward.x||dy!==-forward.y);
+            const sideways=nonReverse.length?nonReverse:options;
+            const chosen=straight||sideways[Math.floor(rand()*sideways.length)];
+            if(!chosen)break;
+            illusion.direction={x:chosen[0],y:chosen[1]};
+            illusion.waypoint=TILE_CENTER(tile.x+chosen[0],tile.y+chosen[1]);
+          }
+        }
+        const target=illusion.waypoint,d=dist(illusion,target);
+        if(d<.001){illusion.x=target.x;illusion.y=target.y;illusion.waypoint=null;continue;}
+        const move=Math.min(remaining,d);
+        illusion.x+=(target.x-illusion.x)/d*move;
+        illusion.y+=(target.y-illusion.y)/d*move;
+        remaining-=move;
+        if(move>=d-.0001){illusion.x=target.x;illusion.y=target.y;illusion.waypoint=null;}
+      }
     }
     illusions=illusions.filter(illusion=>illusion.life>0);
   }
