@@ -119,6 +119,15 @@ const bridge=`
       }
     },
     action:perform,
+    // Only local regression tests may reposition an authoritative Hollow.
+    // This helper is never exposed to WebSocket clients.
+    testPlaceHollow(index,x,y,stun=100){
+      const h=hollows[index];
+      if(!h)return false;
+      h.x=x;h.y=y;h.stunned=stun;h.dashTime=0;
+      h.mode='patrol';h.target=null;h.path=[];h.repath=0;
+      return true;
+    },
     // Used only by local/CI engine tests. There is no WebSocket command for it.
     testHit(id){
       const hit=()=>{player.invincible=0;player.dashTime=0;damage();};
