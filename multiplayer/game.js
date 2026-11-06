@@ -237,7 +237,7 @@
     if(!details)return;
     const role=validRole(classChoice);
     const descriptions={
-      skill:{title:ROLE_DETAILS[role].skill,
+      skill:{title:ROLE_DETAILS[role].skill.split(' · ')[0],
         body:ROLE_DESCRIPTIONS[role],
         meta:skillDescription(role)},
       dash:{title:'DASH · QUICK ESCAPE',
