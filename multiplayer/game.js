@@ -206,7 +206,13 @@
   const CAMERA_ZOOM = 1.65;
   const SCOUT_STUN_RADIUS = 5.5;
   const MEDIC_HEAL_RADIUS = 5.5;
-  const SKILL_COOLDOWN = {scout:13,medic:16};
+  const SKILL_COOLDOWN = {scout:13,medic:16,invisibler:18};
+  const ROLE_DETAILS={
+    scout:{label:'SCOUT',skill:'STUN SHOCKWAVE',ready:'PULSE READY'},
+    medic:{label:'MEDIC',skill:'HEALING BURST',ready:'HEAL READY'},
+    invisibler:{label:'INVISIBLER',skill:'VANISH · 3 SECONDS',ready:'VANISH READY'}
+  };
+  const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
   const cooldownFactor=()=>technician?.rescued?TECHNICIAN_COOLDOWN_FACTOR:1;
   const alliesReady=()=>survivor.rescued&&dist(survivor,exit)<2.0&&(!technician||(technician.rescued&&dist(technician,exit)<2.0));
@@ -613,7 +619,7 @@
     ui.roleOptions.hidden=!choosing;
     ui.roleLocked.hidden=choosing;
     ui.roleLabel.firstChild.textContent=choosing?'CHOOSE YOUR ROLE ':'YOUR ROLE ';
-    ui.lockedRoleText.textContent=classChoice==='medic'?'MEDIC · HEALING BURST':'SCOUT · STUN SHOCKWAVE';
+    ui.lockedRoleText.textContent=ROLE_DETAILS[classChoice].label+' · '+ROLE_DETAILS[classChoice].skill;
     if($('#lobbyClass'))$('#lobbyClass').value=classChoice;
     document.querySelectorAll('.role-option').forEach(card=>{
       const selected=card.dataset.role===classChoice;
@@ -688,7 +694,8 @@
       const len=Math.hypot(directionOverride.x,directionOverride.y);
       player.dashDir={x:directionOverride.x/len,y:directionOverride.y/len};
     }else if(vx||vy){const len=Math.hypot(vx,vy);player.dashDir={x:vx/len,y:vy/len};}else player.dashDir={...player.facing};
-    noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
+    if(!(player.invisibleTime>0))
+      noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
     beep(220,.17,'sawtooth',.019);updateUI();
   }
   function interact(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0)return;
@@ -728,6 +735,20 @@
       notify(target===player?'MEDIC — one health restored!':
         'MEDIC — teammate healed for one heart!');
       beep(880,.25);
+    }else if(classChoice==='invisibler'){
+      player.invisibleTime=3;
+      player.abilityCooldown=SKILL_COOLDOWN.invisibler*cooldownFactor();
+      // Break pursuit immediately: Hollows must not retain the caster's
+      // prior position as a target while invisibility is active.
+      for(const h of hollows){
+        if(h.mode==='chase'&&h.target&&dist(h.target,player)<1.0){
+          h.mode='search';h.target=null;h.path=[];h.pathIndex=0;
+          h.repath=0;h.chaseUntil=clock;
+          if(h.variant==='dasher')h.dashTime=0;
+        }
+      }
+      notify('INVISIBLER — Hollows lost your trail for 3 seconds!');
+      beep(1040,.24,'triangle',.024);
     }else{
       const stunned=hollows.filter(h=>dist(h,player)<SCOUT_STUN_RADIUS);
       for(const h of stunned){h.stunned=2.5;h.mode='search';h.target=null;h.path=[];h.repath=0;h.chaseUntil=clock+3;}
@@ -833,6 +854,7 @@
     if(player.hp<=0||player.disconnected)return;
     player.invincible=Math.max(0,player.invincible-dt);player.dashCooldown=Math.max(0,player.dashCooldown-dt);
     player.abilityCooldown=Math.max(0,player.abilityCooldown-dt);
+    player.invisibleTime=Math.max(0,(player.invisibleTime||0)-dt);
     player.decoyCooldown=Math.max(0,player.decoyCooldown-dt);
     let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
@@ -873,8 +895,10 @@
     let danger=0;
     for(const h of hollows){
       // Avoid targeting a downed player if their teammate is still alive.
-      const nearest=allPlayers().filter(p=>p.hp>0)
-        .sort((a,b)=>dist(h,a)-dist(h,b))[0]||player;
+      // Invisible survivors must never be selected as chase targets,
+      // including when they are the only living player.
+      const nearest=allPlayers().filter(p=>p.hp>0&&!(p.invisibleTime>0))
+        .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
       if(h.stunned>0){h.stunned=Math.max(0,h.stunned-dt);h.dashTime=0;h.wobble+=dt*5;continue;}
       // Five Stage II Dashers lunge along their movement/chase direction.
       if(h.variant==='dasher'){
@@ -890,18 +914,19 @@
             h.path=[];h.pathIndex=0;h.repath=0;
           }
           h.wobble+=dt*10;
-          if(dist(h,nearest)<3)danger=Math.max(danger,1);
+          if(nearest&&dist(h,nearest)<3)danger=Math.max(danger,1);
           continue;
         }
         h.dashCooldown-=dt;
         // Start any burst only after the chase/patrol route is updated below,
         // so the lunge follows the Hollow's actual movement direction.
       }
-      const distance=dist(h,nearest);
+      const distance=nearest?dist(h,nearest):Infinity;
       const lookX=Math.cos(h.angle),lookY=Math.sin(h.angle);
-      const dot=distance>0?((nearest.x-h.x)*lookX+(nearest.y-h.y)*lookY)/distance:1;
+      const dot=nearest&&distance>0?((nearest.x-h.x)*lookX+(nearest.y-h.y)*lookY)/distance:1;
       // A Hollow can notice a nearby nearest in any direction, but sees further ahead.
-      const visible=h.variant==='hunter'||distance<1.7||(distance<(h.mode==='chase'?8:6.6)&&dot>.12&&clearLine(h,nearest));
+      const visible=!!nearest&&(h.variant==='hunter'||distance<1.7||
+        (distance<(h.mode==='chase'?8:6.6)&&dot>.12&&clearLine(h,nearest)));
       const heard=noiseEvents.filter(n=>n.expires>clock&&dist(h,n)<n.radius)
         .sort((a,b)=>dist(h,a)-dist(h,b))[0];
       if(visible){
@@ -960,7 +985,7 @@
       if(h.variant==='dasher'&&h.dashCooldown<=0){
         // If the nearest is visible, dash right at them; otherwise lunge along
         // the next path waypoint (including around corners rather than walls).
-        const canAimAtPlayer=h.mode==='chase'&&clearLine(h,nearest);
+        const canAimAtPlayer=!!nearest&&h.mode==='chase'&&clearLine(h,nearest);
         const dashTarget=canAimAtPlayer?nearest:h.path[h.pathIndex];
         if(dashTarget){
           const distanceToTarget=dist(h,dashTarget);
@@ -1012,11 +1037,13 @@
     ui.cores.textContent=`${cores.filter(c=>c.collected).length} / ${cores.length}`;
     ui.relay.textContent=relay.active?'ACTIVE':'OFFLINE';ui.relay.style.color=relay.active?'#78e8bc':'#d6f4ee';
     ui.decoys.textContent=`DECOYS × ${player.decoys}`;ui.timer.textContent=formatTime(elapsed);
-    ui.classStatus.textContent=classChoice==='medic'?'MEDIC':'SCOUT';
+    ui.classStatus.textContent=ROLE_DETAILS[classChoice].label;
     ui.survivorStatus.textContent=technician
       ?`${Number(survivor.rescued)+Number(technician.rescued)} / 2 ALLIES`
       :(survivor.rescued?'FOLLOWING':'TRAPPED');
-    ui.abilityStatus.textContent=player.abilityCooldown<=0?(classChoice==='medic'?'HEAL READY':'PULSE READY'):'ABILITY RECHARGING';
+    ui.abilityStatus.textContent=player.invisibleTime>0?
+      'VANISH ACTIVE · '+player.invisibleTime.toFixed(1)+'s':
+      player.abilityCooldown<=0?ROLE_DETAILS[classChoice].ready:'ABILITY RECHARGING';
     if(technician?.rescued)ui.abilityStatus.textContent+=' · CD -30%';
     ui.dash.textContent=player.dashCooldown<=0?'DASH READY':`DASH ${player.dashCooldown.toFixed(1)}s`;
     // On-screen cooldowns reflect the exact timers used by keyboard actions.
@@ -1229,11 +1256,14 @@
     const x=player.x*TILE,y=player.y*TILE,flicker=player.invincible>0&&Math.sin(clock*31)>0;
     const color=colorForPlayer(roomPlayerId);
     if(flicker)return;
+    ctx.save();
+    if(player.invisibleTime>0)ctx.globalAlpha=.28;
     halo(x,y,70,color+'25');ctx.fillStyle='#061d23';ctx.beginPath();ctx.ellipse(x,y+6,12,6,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#0d3940';ctx.beginPath();ctx.arc(x,y-2,5,0,Math.PI*2);ctx.fill();
     const fx=player.facing.x,fy=player.facing.y;ctx.strokeStyle='#e6fff7';ctx.lineWidth=2.7;ctx.beginPath();ctx.moveTo(x+fx*6,y+fy*6);ctx.lineTo(x+fx*14,y+fy*14);ctx.stroke();
     ctx.strokeStyle=color;ctx.lineWidth=player.dashTime>0?3:1.7;ctx.beginPath();ctx.arc(x,y,13,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
   }
   function drawOtherPlayer(){
     for(let i=0;i<remotePlayers.length;i++){
@@ -1241,8 +1271,11 @@
       if(!teammate)continue;
       if(teammate.hp<=0){drawSoul(teammate);continue;}
       const x=teammate.x*TILE,y=teammate.y*TILE,color=colorForPlayer(teammate.slot);
+      ctx.save();
+      if(teammate.invisibleTime>0)ctx.globalAlpha=.28;
       halo(x,y,30,color+'36');
       ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
+      ctx.restore();
     }
   }
   function drawNameplates(){
@@ -1261,6 +1294,7 @@
       ctx.shadowBlur=5;
       ctx.shadowOffsetY=1;
       ctx.fillStyle=colorForPlayer(person.slot);
+      if(person.invisibleTime>0)ctx.globalAlpha=.40;
       ctx.fillText(name,x,y);
       ctx.restore();
     }
@@ -1539,7 +1573,7 @@
   document.querySelectorAll('.role-option').forEach(card=>{
     card.addEventListener('click',()=>{
       if(state!=='menu'&&state!=='dead'&&state!=='victory')return;
-      classChoice=card.dataset.role==='medic'?'medic':'scout';
+      classChoice=validRole(card.dataset.role);
       refreshRoleSelection();
       if(roomRole!=='none')sendRoom({type:'role',role:classChoice});
     });
@@ -1700,7 +1734,7 @@
     guestPlayer=remotePlayers[0]||null;
     if(Array.isArray(d.playerRoles)){
       const actualRole=d.playerRoles[roomPlayerId-1];
-      if(actualRole==='medic'||actualRole==='scout')classChoice=actualRole;
+      if(Object.hasOwn(ROLE_DETAILS,actualRole))classChoice=actualRole;
     }
     cores=d.cores;relay=d.relay;exit=d.exit;
     // Hollows must be drawn where the server checks their collisions.
@@ -1800,7 +1834,7 @@
       if(!['menu','dead','victory'].includes(state)){
         lobbyClass.value=classChoice;return;
       }
-      classChoice=lobbyClass.value==='medic'?'medic':'scout';
+      classChoice=validRole(lobbyClass.value);
       refreshRoleSelection();
       if(roomRole!=='none')sendRoom({type:'role',role:classChoice});
     });
