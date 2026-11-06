@@ -230,7 +230,7 @@
 };
   function skillDescription(role){
     const charges=SKILL_MAX_CHARGES[role];
-    return `${charges} ${charges===1?'CHARGE':'CHARGES'} · ${SKILL_COOLDOWN[role]}s RECHARGE · ${charges===2?'SEQUENTIAL RECHARGE':'SINGLE RECHARGE'}`;
+    return `${charges} ${charges===1?'CHARGE':'CHARGES'} · ${SKILL_COOLDOWN[role]}s COOLDOWN`;
   }
   function refreshActionDescription(action){
     const details=$('#skillTooltip');
