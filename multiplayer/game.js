@@ -2259,7 +2259,10 @@
       const paintedWidth=Math.min(cr.width,cr.height*(canvas.width/canvas.height));
       const mazeRight=cr.left+(cr.width+paintedWidth)/2;
       const gap=Math.max(0,sr.right-mazeRight);
-      panel.style.setProperty('--chat-gutter-width',Math.max(0,Math.floor(gap-24))+'px');
+      // On touch/mobile the chat sits 8px from the right edge. Reserve another
+      // 7px before the painted maze; desktop retains its wider 24px clearance.
+      const mobileChat=window.matchMedia('(max-width:650px), (hover:none) and (pointer:coarse)').matches;
+      panel.style.setProperty('--chat-gutter-width',Math.max(0,Math.floor(gap-(mobileChat?15:24)))+'px');
       panel.classList.toggle('chat-no-gutter',gap<180);
     };
     window.addEventListener('resize',positionChat,{passive:true});
