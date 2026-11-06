@@ -233,14 +233,12 @@
     return `${charges} ${charges===1?'CHARGE':'CHARGES'} · ${SKILL_COOLDOWN[role]}s RECHARGE · ${charges===2?'SEQUENTIAL RECHARGE':'SINGLE RECHARGE'}`;
   }
   function refreshSkillDescriptions(){
+    const details=$('#skillTooltip');
+    if(!details)return;
     const role=validRole(classChoice);
-    for(const prefix of ['role','lobby']){
-      const details=$('#'+prefix+'SkillDetails');
-      if(!details)continue;
-      details.querySelector('.skill-description-title').textContent=ROLE_DETAILS[role].label+' · '+ROLE_DETAILS[role].skill;
-      details.querySelector('.skill-description-body').textContent=ROLE_DESCRIPTIONS[role];
-      details.querySelector('.skill-description-meta').textContent=skillDescription(role);
-    }
+    details.querySelector('.skill-description-title').textContent=ROLE_DETAILS[role].label+' · '+ROLE_DETAILS[role].skill;
+    details.querySelector('.skill-description-body').textContent=ROLE_DESCRIPTIONS[role];
+    details.querySelector('.skill-description-meta').textContent=skillDescription(role);
   }
   const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
@@ -1965,7 +1963,67 @@
   bindGameAction('#touchDash',()=>dash(null,true));
   bindGameAction('#touchInteract',interact);
   bindGameAction('#touchDecoy',triggerDecoy);
-  bindGameAction('#touchAbility',requestAbility);
+  // Skill tooltip: desktop hover, or a one-second mobile hold.
+  // A short touch activates on release; a completed hold only explains
+  // the ability, so reading its description cannot consume a charge.
+  const skillButtonForHelp=$('#touchAbility');
+  const skillTooltip=$('#skillTooltip');
+  let skillHoldTimer=null,skillHoldPointer=null,skillHoldTriggered=false;
+  let skillTouchClickSuppressedUntil=0;
+  const hideSkillTooltip=()=>{
+    skillTooltip.classList.remove('is-visible');
+    skillTooltip.setAttribute('aria-hidden','true');
+  };
+  const showSkillTooltip=()=>{
+    if(activePage!=='play'||state!=='playing')return;
+    refreshSkillDescriptions();
+    skillTooltip.classList.add('is-visible');
+    skillTooltip.setAttribute('aria-hidden','false');
+  };
+  const cancelSkillHold=()=>{
+    if(skillHoldTimer!==null){clearTimeout(skillHoldTimer);skillHoldTimer=null;}
+  };
+  skillButtonForHelp.addEventListener('pointerenter',e=>{
+    if(e.pointerType==='mouse')showSkillTooltip();
+  });
+  skillButtonForHelp.addEventListener('pointerleave',e=>{
+    if(e.pointerType==='mouse')hideSkillTooltip();
+  });
+  skillButtonForHelp.addEventListener('focus',showSkillTooltip);
+  skillButtonForHelp.addEventListener('blur',hideSkillTooltip);
+  skillButtonForHelp.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse')return;
+    e.preventDefault();
+    if(skillHoldPointer!==null)return;
+    skillHoldPointer=e.pointerId;
+    skillHoldTriggered=false;
+    skillTouchClickSuppressedUntil=Date.now()+1500;
+    try{skillButtonForHelp.setPointerCapture(e.pointerId);}catch(_){}
+    cancelSkillHold();
+    skillHoldTimer=setTimeout(()=>{
+      skillHoldTimer=null;
+      if(skillHoldPointer===e.pointerId){
+        skillHoldTriggered=true;
+        showSkillTooltip();
+      }
+    },1000);
+  });
+  function finishSkillHold(e,cancelled=false){
+    if(skillHoldPointer!==e.pointerId)return;
+    const wasLongHold=skillHoldTriggered;
+    skillHoldPointer=null;skillHoldTriggered=false;
+    cancelSkillHold();hideSkillTooltip();
+    skillTouchClickSuppressedUntil=Date.now()+800;
+    if(!cancelled&&!wasLongHold)requestAbility();
+  }
+  skillButtonForHelp.addEventListener('pointerup',e=>finishSkillHold(e));
+  skillButtonForHelp.addEventListener('pointercancel',e=>finishSkillHold(e,true));
+  skillButtonForHelp.addEventListener('lostpointercapture',e=>finishSkillHold(e,true));
+  // Keep desktop mouse clicks and keyboard activation unchanged.
+  skillButtonForHelp.addEventListener('click',e=>{
+    if(e.detail!==0&&Date.now()<skillTouchClickSuppressedUntil)return;
+    requestAbility();
+  });
   bindGameAction('#touchPause',pause);
   // Tap/click the selected character or Hollow while Rewinder is targeting.
   canvas.addEventListener('pointerdown',event=>{
