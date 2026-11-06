@@ -180,7 +180,7 @@ const bridge=`
 // In the headless simulation, every action runs locally in the room engine.
 // The browser-only guestAction hook must never send WebSocket messages.
 const codeText=original.slice(0,cut)
-  .replace('function guestAction(name,touch=false){','function guestAction(name,touch=false){return false;')
+  .replace('function guestAction(name,touch=false,target=null){','function guestAction(name,touch=false,target=null){return false;')
   .replace("function developerSkip(fullStage=false){if(roomRole==='host'){sendRoom({type:'skip',fullStage});return;}","function developerSkip(fullStage=false){")
   +bridge;
 const fakeElement=()=>({
