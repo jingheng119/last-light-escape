@@ -19,13 +19,13 @@ const bridge=`
     x:Number.isFinite(value.x)?clamp(value.x,-1,1):0,
     y:Number.isFinite(value.y)?clamp(value.y,-1,1):0
   });
-  const perform=(id,action,direction,touch=false)=>{
+  const perform=(id,action,direction,touch=false,target=null)=>{
     if(state!=='playing')return;
     const run=()=>{
       if(action==='dash')dash(direction,touch);
       else if(action==='decoy')triggerDecoy();
       else if(action==='interact')interact();
-      else if(action==='ability')activateAbility();
+      else if(action==='ability')activateAbility(target);
     };
     if(id===1)run();
     else if(id===2&&guestPlayer)asGuest(run);
@@ -37,6 +37,7 @@ const bridge=`
       if(id===2&&!guestPlayer)newGuest();
       else if(id>=3&&id<=5&&!extraPlayers[id-3]){
         extraPlayers[id-3]=structuredClone(player);
+        extraPlayers[id-3].slot=id;
         extraPlayers[id-3].x=1.5;extraPlayers[id-3].y=1.5;
         extraPlayers[id-3].hp=3;extraPlayers[id-3].dashTime=0;
         extraPlayers[id-3].dashCooldown=0;extraPlayers[id-3].trail=[];
