@@ -49,6 +49,9 @@
   // Browser snapshots use remotePlayers to render every teammate.
   let extraPlayers=[null,null,null],remotePlayers=[],roomPlayerId=0;
   let roomIdentity=new Map();
+  // Short-lived, client-only speech bubbles for accepted room chat messages.
+  const chatBubbles=new Map();
+  const CHAT_BUBBLE_MS=3200;
   // The two screens share a single live WebSocket connection. Switching
   // screens never removes a player from their server-side room.
   let activePage='lobby';
@@ -1653,6 +1656,40 @@
       ctx.restore();
     }
   }
+  function drawChatBubbles(){
+    if(roomRole==='none'||!player)return;
+    const now=performance.now();
+    for(const [slot,bubble] of chatBubbles){
+      if(now>=bubble.until){chatBubbles.delete(slot);continue;}
+      const character=slot===roomPlayerId?player:remotePlayers.find(p=>p.slot===slot);
+      if(!character||character.hp<=0)continue;
+      const x=character.x*TILE,y=character.y*TILE-51;
+      const fade=Math.min(1,(bubble.until-now)/450);
+      ctx.save();
+      ctx.globalAlpha=fade;
+      ctx.font='10px system-ui, sans-serif';
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      const padding=9,boxH=23;
+      const boxW=Math.min(196,Math.max(43,ctx.measureText(bubble.text).width+padding*2));
+      const left=x-boxW/2,top=y-boxH/2,r=7;
+      ctx.fillStyle='rgba(6,29,38,.95)';
+      ctx.strokeStyle=colorForPlayer(slot);
+      ctx.lineWidth=1.3;
+      ctx.beginPath();
+      ctx.moveTo(left+r,top);ctx.lineTo(left+boxW-r,top);
+      ctx.quadraticCurveTo(left+boxW,top,left+boxW,top+r);
+      ctx.lineTo(left+boxW,top+boxH-r);
+      ctx.quadraticCurveTo(left+boxW,top+boxH,left+boxW-r,top+boxH);
+      ctx.lineTo(left+r,top+boxH);
+      ctx.quadraticCurveTo(left,top+boxH,left,top+boxH-r);
+      ctx.lineTo(left,top+r);ctx.quadraticCurveTo(left,top,left+r,top);
+      ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x-5,top+boxH);ctx.lineTo(x,top+boxH+6);
+      ctx.lineTo(x+5,top+boxH);ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.fillStyle='#e9fff6';ctx.fillText(bubble.text,x,y);
+      ctx.restore();
+    }
+  }
   function drawDarkness(){
     const c=darkCtx;
     c.clearRect(0,0,W,H);
@@ -1868,7 +1905,7 @@
     const y1=Math.min(ROWS,Math.ceil((camera.y+H/CAMERA_ZOOM)/TILE)+1);
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
-    drawItems();drawAnchors();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();
+    drawItems();drawAnchors();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();drawChatBubbles();
     if(rewindTargeting&&classChoice==='rewinder'){
       const selected=chosenRewindTarget(),cx=player.x*TILE,cy=player.y*TILE;
       ctx.save();ctx.strokeStyle='rgba(175,153,255,.86)';ctx.lineWidth=2;
@@ -2273,7 +2310,7 @@
     }
     requestAnimationFrame(positionChat);
     const clear=()=>{
-      messages=[];feedback.textContent='';input.value='';render();
+      messages=[];chatBubbles.clear();feedback.textContent='';input.value='';render();
     };
     const render=()=>{
       const nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<35;
@@ -2303,6 +2340,13 @@
     const receive=message=>{
       if(!validMessage(message)||messages.some(m=>m.id===message.id))return;
       messages.push(message);
+      // Show the first five words only; full text remains in the chat log.
+      const words=message.text.trim().split(/\\s+/).filter(Boolean);
+      if(words.length&&message.playerId>=1&&message.playerId<=5){
+        const text=words.slice(0,5).map(word=>word.slice(0,24)).join(' ')+
+          (words.length>5?'…':'');
+        chatBubbles.set(message.playerId,{text,until:performance.now()+CHAT_BUBBLE_MS});
+      }
       if(messages.length>50)messages.shift();
       render();
     };
