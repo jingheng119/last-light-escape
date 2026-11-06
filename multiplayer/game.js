@@ -1672,7 +1672,8 @@
       const padding=9,boxH=23;
       const boxW=Math.min(196,Math.max(43,ctx.measureText(bubble.text).width+padding*2));
       const left=x-boxW/2,top=y-boxH/2,r=7;
-      ctx.fillStyle='rgba(6,29,38,.95)';
+      // Opaque fill hides maze-wall edges behind the bubble; no pointer/tail.
+      ctx.fillStyle='#061d26';
       ctx.strokeStyle=colorForPlayer(slot);
       ctx.lineWidth=1.3;
       ctx.beginPath();
