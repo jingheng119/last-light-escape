@@ -1324,8 +1324,8 @@
 @media (max-width:650px), (hover:none) and (pointer:coarse){
 
   .game-shell .room-chat{
-    top:96px;
-    right:8px;
+    top:80px;
+    right:18px;
     bottom:auto;
     width:min(205px,var(--chat-gutter-width,205px));
     height:160px;
