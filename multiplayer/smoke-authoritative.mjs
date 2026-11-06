@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createRoomEngine } from './headless-engine.js';
 
 // Teleporter: shield is armed for five seconds, protects exactly one hit,
-// and relocates within three cells without crossing a blocked corridor.
+// and phases through walls while landing on a safe tile within three cells.
 function makeTeleporterRoom(){
   const room=createRoomEngine();
   room.role(1,'teleporter');
@@ -35,7 +35,8 @@ function makeTeleporterRoom(){
   for(let y=0;y<state.grid.length;y++)
     for(let x=0;x<state.grid[y].length;x++)
       state.grid[y][x]=x>=1&&x<=4&&y>=2&&y<=5?0:1;
-  // The tile directly ahead is a wall; safe nearby floor tiles remain.
+  // A wall lies between the player and the landing tile.
+  // Teleport must cross it rather than stopping before it.
   state.grid[3][3]=1;
   p.x=2.5;p.y=3.5;p.facing={x:1,y:0};
   state.hollows.forEach(h=>{h.x=20;h.y=15;h.stunned=100;});
@@ -43,11 +44,38 @@ function makeTeleporterRoom(){
   room.testHit(1);
   assert.equal(p.hp,hp,'Wall-blocked shield still prevents damage');
   assert.equal(state.grid[Math.floor(p.y)][Math.floor(p.x)],0,
-    'Wall-blocked teleport must end on a walkable tile');
+    'Wall-crossing teleport must end on a walkable tile');
   assert(Math.hypot(p.x-2.5,p.y-3.5)<=3.15,
     'Alternate landing must remain within three cells');
-  assert(!(p.x>3&&p.y>=3&&p.y<4),
-    'Teleport must never enter a wall tile');
+  assert(p.x>3.5,
+    'Teleport should cross the intervening wall and land beyond it');
+}
+{
+  const room=makeTeleporterRoom(),state=room.snapshot(true),p=state.player;
+  for(let y=0;y<state.grid.length;y++)
+    for(let x=0;x<state.grid[y].length;x++)
+      state.grid[y][x]=x===2&&y===3?0:x===5&&y===4?0:1;
+  p.x=2.5;p.y=3.5;p.facing={x:1,y:0};
+  state.hollows.forEach(h=>{h.x=20;h.y=15;h.stunned=100;});
+  room.action(1,'ability');
+  const hp=p.hp;
+  room.testHit(1);
+  assert.equal(p.hp,hp,'Blocked destination still protects from damage');
+  assert.equal(state.grid[Math.floor(p.y)][Math.floor(p.x)],0,
+    'Fallback destination must land on walkable ground');
+  assert(p.x===2.5&&p.y===3.5,
+    'With no safe landing within three cells, remain at origin');
+}
+{
+  const room=makeTeleporterRoom(),state=room.snapshot(true),p=state.player;
+  for(let y=0;y<state.grid.length;y++)
+    for(let x=0;x<state.grid[y].length;x++)
+      state.grid[y][x]=x===2&&y===3?0:x===5&&y===3?0:1;
+  p.x=2.5;p.y=3.5;p.facing={x:1,y:0};
+  state.hollows.forEach(h=>{h.x=20;h.y=15;h.stunned=100;});
+  room.action(1,'ability');room.testHit(1);
+  assert.equal(p.x,5.5,'Teleport can cross a sealed wall to reach a clear destination');
+  assert.equal(p.y,3.5,'Phase teleport keeps the intended heading');
 }
 {
   const room=makeTeleporterRoom(),p=room.snapshot(false).player;
