@@ -7,7 +7,7 @@
   <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/style.css?v=sidebar-keyboard-guide-1" />
+  <link rel="stylesheet" href="/style.css?v=full-height-maze-no-readiness-1" />
   <script src="/game.js?v=fit-entire-gutter-2" defer></script>
 </head>
 <body>
@@ -122,10 +122,11 @@
           <div class="side-key-row"><kbd>P</kbd><span>PAUSE</span></div>
           <div class="side-key-row"><kbd>F11</kbd><span>FULLSCREEN</span></div>
         </div>
-        <div class="side-live-status" aria-label="Ability readiness">
-          <span id="abilityStatus">PULSE READY</span>
-          <span id="dashStatus">DASH READY</span>
-          <span id="decoys">DECOYS × 3</span>
+        <!-- Retained only as hidden update targets for the existing game UI. -->
+        <div class="side-live-status" hidden aria-hidden="true">
+          <span id="abilityStatus"></span>
+          <span id="dashStatus"></span>
+          <span id="decoys"></span>
         </div>
       </aside>
       <div id="gameWrapper" class="canvas-wrap"><canvas id="game" width="992" height="672" role="img" aria-label="Top-down maze escape game"></canvas>
