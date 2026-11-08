@@ -1647,18 +1647,12 @@
     ui.survivorStatus.textContent=technician
       ?`${Number(survivor.rescued)+Number(technician.rescued)} / 2 ALLIES`
       :(survivor.rescued?'FOLLOWING':'TRAPPED');
-    // Illuminate each objective when the shared room state confirms completion.
-    // Stage 2 requires both allies; all cores must be collected.
+    // Glow the entire Objectives group only after every mission goal has
+    // been completed. Stage 2 requires both rescued allies.
     const allAlliesRescued=!!survivor?.rescued&&(!technician||!!technician.rescued);
     const allCoresCollected=cores.length>0&&cores.every(core=>core.collected);
-    for(const [id,complete] of [
-      ['survivorObjective',allAlliesRescued],
-      ['coresObjective',allCoresCollected],
-      ['relayObjective',!!relay.active]
-    ]){
-      const objective=$('#'+id);
-      objective.classList.toggle('is-complete',complete);
-    }
+    $('#objectivesPanel').classList.toggle('all-complete',
+      allAlliesRescued&&allCoresCollected&&!!relay.active);
     const available=skillCharges();
     const maximum=maxSkillCharges();
     ui.abilityStatus.textContent=player.infestedOn?'INFESTING TEAMMATE '+player.infestedOn+' · F TO EMERGE':
@@ -2774,7 +2768,58 @@
         }
       }
     };
-    window.addEventListener('resize',positionChat,{passive:true});
+    // Dragging is limited to desktop mouse/pen. The default layout is
+    // preserved until a person actually drags the TEAM CHAT heading.
+    const dragHandle=panel.querySelector('#chatDragHandle');
+    let dragged=false,dragPointer=null,dragOrigin=null;
+    const isDesktopDrag=()=>window.matchMedia('(min-width:981px) and (pointer:fine)').matches;
+    const positionDraggedChat=(left,top)=>{
+      const shell=$('.game-shell'),bounds=shell.getBoundingClientRect();
+      const width=panel.offsetWidth,height=panel.offsetHeight;
+      const minTop=$('.game-shell .statusbar')?.offsetHeight||0;
+      const x=Math.min(Math.max(8,left),Math.max(8,bounds.width-width-8));
+      const y=Math.min(Math.max(minTop+8,top),Math.max(minTop+8,bounds.height-height-8));
+      panel.style.setProperty('--chat-drag-left',x+'px');
+      panel.style.setProperty('--chat-drag-top',y+'px');
+    };
+    dragHandle.addEventListener('pointerdown',event=>{
+      if(!isDesktopDrag()||event.button!==0)return;
+      const bounds=$('.game-shell').getBoundingClientRect();
+      const rect=panel.getBoundingClientRect();
+      dragged=true;dragPointer=event.pointerId;
+      dragOrigin={x:event.clientX,y:event.clientY,left:rect.left-bounds.left,top:rect.top-bounds.top};
+      // Freeze the current size, avoiding jumps from top/bottom CSS constraints.
+      panel.style.setProperty('--chat-drag-height',rect.height+'px');
+      panel.classList.add('chat-is-dragged','chat-dragging');
+      dragHandle.setPointerCapture(event.pointerId);
+      positionDraggedChat(dragOrigin.left,dragOrigin.top);
+      event.preventDefault();
+    });
+    dragHandle.addEventListener('pointermove',event=>{
+      if(!dragged||event.pointerId!==dragPointer)return;
+      positionDraggedChat(dragOrigin.left+event.clientX-dragOrigin.x,
+        dragOrigin.top+event.clientY-dragOrigin.y);
+    });
+    const endDrag=event=>{
+      if(!dragged||event.pointerId!==dragPointer)return;
+      dragged=false;dragPointer=null;dragOrigin=null;
+      panel.classList.remove('chat-dragging');
+    };
+    dragHandle.addEventListener('pointerup',endDrag);
+    dragHandle.addEventListener('pointercancel',endDrag);
+    // Reset the custom position on mobile instead of interfering with touch UI.
+    const resizePositionChat=()=>{
+      if(!isDesktopDrag()&&panel.classList.contains('chat-is-dragged')){
+        panel.classList.remove('chat-is-dragged','chat-dragging');
+        panel.style.removeProperty('--chat-drag-height');
+      }else if(isDesktopDrag()&&panel.classList.contains('chat-is-dragged')){
+        const x=parseFloat(panel.style.getPropertyValue('--chat-drag-left'))||8;
+        const y=parseFloat(panel.style.getPropertyValue('--chat-drag-top'))||8;
+        positionDraggedChat(x,y);
+      }
+      positionChat();
+    };
+    window.addEventListener('resize',resizePositionChat,{passive:true});
     document.addEventListener('fullscreenchange',positionChat);
     if(typeof ResizeObserver!=='undefined'){
       const observer=new ResizeObserver(positionChat);
