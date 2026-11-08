@@ -232,12 +232,16 @@
     // original fixed simulation viewport untouched.
     if(typeof window==='undefined'||typeof window.matchMedia!=='function')return;
     const desktop=window.matchMedia('(min-width:981px) and (pointer:fine)').matches;
+    const mobileLandscape=!desktop&&window.innerWidth>window.innerHeight;
+    const fitViewport=desktop||mobileLandscape;
     const wrap=$('#gameWrapper');
     if(!wrap)return;
     const rect=wrap.getBoundingClientRect();
-    const nextW=desktop?Math.max(320,Math.round(rect.width)):992;
-    const nextH=desktop?Math.max(240,Math.round(rect.height)):672;
-    const nextZoom=desktop?
+    // Landscape touch uses the whole game area, like desktop, instead
+    // of rendering a 992x672 canvas into a narrow center column.
+    const nextW=fitViewport?Math.max(320,Math.round(rect.width)):992;
+    const nextH=fitViewport?Math.max(240,Math.round(rect.height)):672;
+    const nextZoom=fitViewport?
       Math.max(1.65,nextW/(COLS*TILE),nextH/(ROWS*TILE)):1.65;
     if(nextW===W&&nextH===H&&Math.abs(nextZoom-CAMERA_ZOOM)<.001)return;
     W=nextW;H=nextH;CAMERA_ZOOM=nextZoom;
@@ -2075,8 +2079,9 @@
     if(!player)return;
     const target=objectiveDirection(),angle=Math.atan2(target.y-player.y,target.x-player.x),x=W-52,y=53;
     if(typeof window!=='undefined'&&typeof window.matchMedia==='function'&&
-      window.matchMedia('(min-width:981px) and (pointer:fine)').matches){
-      // Desktop compass is now in the left sidebar, below Objectives.
+      (window.matchMedia('(min-width:981px) and (pointer:fine)').matches||
+       window.matchMedia('(orientation:landscape) and (pointer:coarse)').matches)){
+      // In desktop and mobile landscape, the compass sits beneath Objectives.
       const task=$('#sideDirectionTask'),distance=$('#sideDirectionDistance'),arrow=$('#sideDirectionArrow');
       if(task&&distance&&arrow){
         const next=directionLabel(),meters=Math.round(dist(player,target))+'m away';
