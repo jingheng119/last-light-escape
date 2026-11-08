@@ -2098,3 +2098,60 @@ body.show-play .game-shell:fullscreen .room-chat{
     min-height:0;
   }
 }
+
+/* Desktop: compass follows the Objectives dropdown and precedes Controls.
+   Mobile keeps the existing on-map compass. */
+.game-shell .side-direction{display:none}
+@media (min-width:981px) and (pointer:fine){
+  body.show-play .game-shell .side-direction,
+  body.show-play .game-shell:fullscreen .side-direction{
+    display:block;min-width:0;margin-top:12px;padding:12px 4px;
+    border-top:1px solid rgba(112,203,195,.20);
+    border-bottom:1px solid rgba(112,203,195,.20);
+  }
+  .game-shell .side-direction-heading{
+    font:800 10px monospace;letter-spacing:.11em;color:#8bc9c8;
+    margin-bottom:9px;
+  }
+  .game-shell .side-direction-content{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+  }
+  .game-shell .side-direction-copy{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .game-shell .side-direction-copy strong{
+    color:#9df0df;font:800 11px monospace;overflow-wrap:anywhere;
+  }
+  .game-shell .side-direction-copy span{color:#9dc3c5;font:10px monospace}
+  .game-shell .side-direction-arrow{
+    display:block;flex:0 0 auto;color:#9dffe0;font-size:25px;
+    line-height:1;transform-origin:center center;
+  }
+  /* Move Team Chat back to its default top-right position, retaining drag. */
+  body.show-play .game-shell .room-chat:not(.chat-is-dragged),
+  body.show-play .game-shell .room-chat.chat-no-gutter:not(.chat-is-dragged),
+  body.show-play .game-shell:fullscreen .room-chat:not(.chat-is-dragged),
+  body.show-play .game-shell:fullscreen .room-chat.chat-no-gutter:not(.chat-is-dragged){
+    top:var(--objectives-top,78px)!important;
+    right:12px!important;
+    left:auto!important;
+    bottom:auto!important;
+    height:clamp(205px,36vh,330px)!important;
+    max-height:calc(100% - var(--objectives-top,78px) - 20px)!important;
+    min-height:0;
+  }
+  /* Floor badge anchored to the game shell, immediately LEFT of Dash.
+     Keeping it outside the canvas avoids clipping at window edges. */
+  body.show-play .game-shell .desktop-stage-info,
+  body.show-play .game-shell:fullscreen .desktop-stage-info{
+    display:block;position:absolute;z-index:7;
+    bottom:13px;right:235px;
+    max-width:calc(100% - 260px);width:max-content;
+    padding:6px 9px;
+    border:1px solid rgba(112,216,196,.38);
+    border-radius:7px;background:rgba(7,25,33,.83);
+    color:#a9eadb;font:750 9px monospace;letter-spacing:.035em;
+    white-space:nowrap;pointer-events:none;
+  }
+}
+@media (max-width:980px),(hover:none) and (pointer:coarse){
+  body.show-play .game-shell .desktop-stage-info{display:none!important}
+}
