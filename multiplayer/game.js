@@ -1259,16 +1259,21 @@
     // corner. Use a safe offset near the carrier, or the tile centre.
     const tile=tileAt(carrier),center=TILE_CENTER(tile.x,tile.y);
     const offsets=[
+      // When space permits, emerge visibly apart from the carrier so skills
+      // such as Anchor can select the Infester independently of the host.
+      [.82,0],[-.82,0],[0,.82],[0,-.82],
+      [.82,.82],[-.82,.82],[.82,-.82],[-.82,-.82],
       [.34,0],[-.34,0],[0,.34],[0,-.34],
       [.34,.34],[-.34,.34],[.34,-.34],[-.34,-.34],[0,0]
     ];
     const candidates=offsets.map(([dx,dy])=>({x:center.x+dx,y:center.y+dy}))
       .filter(p=>canStand(p.x,p.y,.25)&&dist(p,carrier)<1.25);
-    // Prefer nearby positions with a visible separation from the carrier.
+    // Use the farthest safe landing first if it gives a clearly separate
+    // target. Retain the original near-carrier fallback in tight corridors.
     candidates.sort((a,b)=>{
       const da=dist(a,carrier),db=dist(b,carrier);
-      const score=d=>Math.abs(d-.42);
-      return score(da)-score(db);
+      const preferred=d=>d>=.7?Math.abs(d-.82):2+Math.abs(d-.42);
+      return preferred(da)-preferred(db);
     });
     return candidates[0]||center;
   }
