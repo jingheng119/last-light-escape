@@ -1628,6 +1628,18 @@
     ui.survivorStatus.textContent=technician
       ?`${Number(survivor.rescued)+Number(technician.rescued)} / 2 ALLIES`
       :(survivor.rescued?'FOLLOWING':'TRAPPED');
+    // Illuminate each objective when the shared room state confirms completion.
+    // Stage 2 requires both allies; all cores must be collected.
+    const allAlliesRescued=!!survivor?.rescued&&(!technician||!!technician.rescued);
+    const allCoresCollected=cores.length>0&&cores.every(core=>core.collected);
+    for(const [id,complete] of [
+      ['survivorObjective',allAlliesRescued],
+      ['coresObjective',allCoresCollected],
+      ['relayObjective',!!relay.active]
+    ]){
+      const objective=$('#'+id);
+      objective.classList.toggle('is-complete',complete);
+    }
     const available=skillCharges();
     const maximum=maxSkillCharges();
     ui.abilityStatus.textContent=player.infestedOn?'INFESTING TEAMMATE '+player.infestedOn+' · F TO EMERGE':
