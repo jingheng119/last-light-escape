@@ -2972,7 +2972,7 @@
           (message.playerId>0&&message.playerId===roomPlayerId?' is-self':'');
         const author=document.createElement('span');
         author.className='chat-author';
-        author.textContent=message.name+(message.playerId>0&&message.playerId===roomPlayerId?' (you)':'')+':';
+        author.textContent=message.name+(message.playerId>0&&message.playerId===roomPlayerId?' (you)':'');
         const body=document.createElement('span');
         body.className='chat-text';
         body.textContent=message.text;
