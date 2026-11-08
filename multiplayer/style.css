@@ -2633,3 +2633,38 @@ body.show-play .game-shell:fullscreen .side-objectives.all-objectives-complete {
     0 0 22px rgba(77,238,176,.38),
     inset 0 0 15px rgba(65,220,163,.13)!important;
 }
+
+
+/* v4.30 — draggable Team Chat on mobile and desktop.
+   Only the heading captures drag gestures; messages can still scroll and
+   all chat buttons remain tappable. */
+body.show-play .game-shell .room-chat .chat-heading,
+body.show-play .game-shell:fullscreen .room-chat .chat-heading {
+  cursor:grab;
+  touch-action:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+body.show-play .game-shell .room-chat.chat-dragging .chat-heading {
+  cursor:grabbing;
+}
+@media (pointer:coarse) {
+  body.show-play .game-shell .room-chat .chat-drag-symbol{
+    display:inline-block;
+  }
+}
+/* The mobile auto-layout uses !important top/bottom/height values; the drag
+   position must take precedence after the user moves the panel. */
+body.show-play .game-shell .room-chat.chat-is-dragged,
+body.show-play .game-shell .room-chat.chat-is-dragged.chat-no-gutter,
+body.show-play .game-shell:fullscreen .room-chat.chat-is-dragged,
+body.show-play .game-shell:fullscreen .room-chat.chat-is-dragged.chat-no-gutter {
+  position:absolute!important;
+  left:var(--chat-drag-left,8px)!important;
+  top:var(--chat-drag-top,90px)!important;
+  right:auto!important;
+  bottom:auto!important;
+  height:var(--chat-drag-height,180px)!important;
+  max-height:none!important;
+  z-index:9;
+}
