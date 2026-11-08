@@ -234,7 +234,7 @@
     illusioner: "Summon an invincible roaming phantom that distracts Hollows for 5 seconds. Two phantoms can roam at once without replacing each other.",
     rewinder: "Choose yourself, a teammate, or a Hollow within 5.5 tiles; return that target to its position 3 seconds ago. Players gain 2 seconds of protection.",
     anchor: "Choose yourself or a living teammate within 5.5 tiles. Marking yourself leaves a fixed anchor at your location; marking a teammate attaches the anchor to them as they move. Press Skill again to teleport to the anchor with 2 seconds of protection. Hollows cannot be marked.",
-    infester: "Infest a teammate within 5.5 tiles. Travel with them, boosting their walking speed by 30%. Remain attached until they die, then emerge with 2 seconds of invincibility. Your hearts remain separate."
+    infester: "Infest a teammate within 5.5 tiles to boost their walking speed by 30%. Stay attached until you press Skill again or the teammate dies. Emerge at their current position with 2 seconds of invincibility; only then spend your charge and start the 13-second cooldown."
 };
   function skillDescription(role){
     const charges=SKILL_MAX_CHARGES[role];
@@ -945,7 +945,11 @@
   }
   function requestAbility(){
     if(classChoice==='infester'){
-      if(state!=='playing'||!player||player.hp<=0||player.infestedOn||!canUseSkill())return;
+      if(state!=='playing'||!player||player.hp<=0)return;
+      // While attached, the second press always releases the Infester.
+      // The server decides the emergence location and starts the cooldown.
+      if(player.infestedOn){activateAbility();return;}
+      if(!canUseSkill())return;
       if(!infestTargeting){infestTargeting=true;infestTargetIndex=0;
         notify('INFESTER — select a living teammate within 5.5 tiles.',3);
       }else commitInfestTarget(chosenInfestTarget());
@@ -968,9 +972,18 @@
     }else commitRewindTarget(chosenRewindTarget());
   }
   function activateAbility(rewindTarget=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability',false,rewindTarget))return;
-    if(state!=='playing'||player.hp<=0||player.infestedOn||
-      (!canUseSkill()&&!(classChoice==='anchor'&&player.anchor)))return;
+    if(state!=='playing'||player.hp<=0||
+       (player.infestedOn&&classChoice!=='infester')||
+       (!canUseSkill()&&!(classChoice==='anchor'&&player.anchor)&&!(classChoice==='infester'&&player.infestedOn)))return;
     if(classChoice==='infester'){
+      if(player.infestedOn){
+        const carrier=allPlayers().find(p=>p.slot===player.infestedOn);
+        // Voluntary emergence uses the same release path as a carrier death.
+        // Release at the carrier's current position, not the initial attachment.
+        releaseInfester(player,carrier);
+        updateUI();
+        return;
+      }
       const host=rewindTarget?.kind==='player'&&Number.isInteger(rewindTarget.slot)?
         allPlayers().find(p=>p.slot===rewindTarget.slot):null;
       if(!host||host===player||host.hp<=0||host.disconnected||host.infestedOn||
@@ -978,8 +991,9 @@
         notify('INFESTER — select a living teammate in range.');return;
       }
       player.infestedOn=host.slot;player.x=host.x;player.y=host.y;
-      player.dashTime=0;player.trail=[];consumeSkillCharge();
-      notify('INFESTER — attached! Teammate walking speed +30%.');
+      player.dashTime=0;player.trail=[];
+      // Do not consume a charge here; the cooldown starts on emergence.
+      notify('INFESTER — attached! Press Skill to emerge · teammate speed +30%.');
       beep(780,.25,'sine',.025);
     }else if(classChoice==='medic'){
       // Self-healing always takes priority. When healthy, heal exactly one
@@ -1139,14 +1153,29 @@
   }
   const REVIVE_SECONDS=5;
   const REVIVE_RADIUS=1.5; // Measured in maze tiles, not pixels.
-  // Passenger stays alive independently, but cannot be hit or act while carried.
+  // Both voluntary release and carrier death emerge at the carrier's last
+  // authoritative location. Infestation consumes a charge only on emergence.
+  function releaseInfester(passenger,carrier=null){
+    if(!passenger?.infestedOn)return false;
+    if(carrier){passenger.x=carrier.x;passenger.y=carrier.y;}
+    passenger.infestedOn=null;
+    passenger.dashTime=0;
+    passenger.invincible=Math.max(passenger.invincible,2);
+    consumeInfesterCharge(passenger);
+    notify('INFESTER — emerged! Invincible for 2 seconds.',3);
+    return true;
+  }
+  function consumeInfesterCharge(passenger){
+    // A release may occur during another player's damage() context. Use the
+    // Infester's own charge/cooldown, not the damaged player's role.
+    if((passenger.abilityCharges??1)<=0)return;
+    passenger.abilityCharges--;
+    passenger.abilityUseSerial=(passenger.abilityUseSerial||0)+1;
+    passenger.abilityCooldown=SKILL_COOLDOWN.infester*cooldownFactor();
+  }
   function releaseInfestersFor(host){
     for(const passenger of allPlayers()){
-      if(passenger.infestedOn!==host.slot)continue;
-      passenger.infestedOn=null;
-      passenger.x=host.x;passenger.y=host.y;passenger.dashTime=0;
-      passenger.invincible=Math.max(passenger.invincible,2);
-      notify('INFESTER — emerged with 2 seconds of invincibility!',3);
+      if(passenger.infestedOn===host.slot)releaseInfester(passenger,host);
     }
   }
   function syncInfesters(){
@@ -1156,7 +1185,7 @@
       const carrier=players.find(p=>p.slot===passenger.infestedOn);
       if(!carrier||carrier.hp<=0||carrier.disconnected){
         if(carrier)releaseInfestersFor(carrier);
-        else{passenger.infestedOn=null;passenger.invincible=Math.max(passenger.invincible,2);}
+        else releaseInfester(passenger);
       }else{
         passenger.x=carrier.x;passenger.y=carrier.y;passenger.dashTime=0;
       }
@@ -1547,7 +1576,7 @@
       :(survivor.rescued?'FOLLOWING':'TRAPPED');
     const available=skillCharges();
     const maximum=maxSkillCharges();
-    ui.abilityStatus.textContent=player.infestedOn?'INFESTING TEAMMATE '+player.infestedOn+' · +30% WALK':
+    ui.abilityStatus.textContent=player.infestedOn?'INFESTING TEAMMATE '+player.infestedOn+' · F TO EMERGE':
       infestTargeting&&classChoice==='infester'?'SELECT TEAMMATE · TAB / F':
       rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':
       anchorTargeting&&classChoice==='anchor'?'MARK ANCHOR · TAB / F':
@@ -1571,7 +1600,9 @@
     skillButton.classList.toggle('two-charges',maximum===2);
     ui.skillCD.textContent='';
     skillButton.querySelector('.action-name').textContent='SKILL';
-    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':anchorTargeting?'Confirm anchor mark':infestTargeting?'Confirm infestation target':available===0&&!(classChoice==='anchor'&&player.anchor)?
+    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':anchorTargeting?'Confirm anchor mark':infestTargeting?'Confirm infestation target':
+      classChoice==='infester'&&player.infestedOn?'Emerge from teammate':
+      available===0&&!(classChoice==='anchor'&&player.anchor)?
       'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
     const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
     const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/(2*cooldownFactor())));
