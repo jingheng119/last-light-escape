@@ -7,8 +7,8 @@
   <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/style.css?v=desktop-header-compact-1" />
-  <script src="/game.js?v=desktop-header-compact-1" defer></script>
+  <link rel="stylesheet" href="/style.css?v=collapsible-guide-edge-dock-1" />
+  <script src="/game.js?v=collapsible-guide-edge-dock-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -113,16 +113,18 @@
         <div class="side-objective"><span class="status-label" id="allyStatusLabel">SURVIVOR</span><strong id="survivorStatus">TRAPPED</strong></div>
         <div class="side-objective"><span class="status-label">POWER CORES</span><strong id="cores">0 / 2</strong></div>
         <div class="side-objective"><span class="status-label">RELAY</span><strong id="relay">OFFLINE</strong></div>
-        <div class="side-key-guide" aria-label="Keyboard instructions">
-          <span class="side-guide-heading">CONTROLS</span>
-          <div class="side-key-row"><kbd>WASD</kbd><span>MOVE</span></div>
-          <div class="side-key-row"><kbd>SPACE</kbd><span>DASH</span></div>
-          <div class="side-key-row"><kbd>E</kbd><span>ACTIVATE</span></div>
-          <div class="side-key-row"><kbd>Q</kbd><span>DECOY</span></div>
-          <div class="side-key-row"><kbd>F</kbd><span>ABILITY</span></div>
-          <div class="side-key-row"><kbd>P</kbd><span>PAUSE</span></div>
-          <div class="side-key-row"><kbd>F11</kbd><span>FULLSCREEN</span></div>
-        </div>
+        <details class="side-key-guide" aria-label="Keyboard instructions">
+          <summary class="side-guide-heading">CONTROLS</summary>
+          <div class="side-key-rows">
+            <div class="side-key-row"><kbd>WASD</kbd><span>MOVE</span></div>
+            <div class="side-key-row"><kbd>SPACE</kbd><span>DASH</span></div>
+            <div class="side-key-row"><kbd>E</kbd><span>ACTIVATE</span></div>
+            <div class="side-key-row"><kbd>Q</kbd><span>DECOY</span></div>
+            <div class="side-key-row"><kbd>F</kbd><span>ABILITY</span></div>
+            <div class="side-key-row"><kbd>P</kbd><span>PAUSE</span></div>
+            <div class="side-key-row"><kbd>F11</kbd><span>FULLSCREEN</span></div>
+          </div>
+        </details>
         <!-- Retained only as hidden update targets for the existing game UI. -->
         <div class="side-live-status" hidden aria-hidden="true">
           <span id="abilityStatus"></span>
