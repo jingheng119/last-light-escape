@@ -159,7 +159,7 @@
   // Only movement is predicted locally. Combat, pickups, health, objectives
   // and all victory conditions continue to come from the host's snapshots.
   function predictGuestMovement(dt){
-    if(roomRole==='none'||state!=='playing'||!player||player.hp<=0||!grid)return;
+    if(roomRole==='none'||state!=='playing'||!player||player.hp<=0||player.infestedOn||!grid)return;
     let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     const magnitude=Math.hypot(vx,vy);
@@ -176,7 +176,8 @@
       if(hitWall)player.dashTime=0;
     }else if(vx||vy){
       const touchSteering=Math.hypot(joystickMove.x,joystickMove.y)>.08;
-      moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.18:.21,.30);
+      moveEntity(player,vx*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.infestedOn===player.slot)?INFEST_WALK_MULTIPLIER:1)*dt,
+        vy*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.infestedOn===player.slot)?INFEST_WALK_MULTIPLIER:1)*dt,touchSteering?.18:.21,.30);
     }
   }
   function guestAction(name,touch=false,target=null){
@@ -202,8 +203,8 @@
 
   // Temporary developer shortcut. Skipped runs never enter the best-time record.
   let rewindTargeting=false,rewindTargetIndex=0;
-  let anchorTargeting=false,anchorTargetIndex=0;
-  const ANCHOR_RADIUS=5.5;
+  let anchorTargeting=false,anchorTargetIndex=0,infestTargeting=false,infestTargetIndex=0;
+  const ANCHOR_RADIUS=5.5,INFEST_RADIUS=5.5,INFEST_WALK_MULTIPLIER=1.3;
   let developerSkipped=false;
   let classChoice = 'scout';
   let elapsed = 0, overallElapsed = 0, clock = 0, toastUntil = 0, hitFlash = 0, alertLevel = 0;
@@ -213,8 +214,8 @@
   const CAMERA_ZOOM = 1.65;
   const SCOUT_STUN_RADIUS = 5.5;
   const MEDIC_HEAL_RADIUS = 5.5;
-  const SKILL_COOLDOWN = {scout:13,medic:26,invisibler:14,teleporter:16,illusioner:27,rewinder:13,anchor:10};
-  const SKILL_MAX_CHARGES = {scout:1,medic:2,invisibler:1,teleporter:1,illusioner:2,rewinder:2,anchor:1};
+  const SKILL_COOLDOWN = {scout:13,medic:26,invisibler:14,teleporter:16,illusioner:27,rewinder:13,anchor:10,infester:13};
+  const SKILL_MAX_CHARGES = {scout:1,medic:2,invisibler:1,teleporter:1,illusioner:2,rewinder:2,anchor:1,infester:1};
   const ROLE_DETAILS={
     scout:{label:'SCOUT',skill:'STUN SHOCKWAVE',ready:'PULSE READY'},
     medic:{label:'MEDIC',skill:'HEALING BURST',ready:'HEAL READY'},
@@ -222,7 +223,8 @@
     teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 5 SECONDS',ready:'GUARD READY'},
     illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'},
     rewinder:{label:'REWINDER',skill:'TARGET REWIND · 5.5 TILES',ready:'REWIND READY'},
-    anchor:{label:'ANCHOR',skill:'TARGET ANCHOR · RETURN',ready:'ANCHOR READY'}
+    anchor:{label:'ANCHOR',skill:'TARGET ANCHOR · RETURN',ready:'ANCHOR READY'},
+    infester:{label:'INFESTER',skill:'ATTACH TO TEAMMATE · SPEED BOOST',ready:'INFEST READY'}
   };
   const ROLE_DESCRIPTIONS={
     scout: "Release a shockwave that stuns Hollows within 5.5 tiles for 2.5 seconds.",
@@ -231,7 +233,8 @@
     teleporter: "Activate Phase Guard for 5 seconds. If a Hollow strikes during this period, teleport to safety.",
     illusioner: "Summon an invincible roaming phantom that distracts Hollows for 5 seconds. Two phantoms can roam at once without replacing each other.",
     rewinder: "Choose yourself, a teammate, or a Hollow within 5.5 tiles; return that target to its position 3 seconds ago. Players gain 2 seconds of protection.",
-    anchor: "Choose yourself or a living teammate within 5.5 tiles. Marking yourself leaves a fixed anchor at your location; marking a teammate attaches the anchor to them as they move. Press Skill again to teleport to the anchor with 2 seconds of protection. Hollows cannot be marked."
+    anchor: "Choose yourself or a living teammate within 5.5 tiles. Marking yourself leaves a fixed anchor at your location; marking a teammate attaches the anchor to them as they move. Press Skill again to teleport to the anchor with 2 seconds of protection. Hollows cannot be marked.",
+    infester: "Infest a teammate within 5.5 tiles. Travel with them, boosting their walking speed by 30%. Remain attached until they die, then emerge with 2 seconds of invincibility. Your hearts remain separate."
 };
   function skillDescription(role){
     const charges=SKILL_MAX_CHARGES[role];
@@ -420,7 +423,7 @@
       const techSpot=selectSpot(reserved,13,distances,false);reserved.push(techSpot);
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
-    player={slot:1,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,abilityCharges:SKILL_MAX_CHARGES[classChoice],anchor:null};
+    player={slot:1,infestedOn:null,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,abilityCharges:SKILL_MAX_CHARGES[classChoice],anchor:null};
     if(roomRole==='host'&&guestPlayer){newGuest();guestPlayer.hp=guestCarriedHealth;}
     for(let i=0;i<3;i++){
       if(extraActive[i]){
@@ -797,8 +800,8 @@
     notify(fullStage?'DEV · Stage jump':'DEV · Floor skipped');
   }
   function pause(){if(roomRole!=='none'){if(roomRole==='host')sendRoom({type:'pause'});return;}if(state==='playing'){state='paused';setOverlay('BREATHING ROOM','The ward is silent. Your position is safe until you resume.','RESUME GAME');}else if(state==='paused'){unlockGameAudio();state='playing';hideOverlay();}}
-  function triggerDecoy(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('decoy'))return;
-    if(state!=='playing'||player.hp<=0||player.decoys<=0||player.decoyCooldown>0)return;
+  function triggerDecoy(){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn))return;if(guestAction('decoy'))return;
+    if(state!=='playing'||player.hp<=0||player.infestedOn||player.decoys<=0||player.decoyCooldown>0)return;
     player.decoys--;const p={x:player.x+player.facing.x*3.3,y:player.y+player.facing.y*3.3};
     const nearest=cells.filter(c=>dist({x:c.x+.5,y:c.y+.5},p)<4).sort((a,b)=>dist({x:a.x+.5,y:a.y+.5},p)-dist({x:b.x+.5,y:b.y+.5},p))[0];
     if(!nearest){player.decoys++;return;}
@@ -808,7 +811,7 @@
     notify('Sound decoy deployed — they heard it!');beep(850,.22,'square',.016);
     updateUI();
   }
-  function dash(directionOverride=null,touch=false){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('dash',touch))return;if(state!=='playing'||player.hp<=0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
+  function dash(directionOverride=null,touch=false){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn))return;if(guestAction('dash',touch))return;if(state!=='playing'||player.hp<=0||player.infestedOn||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
     // Keep the mobile collision radius for the whole dash, even if the
     // joystick's next input packet arrives after the DASH action.
     player.dashTouch=touch===true;
@@ -822,7 +825,7 @@
       noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
     beep(220,.17,'sawtooth',.019);updateUI();
   }
-  function interact(){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0)return;
+  function interact(){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn))return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0||player.infestedOn)return;
     if(!survivor.rescued&&dist(player,survivor)<1.5){survivor.rescued=true;survivor.repath=0;notify('SURVIVOR RESCUED — guide them to the elevator!');beep(730,.22);updateUI();return;}
     if(technician&&!technician.rescued&&dist(player,technician)<1.5){
       technician.rescued=true;technician.repath=0;
@@ -900,6 +903,23 @@
     anchorTargeting=false;
     activateAbility({kind:'player',slot:target.slot});
   }
+  function infestChoices(){
+    if(!player||state!=='playing')return [];
+    return remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&!p.infestedOn&&dist(p,player)<=INFEST_RADIUS)
+      .map(p=>({slot:p.slot,entity:p}))
+      .sort((a,b)=>dist(a.entity,player)-dist(b.entity,player)||a.slot-b.slot);
+  }
+  function chosenInfestTarget(){
+    const choices=infestChoices();
+    if(!choices.length)return null;
+    infestTargetIndex=((infestTargetIndex%choices.length)+choices.length)%choices.length;
+    return choices[infestTargetIndex];
+  }
+  function commitInfestTarget(target){
+    if(!target)return;
+    infestTargeting=false;
+    activateAbility({kind:'player',slot:target.slot});
+  }
   function cancelRewindTarget(){rewindTargeting=false;}
   function commitRewindTarget(choice){
     if(!choice)return;
@@ -924,6 +944,13 @@
     return true;
   }
   function requestAbility(){
+    if(classChoice==='infester'){
+      if(state!=='playing'||!player||player.hp<=0||player.infestedOn||!canUseSkill())return;
+      if(!infestTargeting){infestTargeting=true;infestTargetIndex=0;
+        notify('INFESTER — select a living teammate within 5.5 tiles.',3);
+      }else commitInfestTarget(chosenInfestTarget());
+      return;
+    }
     if(classChoice==='anchor'){
       if(state!=='playing'||!player||player.hp<=0)return;
       if(player.anchor){anchorTargeting=false;activateAbility();return;}
@@ -941,8 +968,20 @@
     }else commitRewindTarget(chosenRewindTarget());
   }
   function activateAbility(rewindTarget=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability',false,rewindTarget))return;
-    if(state!=='playing'||player.hp<=0||(!canUseSkill()&&!(classChoice==='anchor'&&player.anchor)))return;
-    if(classChoice==='medic'){
+    if(state!=='playing'||player.hp<=0||player.infestedOn||
+      (!canUseSkill()&&!(classChoice==='anchor'&&player.anchor)))return;
+    if(classChoice==='infester'){
+      const host=rewindTarget?.kind==='player'&&Number.isInteger(rewindTarget.slot)?
+        allPlayers().find(p=>p.slot===rewindTarget.slot):null;
+      if(!host||host===player||host.hp<=0||host.disconnected||host.infestedOn||
+         dist(host,player)>INFEST_RADIUS){
+        notify('INFESTER — select a living teammate in range.');return;
+      }
+      player.infestedOn=host.slot;player.x=host.x;player.y=host.y;
+      player.dashTime=0;player.trail=[];consumeSkillCharge();
+      notify('INFESTER — attached! Teammate walking speed +30%.');
+      beep(780,.25,'sine',.025);
+    }else if(classChoice==='medic'){
       // Self-healing always takes priority. When healthy, heal exactly one
       // randomly selected injured, connected, living teammate in range.
       const target=player.hp<3?player:(()=>{
@@ -1100,12 +1139,35 @@
   }
   const REVIVE_SECONDS=5;
   const REVIVE_RADIUS=1.5; // Measured in maze tiles, not pixels.
+  // Passenger stays alive independently, but cannot be hit or act while carried.
+  function releaseInfestersFor(host){
+    for(const passenger of allPlayers()){
+      if(passenger.infestedOn!==host.slot)continue;
+      passenger.infestedOn=null;
+      passenger.x=host.x;passenger.y=host.y;passenger.dashTime=0;
+      passenger.invincible=Math.max(passenger.invincible,2);
+      notify('INFESTER — emerged with 2 seconds of invincibility!',3);
+    }
+  }
+  function syncInfesters(){
+    const players=allPlayers();
+    for(const passenger of players){
+      if(!passenger.infestedOn||passenger.hp<=0)continue;
+      const carrier=players.find(p=>p.slot===passenger.infestedOn);
+      if(!carrier||carrier.hp<=0||carrier.disconnected){
+        if(carrier)releaseInfestersFor(carrier);
+        else{passenger.infestedOn=null;passenger.invincible=Math.max(passenger.invincible,2);}
+      }else{
+        passenger.x=carrier.x;passenger.y=carrier.y;passenger.dashTime=0;
+      }
+    }
+  }
   function updateSoulRevival(dt){
     if(state!=='playing')return;
     const alive=allPlayers().filter(p=>p.hp>0);
     for(const soul of allPlayers()){
       if(soul.hp>0)continue;
-      const nearby=alive.some(rescuer=>dist(soul,rescuer)<=REVIVE_RADIUS&&clearLine(soul,rescuer));
+      const nearby=alive.some(rescuer=>!rescuer.infestedOn&&dist(soul,rescuer)<=REVIVE_RADIUS&&clearLine(soul,rescuer));
       if(!nearby){soul.reviveProgress=0;continue;}
       soul.reviveProgress=Math.min(REVIVE_SECONDS,(soul.reviveProgress||0)+dt);
       if(soul.reviveProgress>=REVIVE_SECONDS){
@@ -1186,7 +1248,8 @@
       updateUI();
       return;
     }
-    player.hp--;player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
+    player.hp--;if(player.hp<=0)releaseInfestersFor(player);
+    player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
     // On the final hit, keep the soul at the exact place the player fell.
     // Surviving players are still teleported to start as in the original game.
     player.dashTime=0;
@@ -1228,6 +1291,11 @@
     player.invisibleTime=Math.max(0,(player.invisibleTime||0)-dt);
     player.phaseGuardTime=Math.max(0,(player.phaseGuardTime||0)-dt);
     player.decoyCooldown=Math.max(0,player.decoyCooldown-dt);
+    if(player.infestedOn){
+      player.dashTime=0;player.trail=[];
+      recordRewindPosition(player);
+      return;
+    }
     let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     const magnitude=Math.hypot(vx,vy);
@@ -1251,14 +1319,15 @@
       // A slightly smaller mobile hitbox eases narrow passages. The verified
       // v3.11 keyboard/desktop wall-slide parameters are preserved.
       const touchSteering=Math.hypot(joystickMove.x,joystickMove.y)>.08;
-      moveEntity(player,vx*3.5*dt,vy*3.5*dt,touchSteering?.18:.21,.30);
+      moveEntity(player,vx*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.infestedOn===player.slot)?INFEST_WALK_MULTIPLIER:1)*dt,
+        vy*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.infestedOn===player.slot)?INFEST_WALK_MULTIPLIER:1)*dt,touchSteering?.18:.21,.30);
     }
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
     recordRewindPosition(player);
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
   function checkGhostContact(){
-    if(state!=='playing'||player.hp<=0||player.disconnected||player.invincible>0||player.dashTime>0)return;
+    if(state!=='playing'||player.hp<=0||player.disconnected||player.infestedOn||player.invincible>0||player.dashTime>0)return;
     // Hollows follow tile-centre paths; allow contact at their visible edge,
     // including when the player is stationary off-centre inside the same tile.
     // Require a clear path to avoid hitting through a wall.
@@ -1309,7 +1378,7 @@
       const phantom=illusions.filter(i=>dist(h,i)<=8)
         .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
       // Ignore downed or invisible survivors as regular chase targets.
-      const nearest=allPlayers().filter(p=>p.hp>0&&!(p.invisibleTime>0))
+      const nearest=allPlayers().filter(p=>p.hp>0&&!p.infestedOn&&!(p.invisibleTime>0))
         .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
       if(!phantom&&h.mode==='illusion'){
         h.mode='search';h.target=null;h.path=[];h.pathIndex=0;
@@ -1478,7 +1547,9 @@
       :(survivor.rescued?'FOLLOWING':'TRAPPED');
     const available=skillCharges();
     const maximum=maxSkillCharges();
-    ui.abilityStatus.textContent=rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':
+    ui.abilityStatus.textContent=player.infestedOn?'INFESTING TEAMMATE '+player.infestedOn+' · +30% WALK':
+      infestTargeting&&classChoice==='infester'?'SELECT TEAMMATE · TAB / F':
+      rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':
       anchorTargeting&&classChoice==='anchor'?'MARK ANCHOR · TAB / F':
       player.phaseGuardTime>0?'PHASE GUARD · '+player.phaseGuardTime.toFixed(1)+'s':
       player.invisibleTime>0?'VANISH ACTIVE · '+player.invisibleTime.toFixed(1)+'s':
@@ -1500,7 +1571,7 @@
     skillButton.classList.toggle('two-charges',maximum===2);
     ui.skillCD.textContent='';
     skillButton.querySelector('.action-name').textContent='SKILL';
-    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':anchorTargeting?'Confirm anchor mark':available===0&&!(classChoice==='anchor'&&player.anchor)?
+    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':anchorTargeting?'Confirm anchor mark':infestTargeting?'Confirm infestation target':available===0&&!(classChoice==='anchor'&&player.anchor)?
       'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
     const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
     const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/(2*cooldownFactor())));
@@ -1523,6 +1594,7 @@
     updatePlayer(dt);
     if(guestPlayer)asGuest(()=>updatePlayer(dt));
     for(let slot=3;slot<=5;slot++)withExtra(slot,()=>updatePlayer(dt));
+    syncInfesters();
     if(state!=='playing')return;
     updateSurvivor(dt);updateIllusions(dt);updateHollows(dt);
     // Record Hollow histories on the authoritative simulation each frame.
@@ -1719,6 +1791,11 @@
       drawSoul(player);
       return;
     }
+    if(player.infestedOn){
+      ctx.save();ctx.strokeStyle='#a1f1be';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(player.x*TILE,player.y*TILE,17+Math.sin(clock*5)*2,0,Math.PI*2);ctx.stroke();
+      ctx.restore();return;
+    }
     for(const p of player.trail){ctx.fillStyle=`rgba(110,255,218,${p.life*.55})`;ctx.beginPath();ctx.arc(p.x*TILE,p.y*TILE,8,0,Math.PI*2);ctx.fill();}
     const x=player.x*TILE,y=player.y*TILE,flicker=player.invincible>0&&Math.sin(clock*31)>0;
     const color=colorForPlayer(roomPlayerId);
@@ -1762,6 +1839,7 @@
       const teammate=remotePlayers[i];
       if(!teammate)continue;
       if(teammate.hp<=0){drawSoul(teammate);continue;}
+      if(teammate.infestedOn)continue;
       const x=teammate.x*TILE,y=teammate.y*TILE,color=colorForPlayer(teammate.slot);
       ctx.save();
       if(teammate.invisibleTime>0)ctx.globalAlpha=.28;
@@ -1779,7 +1857,7 @@
     // No (YOU) suffix: the local player is already centered by the camera.
     if(roomRole==='none')return;
     for(const person of [{...player,slot:roomPlayerId},...remotePlayers]){
-      if(!person||!person.slot)continue;
+      if(!person||!person.slot||person.infestedOn)continue;
       const identity=roomIdentity.get(person.slot);
       const name=(identity?.name||'Survivor '+person.slot).slice(0,20);
       const x=person.x*TILE,y=person.y*TILE-29;
@@ -2048,6 +2126,16 @@
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
     drawItems();drawAnchors();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();drawChatBubbles();
+    if(infestTargeting&&classChoice==='infester'){
+      const selected=chosenInfestTarget(),cx=player.x*TILE,cy=player.y*TILE;
+      ctx.save();ctx.strokeStyle='rgba(152,245,183,.83)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(cx,cy,INFEST_RADIUS*TILE,0,Math.PI*2);ctx.stroke();
+      for(const choice of infestChoices()){
+        const on=selected?.slot===choice.slot;
+        ctx.strokeStyle=on?'#fff0a2':'#a0efb1';ctx.lineWidth=on?4:2;
+        ctx.beginPath();ctx.arc(choice.entity.x*TILE,choice.entity.y*TILE,on?18:14,0,Math.PI*2);ctx.stroke();
+      }ctx.restore();
+    }
     if(anchorTargeting&&classChoice==='anchor'){
       const selected=chosenAnchorTarget(),cx=player.x*TILE,cy=player.y*TILE;
       ctx.save();ctx.strokeStyle='rgba(126,238,255,.85)';ctx.lineWidth=2;
@@ -2127,11 +2215,14 @@
     if(activePage!=='play')return;
     if(e.target instanceof HTMLElement&&e.target.closest('input, textarea, select, [contenteditable="true"]'))return;
     if(!soundEnabled)unlockGameAudio();
-    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k)||((rewindTargeting||anchorTargeting)&&k==='tab'))e.preventDefault();
+    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k)||((rewindTargeting||anchorTargeting||infestTargeting)&&k==='tab'))e.preventDefault();
     if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole!=='none')sendRoom(guestInputPacket());}
     if(e.repeat)return;
     if(rewindTargeting&&k==='escape'){cancelRewindTarget();return;}
     if(anchorTargeting&&k==='escape'){anchorTargeting=false;return;}
+    if(infestTargeting&&k==='escape'){infestTargeting=false;return;}
+    if(infestTargeting&&k==='tab'){infestTargetIndex++;return;}
+    if(infestTargeting&&k==='enter'){commitInfestTarget(chosenInfestTarget());return;}
     if(anchorTargeting&&k==='tab'){anchorTargetIndex++;return;}
     if(anchorTargeting&&k==='enter'){markAnchorTarget(chosenAnchorTarget());return;}
     if(rewindTargeting&&k==='tab'){rewindTargetIndex++;return;}
@@ -2240,7 +2331,7 @@
   // Rewinder can target players/Hollows. Anchor can target only self/teammates.
   // Tap outside either ring to cancel; account for object-fit:contain letterboxing.
   canvas.addEventListener('pointerdown',event=>{
-    if(state!=='playing'||!(rewindTargeting&&classChoice==='rewinder')&&!(anchorTargeting&&classChoice==='anchor'))return;
+    if(state!=='playing'||!(rewindTargeting&&classChoice==='rewinder')&&!(anchorTargeting&&classChoice==='anchor')&&!(infestTargeting&&classChoice==='infester'))return;
     event.preventDefault();
     const rect=canvas.getBoundingClientRect();
     const scale=Math.min(rect.width/W,rect.height/H);
@@ -2249,6 +2340,14 @@
     const py=(event.clientY-rect.top-(rect.height-H*scale)/2)/scale;
     const wx=(px/CAMERA_ZOOM+camera.x)/TILE;
     const wy=(py/CAMERA_ZOOM+camera.y)/TILE;
+    if(infestTargeting&&classChoice==='infester'){
+      if(Math.hypot(wx-player.x,wy-player.y)>INFEST_RADIUS){infestTargeting=false;return;}
+      const nearest=infestChoices().slice().sort((a,b)=>
+        Math.hypot(a.entity.x-wx,a.entity.y-wy)-Math.hypot(b.entity.x-wx,b.entity.y-wy))[0];
+      if(nearest&&Math.hypot(nearest.entity.x-wx,nearest.entity.y-wy)<.65)
+        commitInfestTarget(nearest);
+      return;
+    }
     if(anchorTargeting&&classChoice==='anchor'){
       if(Math.hypot(wx-player.x,wy-player.y)>ANCHOR_RADIUS){anchorTargeting=false;return;}
       const nearest=anchorChoices().slice().sort((a,b)=>
@@ -2587,6 +2686,7 @@
       const teleporters=players.filter(person=>person.role==='teleporter').length;
       const invisiblers=players.filter(person=>person.role==='invisibler').length;
       const illusioners=players.filter(person=>person.role==='illusioner').length;
+      const infesters=players.filter(person=>person.role==='infester').length;
       const rewinders=players.filter(person=>person.role==='rewinder').length;
       const anchors=players.filter(person=>person.role==='anchor').length;
       $('#scoutCount').textContent=String(scouts);
@@ -2594,6 +2694,7 @@
       $('#teleporterCount').textContent=String(teleporters);
       $('#invisiblerCount').textContent=String(invisiblers);
       $('#illusionerCount').textContent=String(illusioners);
+      $('#infesterCount').textContent=String(infesters);
       $('#rewinderCount').textContent=String(rewinders);
       $('#anchorCount').textContent=String(anchors);
       $('#rosterCount').textContent=players.length+' / 5 players';
