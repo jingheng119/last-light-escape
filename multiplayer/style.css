@@ -2681,3 +2681,45 @@ body.show-play .game-shell .mobile-controls .mobile-actions #touchDecoy:focus-vi
   outline:2px solid #8af5d2;
   outline-offset:5px;
 }
+
+
+/* v4.32 — compact chat lines and a low-profile message composer.
+   Both desktop and mobile use "NAME: > message" on the SAME line. */
+body.show-play .game-shell .room-chat .chat-item{
+  display:block;
+  line-height:1.35;
+  margin:0;
+  overflow-wrap:anywhere;
+}
+body.show-play .game-shell .room-chat .chat-author,
+body.show-play .game-shell .room-chat .chat-text{
+  display:inline;
+  vertical-align:baseline;
+}
+body.show-play .game-shell .room-chat .chat-text::before{
+  content:' > ';
+  color:#80bdb3;
+  white-space:pre;
+}
+body.show-play .game-shell .room-chat .chat-messages{
+  gap:3px;
+}
+/* The composer occupies roughly the same vertical space as a quick-reply
+   button, with balanced 3px spacing above and below. */
+body.show-play .game-shell .room-chat .chat-quick{
+  padding-bottom:3px;
+}
+body.show-play .game-shell .room-chat .chat-form{
+  display:flex;
+  align-items:center;
+  gap:3px;
+  margin:0 0 3px;
+}
+body.show-play .game-shell .room-chat .chat-form input,
+body.show-play .game-shell .room-chat .chat-form button{
+  box-sizing:border-box;
+  height:23px;
+  min-height:23px;
+  padding:2px 6px;
+  line-height:1.15;
+}
