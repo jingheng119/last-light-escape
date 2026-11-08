@@ -2698,8 +2698,18 @@
       // object-fit:contain can leave a wide unused gutter INSIDE the
       // canvas element in landscape fullscreen. Measure the painted maze.
       const paintedWidth=Math.min(cr.width,cr.height*(canvas.width/canvas.height));
+      const mazeLeft=cr.left+(cr.width-paintedWidth)/2;
       const mazeRight=cr.left+(cr.width+paintedWidth)/2;
       const gap=Math.max(0,sr.right-mazeRight);
+      // Use the ACTUAL painted maze edge to fit objectives in the left
+      // gutter. The canvas element can be wider than its rendered contents.
+      const objectives=$('.side-objectives');
+      if(objectives){
+        const leftInset=10,safetyGap=12;
+        const freeWidth=Math.max(0,Math.floor(mazeLeft-sr.left-leftInset-safetyGap));
+        objectives.style.setProperty('--objectives-gutter-width',freeWidth+'px');
+        objectives.classList.toggle('objectives-narrow',freeWidth<110);
+      }
       // On touch/mobile the chat sits 8px from the right edge. Reserve another
       // 0px before the painted maze (with an 8px right offset); desktop retains wider clearance.
       const mobileChat=window.matchMedia('(max-width:650px), (hover:none) and (pointer:coarse)').matches;
