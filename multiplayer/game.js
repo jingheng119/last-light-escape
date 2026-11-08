@@ -241,8 +241,12 @@
     // of rendering a 992x672 canvas into a narrow center column.
     const nextW=fitViewport?Math.max(320,Math.round(rect.width)):992;
     const nextH=fitViewport?Math.max(240,Math.round(rect.height)):672;
-    const nextZoom=fitViewport?
-      Math.max(1.65,nextW/(COLS*TILE),nextH/(ROWS*TILE)):1.65;
+    // Landscape phones have a much shorter viewport than desktop.
+    // Target ~31 tiles across (the Stage 1 desktop field of view), rather
+    // than imposing desktop's 1.65x minimum zoom on a narrower screen.
+    const nextZoom=mobileLandscape?
+      Math.max(0.75,nextW/(31*TILE)):
+      desktop?Math.max(1.65,nextW/(COLS*TILE),nextH/(ROWS*TILE)):1.65;
     if(nextW===W&&nextH===H&&Math.abs(nextZoom-CAMERA_ZOOM)<.001)return;
     W=nextW;H=nextH;CAMERA_ZOOM=nextZoom;
     canvas.width=W;canvas.height=H;
