@@ -64,6 +64,27 @@ function receiveChat(room,ws,input){
   if(room.chatHistory.length>CHAT_HISTORY_LIMIT)room.chatHistory.shift();
   for(const client of room.clients.values())send(client,{type:'chat-message',message});
 }
+function postSystemChat(room,text){
+  const message={id:++room.chatSerial,playerId:0,name:'SYSTEM',text,at:Date.now(),quick:false};
+  room.chatHistory.push(message);
+  if(room.chatHistory.length>CHAT_HISTORY_LIMIT)room.chatHistory.shift();
+  for(const ws of [...room.clients.values(),...room.spectators])
+    send(ws,{type:'chat-message',message});
+}
+function syncCountdownChat(room){
+  const snapshot=room.engine.snapshot(false);
+  if(snapshot.state==='countdown'){
+    const number=Math.max(1,Math.min(5,Math.ceil(snapshot.countdownRemaining||0)));
+    if(room.chatCountdown!==number){
+      const first=room.chatCountdown===null?5:room.chatCountdown-1;
+      for(let n=first;n>=number;n--)postSystemChat(room,'GAME STARTS IN '+n+'…');
+      room.chatCountdown=number;
+    }
+  }else if(room.chatCountdown!==null){
+    if(snapshot.state==='playing')postSystemChat(room,'GAME START!');
+    room.chatCountdown=null;
+  }
+}
 function makeCode(){
   let value;
   do{value=randomBytes(3).toString('hex').toUpperCase();}while(rooms.has(value));
@@ -113,7 +134,7 @@ function persistCompletedMatch(room){
 function createRoom(name){
   const room={code:makeCode(),name:safeRoomName(name),engine:createRoomEngine(),
     clients:new Map(),members:new Map(),spectators:new Set(),started:false,hostId:1,ticks:0,
-    chatHistory:[],chatSerial:0,
+    chatHistory:[],chatSerial:0,chatCountdown:null,
     matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0};
   rooms.set(room.code,room);
   let last=performance.now();
@@ -123,6 +144,7 @@ function createRoom(name){
     try{
       if(!room.clients.size)return;
       room.engine.tick(dt);
+      syncCountdownChat(room);
       persistCompletedMatch(room);
       if(++room.ticks%2===0)publish(room,room.ticks%150===0);
     }catch(error){
@@ -322,6 +344,8 @@ wss.on('connection',(ws,req)=>{
         room.engine.start();
         if(room.engine.status()==='countdown'&&previous!=='countdown'){
           room.started=true;
+          room.chatCountdown=null;
+          syncCountdownChat(room);
           room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;
         }
         publish(room,true);broadcastLobby();
