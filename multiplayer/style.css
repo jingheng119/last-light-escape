@@ -2558,35 +2558,32 @@ body.show-play .game-shell:fullscreen .room-chat{
 }
 
 
-/* v4.27 — touch targeting and visibility fixes.
-   Targeting areas of the maze behind HUD panels must remain selectable. */
-@media (pointer:coarse){
-  body.show-play .game-shell.skill-targeting .side-objectives,
-  body.show-play .game-shell.skill-targeting .side-objectives *,
-  body.show-play .game-shell.skill-targeting .room-chat,
-  body.show-play .game-shell.skill-targeting .room-chat *{
-    pointer-events:none!important;
-  }
-  /* Chat actions and text input are still available, so targeting never
-     traps the player out of sending a message. */
-  body.show-play .game-shell.skill-targeting .room-chat button,
-  body.show-play .game-shell.skill-targeting .room-chat input,
-  body.show-play .game-shell.skill-targeting .room-chat textarea{
-    pointer-events:auto!important;
-  }
-
-  /* Make the GAME visible below the right-hand action dock without fading
-     button labels or cooldown rings. */
-  body.show-play .game-shell .mobile-controls .mobile-actions button{
-    background:rgba(14,42,51,.35)!important;
-    box-shadow:0 3px 10px rgba(0,0,0,.26);
-  }
-  body.show-play .game-shell .mobile-controls .mobile-actions #touchInteract{
-    background:rgba(34,123,96,.45)!important;
-  }
-  body.show-play .game-shell .mobile-controls .mobile-actions button.on-cooldown{
-    background:rgba(23,40,49,.31)!important;
-  }
+/* v4.28 — Desktop and mobile: readable map under controls, selectable map
+   behind HUD backgrounds while targeting. Chat controls remain clickable. */
+body.show-play .game-shell.skill-targeting .side-objectives,
+body.show-play .game-shell.skill-targeting .side-objectives *,
+body.show-play .game-shell.skill-targeting .room-chat,
+body.show-play .game-shell.skill-targeting .room-chat *{
+  pointer-events:none!important;
+}
+body.show-play .game-shell.skill-targeting .room-chat button,
+body.show-play .game-shell.skill-targeting .room-chat input,
+body.show-play .game-shell.skill-targeting .room-chat textarea{
+  pointer-events:auto!important;
+}
+/* Adjust the painted background only: text, borders and cooldown rings
+   retain their original contrast and click behavior. */
+body.show-play .game-shell .mobile-controls .mobile-actions button{
+  background:rgba(14,42,51,.35)!important;
+  box-shadow:0 3px 10px rgba(0,0,0,.26);
+}
+body.show-play .game-shell .mobile-controls .mobile-actions #touchInteract{
+  background:rgba(34,123,96,.45)!important;
+}
+body.show-play .game-shell .mobile-controls .mobile-actions button.on-cooldown{
+  background:rgba(23,40,49,.31)!important;
+}
+@media(pointer:coarse){
   body.show-play .game-shell .mobile-controls .virtual-joystick{
     background:radial-gradient(circle,rgba(26,57,68,.42) 0%,rgba(18,44,54,.31) 64%,rgba(9,27,37,.24) 100%)!important;
     box-shadow:inset 0 0 15px rgba(1,11,21,.3);
