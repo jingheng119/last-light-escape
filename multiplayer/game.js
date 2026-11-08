@@ -380,10 +380,34 @@
     const ordered=pool.slice().sort((a,b)=>distances[keyOf(b.x,b.y)]-distances[keyOf(a.x,a.y)]);
     return ordered[Math.floor(rand()*Math.max(1,Math.round(ordered.length*(bias?.28:1))))];
   }
+  // Spectator camera selection is local-only; it never changes the server's
+  // player state or interferes with teammate revival.
+  let spectatorSlot=null,spectatorStickLatch=false;
+  function spectatorCandidates(){
+    return remotePlayers.filter(p=>p.hp>0&&!p.disconnected)
+      .sort((a,b)=>a.slot-b.slot);
+  }
+  function spectatedPlayer(){
+    if(!player||player.hp>0||state!=='playing')return null;
+    const living=spectatorCandidates();
+    if(!living.length){spectatorSlot=null;return null;}
+    let selected=living.find(p=>p.slot===spectatorSlot);
+    if(!selected){selected=living[0];spectatorSlot=selected.slot;}
+    return selected;
+  }
+  function cycleSpectator(direction){
+    if(!player||player.hp>0||state!=='playing')return;
+    const living=spectatorCandidates();
+    if(!living.length)return;
+    const current=living.findIndex(p=>p.slot===spectatorSlot);
+    const next=current<0?0:(current+(direction<0?-1:1)+living.length)%living.length;
+    spectatorSlot=living[next].slot;
+    updateCamera(0,true);
+  }
   function cameraTarget(){
     const viewW=W/CAMERA_ZOOM,viewH=H/CAMERA_ZOOM;
-    // Eliminated players spectate their surviving teammate.
-    const focus=player.hp<=0?(remotePlayers.find(p=>p.hp>0)||guestPlayer||player):player;
+    // Downed players may switch between living teammates.
+    const focus=player.hp<=0?(spectatedPlayer()||player):player;
     return {
       x:clamp(focus.x*TILE-viewW/2,0,Math.max(0,COLS*TILE-viewW)),
       y:clamp(focus.y*TILE-viewH/2,0,Math.max(0,ROWS*TILE-viewH))
@@ -406,6 +430,7 @@
     const extraCarriedHealth=extraPlayers.map(p=>index>0&&p?Math.max(1,Math.min(3,p.hp)):3);
     const extraActive=extraPlayers.map(Boolean);
     levelIndex=index;const cfg=CONFIGS[index];
+    spectatorSlot=null;spectatorStickLatch=false;
     COLS=cfg.stage===2?STAGE_TWO_SIZE.cols:31;
     ROWS=cfg.stage===2?STAGE_TWO_SIZE.rows:21;
     buildMaze(cfg.seed+runSeed,cfg.loops);
@@ -2226,6 +2251,20 @@
     ctx.restore();
     // Fixed screen-space HUD must never drift with the camera.
     drawDirectionalHUD();drawInteractPrompts();drawTeammateIndicators();
+    if(player.hp<=0&&state==='playing'){
+      const watched=spectatedPlayer();
+      if(watched){
+        const name=roomIdentity.get(watched.slot)?.name||'Survivor '+watched.slot;
+        ctx.save();ctx.textAlign='center';ctx.font='bold 12px monospace';
+        const display='SPECTATING · '+name.slice(0,20);
+        const bw=Math.max(230,ctx.measureText(display).width+30);
+        roundedRect((W-bw)/2,12,bw,44,9,'#071b26e8');
+        ctx.fillStyle='#b9f5e2';ctx.fillText(display,W/2,31);
+        ctx.font='10px monospace';ctx.fillStyle='#8cbbb2';
+        ctx.fillText('ARROW KEYS / JOYSTICK · SWITCH VIEW',W/2,47);
+        ctx.restore();
+      }
+    }
     if(alertLevel>0&&state==='playing'){
       ctx.fillStyle=alertLevel===2?'#e44d6411':'#ffc17c07';
       ctx.fillRect(0,0,W,H);
@@ -2280,6 +2319,11 @@
     if(e.target instanceof HTMLElement&&e.target.closest('input, textarea, select, [contenteditable="true"]'))return;
     if(!soundEnabled)unlockGameAudio();
     const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k)||((rewindTargeting||anchorTargeting||infestTargeting)&&k==='tab'))e.preventDefault();
+    if(player?.hp<=0&&state==='playing'&&k.startsWith('arrow')){
+      // Arrow keys switch teammate cameras instead of controlling a dead soul.
+      if(!e.repeat)cycleSpectator(k==='arrowleft'||k==='arrowup'?-1:1);
+      return;
+    }
     if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole!=='none')sendRoom(guestInputPacket());}
     if(e.repeat)return;
     if(rewindTargeting&&k==='escape'){cancelRewindTarget();return;}
@@ -2437,6 +2481,7 @@
   let joystickPointer=null;
   function resetJoystick(){
     joystickPointer=null;joystickMove.x=0;joystickMove.y=0;
+    spectatorStickLatch=false;
     stick.style.transform='translate(0px,0px)';
     joystick.classList.remove('is-active');
   }
@@ -2457,6 +2502,19 @@
     // Preserve deliberate diagonal movement and the joystick's analog speed.
     if(Math.abs(ux)<.30){ux=0;uy=Math.sign(uy);}
     else if(Math.abs(uy)<.30){uy=0;ux=Math.sign(ux);}
+    if(player?.hp<=0&&state==='playing'){
+      // Each deliberate stick push switches one living teammate. Returning
+      // toward the center resets the latch; no rapid cycling while held.
+      const pushed=strength>.48;
+      if(!pushed)spectatorStickLatch=false;
+      else if(!spectatorStickLatch){
+        spectatorStickLatch=true;
+        cycleSpectator(Math.abs(ux)>Math.abs(uy)?(ux<0?-1:1):(uy<0?-1:1));
+      }
+      joystickMove.x=0;joystickMove.y=0;
+      return;
+    }
+    spectatorStickLatch=false;
     joystickMove.x=ux*amount;
     joystickMove.y=uy*amount;
   }
@@ -2560,8 +2618,15 @@
       if(authoritative.decoys<priorAudioPlayer.decoys)
         beep(850,.22,'square',.016);
     }
+    const wasDown=player?.hp<=0;
     player=authoritative;
     remotePlayers=occupants.map((p,i)=>p&&i!==roomPlayerId-1?{...p,slot:i+1}:null).filter(Boolean);
+    if(player.hp>0){
+      spectatorSlot=null;spectatorStickLatch=false;
+    }else if(!wasDown){
+      // Choose the first living teammate on initial death.
+      spectatorSlot=null;spectatorStickLatch=false;
+    }
     guestPlayer=remotePlayers[0]||null;
     if(Array.isArray(d.playerRoles)){
       const actualRole=d.playerRoles[roomPlayerId-1];
