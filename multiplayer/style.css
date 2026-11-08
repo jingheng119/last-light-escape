@@ -2476,3 +2476,21 @@ body.show-play .game-shell:fullscreen .room-chat{
     padding:4px 1px!important;
   }
 }
+
+
+/* v4.25: Grow mobile landscape Team Chat to the top of the action dock.
+   The bottom clearance is measured from the uppermost action button. */
+@media (orientation:landscape) and (pointer:coarse),
+       (orientation:landscape) and (max-width:980px) {
+  body.show-play .game-shell .room-chat,
+  body.show-play .game-shell .room-chat.chat-no-gutter,
+  body.show-play .game-shell:fullscreen .room-chat,
+  body.show-play .game-shell:fullscreen .room-chat.chat-no-gutter {
+    top:var(--chat-safe-top,70px)!important;
+    bottom:var(--chat-bottom-clearance,195px)!important;
+    height:auto!important;
+    max-height:none!important;
+    min-height:0!important;
+    right:5px!important;
+  }
+}
