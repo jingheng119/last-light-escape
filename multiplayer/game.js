@@ -77,6 +77,8 @@
     if(page==='play'){
       $('#gameRoomName').textContent=$('#currentRoomName').textContent;
       $('#gameRoomCount').textContent=roomCount+' / 5 SURVIVORS';
+      $('#hudRoomName').textContent=$('#gameRoomName').textContent;
+      $('#hudRoomCount').textContent=$('#gameRoomCount').textContent;
       requestAnimationFrame(()=>updateCamera(0,true));
     }else stopMusic();
   }
@@ -473,6 +475,7 @@
     updateCamera(0,true);
     ui.level.textContent=`BROWSER GAME V4.19 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.stageCard.textContent=ui.level.textContent;
+    $('#desktopStageInfo').textContent=ui.level.textContent;
     ui.mobileStage.children[0].textContent='BROWSER GAME V4.19';
     ui.mobileStage.children[1].textContent=`STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.note.textContent=cfg.note;
@@ -2999,6 +3002,8 @@
         status.textContent=roomCount+' / 5 players connected'+
           (roomRole==='host'?' · You are the host':roomRole==='spectator'?' · Spectating':'');
         $('#gameRoomCount').textContent=roomCount+' / 5 SURVIVORS';
+        $('#hudRoomName').textContent=$('#gameRoomName').textContent;
+        $('#hudRoomCount').textContent=$('#gameRoomCount').textContent;
         lobbyClass.disabled=roomRole==='spectator'||!['menu','dead','victory'].includes(state);
         if(roomRole!=='spectator'&&state==='menu'){
           ui.button.firstChild.textContent=roomRole==='host'?'START GAME ':'WAIT FOR HOST ';
