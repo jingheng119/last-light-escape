@@ -234,7 +234,7 @@
     illusioner: "Summon an invincible roaming phantom that distracts Hollows for 5 seconds. Two phantoms can roam at once without replacing each other.",
     rewinder: "Choose yourself, a teammate, or a Hollow within 5.5 tiles; return that target to its position 3 seconds ago. Players gain 2 seconds of protection.",
     anchor: "Choose yourself or a living teammate within 5.5 tiles. Marking yourself leaves a fixed anchor at your location; marking a teammate attaches the anchor to them as they move. Press Skill again to teleport to the anchor with 2 seconds of protection. Hollows cannot be marked.",
-    infester: "Infest a teammate within 5.5 tiles to boost their walking speed by 30%. Stay attached until you press Skill again or the teammate dies. Emerge at their current position with 2 seconds of invincibility; only then spend your charge and start the 13-second cooldown."
+    infester: "Infest a teammate within 5.5 tiles to boost their walking speed by 30%. Press Skill again to emerge freely, or emerge automatically at the hit location when the teammate loses a heart (including their final heart). Gain 2 seconds of invincibility and start the 13-second cooldown only on emergence."
 };
   function skillDescription(role){
     const charges=SKILL_MAX_CHARGES[role];
@@ -1277,7 +1277,10 @@
       updateUI();
       return;
     }
-    player.hp--;if(player.hp<=0)releaseInfestersFor(player);
+    // Losing even one heart sends the carrier to spawn. Release the attached
+    // Infester at the impact position before that happens, including final death.
+    releaseInfestersFor(player);
+    player.hp--;
     player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
     // On the final hit, keep the soul at the exact place the player fell.
     // Surviving players are still teleported to start as in the original game.
