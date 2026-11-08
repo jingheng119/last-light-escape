@@ -2668,3 +2668,16 @@ body.show-play .game-shell:fullscreen .room-chat.chat-is-dragged.chat-no-gutter 
   max-height:none!important;
   z-index:9;
 }
+
+
+/* v4.31 — Decoy: remove the redundant inner button-border circle.
+   Preserve the single outer ::before cooldown ring, like Dash and Skill. */
+body.show-play .game-shell .mobile-controls .mobile-actions #touchDecoy,
+body.show-play .game-shell:fullscreen .mobile-controls .mobile-actions #touchDecoy {
+  border-color:transparent!important;
+  outline:none;
+}
+body.show-play .game-shell .mobile-controls .mobile-actions #touchDecoy:focus-visible{
+  outline:2px solid #8af5d2;
+  outline-offset:5px;
+}
