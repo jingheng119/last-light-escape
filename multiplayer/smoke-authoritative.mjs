@@ -25,14 +25,15 @@ function makeRewindRoom(){
   assert(before>oldX+5,'Player must have moved after recorded position');
   assert.equal(room.snapshot(false).playerRoles[0],'rewinder');
   room.input(1,{}, {x:0,y:0});
-  room.action(1,'ability');
-  assert(Math.abs(p.x-oldX)<.5,'Rewinder must return to position from 3 seconds earlier');
+  room.action(1,'ability',null,false,{kind:'player',slot:1});
+  assert(Math.abs(p.x-oldX)<.5,'Targeted Rewinder must return the selected player to their 3-seconds-ago position');
   assert.equal(p.y,3.5,'Rewind should preserve recorded row');
   assert.equal(p.hp,2,'Rewinding must not restore health');
-  assert(p.abilityCooldown>24,'Rewind must begin its 25s cooldown');
-  const landed=p.x;
-  room.action(1,'ability');
-  assert.equal(p.x,landed,'Rewind cannot activate twice during cooldown');
+  assert(p.abilityCooldown>12&&p.abilityCooldown<=13,'Rewind starts its 13s sequential recharge');
+  assert.equal(p.abilityCharges,1,'First rewind consumes one of two charges');
+  room.action(1,'ability',null,false,{kind:'player',slot:1});
+  assert.equal(p.abilityCharges,0,'Second valid rewind consumes the remaining charge');
+  assert(p.abilityCooldown>12,'Second charge queues behind the first recharge');
 }
 {
   const {room,p,snap}=makeRewindRoom();
@@ -41,16 +42,14 @@ function makeRewindRoom(){
   const oldX=p.x;
   for(let i=0;i<91;i++)room.tick(.033);
   room.input(1,{}, {x:0,y:0});
-  // Mark the exact recorded position as occupied by a stunned Hollow.
+  // Current rule: Rewinder restores the actual recorded position even
+  // when a Hollow occupies it, and grants the player 2s protection.
   room.testPlaceHollow(0,oldX,3.5,100);
-  room.action(1,'ability');
-  assert(Math.hypot(p.x-oldX,p.y-3.5)<=3.01,
-    'Blocked rewind must use a safe tile within three cells of recorded location');
-  assert(Math.hypot(p.x-oldX,p.y-3.5)>.85,
-    'Rewind must not land on top of a Hollow');
-  assert.equal(snap.grid[Math.floor(p.y)][Math.floor(p.x)],0,
-    'Fallback rewind must land on a walkable tile');
-  assert.equal(p.hp,2,'Blocked rewind also cannot heal');
+  room.action(1,'ability',null,false,{kind:'player',slot:1});
+  assert(Math.abs(p.x-oldX)<.5,'Rewinder returns to recorded location despite Hollow overlap');
+  assert.equal(p.y,3.5,'Rewind preserves the recorded row');
+  assert(p.invincible>=2,'Rewound player receives two seconds of protection');
+  assert.equal(p.hp,2,'Rewinding cannot heal');
 }
 {
   const room=createRoomEngine();
@@ -62,8 +61,8 @@ function makeRewindRoom(){
   assert.deepEqual(Array.from(snap.playerRoles),Array(5).fill('rewinder'),
     'All five player slots must support Rewinder role selection');
   for(const p of snap.players)p.invincible=100;
-  room.action(4,'ability');
-  assert(snap.players[3].abilityCooldown>24,'Fourth player can rewind');
+  room.action(4,'ability',null,false,{kind:'player',slot:4});
+  assert(snap.players[3].abilityCooldown>12,'Fourth player can rewind using explicit target');
   assert.equal(snap.players[0].abilityCooldown,0,'Other player cooldown unaffected');
   assert.equal(snap.players[4].abilityCooldown,0,'Fifth player cooldown unaffected');
   assert(!Object.hasOwn(snap.players[3],'rewindHistory'),
@@ -86,11 +85,11 @@ function makeRewindRoom(){
   assert.equal(state.playerRoles[0],'illusioner','Illusioner is selectable');
   assert.equal(state.illusions.length,1,'Phantom Double must spawn once');
   assert.equal(state.illusions[0].life,5,'Phantom lasts five seconds');
-  assert(state.player.abilityCooldown>21,'Phantom skill starts cooldown');
+  assert(state.player.abilityCooldown>26,'Phantom begins 27s sequential recharge');
   assert.equal(state.illusions[0].ownerSlot,1,'Phantom has its caster slot');
   const initial={x:state.illusions[0].x,y:state.illusions[0].y};
   room.action(1,'ability');
-  assert.equal(room.snapshot(false).illusions.length,1,'Cooldown prevents extra illusions');
+  assert.equal(room.snapshot(false).illusions.length,2,'Illusioner can use second independent charge');
   room.tick(.033);
   state=room.snapshot(false);
   assert(state.illusions[0].life<5,'Phantom duration must tick down');
@@ -100,7 +99,7 @@ function makeRewindRoom(){
   assert.equal(p.hp,hp,'Hollow contact with a phantom does not injure its owner');
   for(let i=0;i<155;i++)room.tick(.033);
   state=room.snapshot(false);
-  assert.equal(state.illusions.length,0,'Phantom expires after five seconds');
+  assert.equal(state.illusions.length,0,'Both Phantoms expire after five seconds');
   assert(!state.hollows.some(ghost=>ghost.mode==='illusion'),
     'Hollows must abandon expired phantoms');
 }
@@ -184,7 +183,7 @@ function makeTeleporterRoom(){
   state.hollows.forEach(h=>{h.x=20;h.y=15;h.stunned=100;});
   room.action(1,'ability');
   assert.equal(p.phaseGuardTime,5,'Phase Guard must last five seconds');
-  assert(p.abilityCooldown>19,'Phase Guard must begin cooldown on activation');
+  assert(p.abilityCooldown>15&&p.abilityCooldown<=16,'Phase Guard begins 16s cooldown');
   const hp=p.hp;
   room.testHit(1);
   assert.equal(p.hp,hp,'Phase Guard must block the triggering damage');
@@ -275,7 +274,7 @@ function makeTeleporterRoom(){
   assert.equal(active.playerRoles[0],'invisibler');
   room.action(1,'ability');
   assert.equal(caster.invisibleTime,3,'Vanish lasts exactly three seconds');
-  assert(caster.abilityCooldown>17,'Successful Vanish starts its cooldown');
+  assert(caster.abilityCooldown>13&&caster.abilityCooldown<=14,'Vanish begins 14s cooldown');
   assert.equal(caster.hp,3,'Vanish does not heal the caster');
   room.action(1,'ability');
   assert.equal(caster.invisibleTime,3,'Cannot refresh invisibility on cooldown');
