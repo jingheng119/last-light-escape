@@ -85,6 +85,7 @@
   let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout',guestContextHost=null;
   let localDashUntil=0,localDashDir=null,hostInputClock=0,hostLastGuestInput=0;
   let guestPreviousHP=null,guestWasPlaying=false;
+  let spectatorReconnectCode=null;
   let clientToastUntil=0,clientHitFlashUntil=0;
   let hollowVisualSample=0,hollowVisualVelocity=[];
   function guestInputPacket(){
@@ -114,7 +115,7 @@
     if(!status)return;
     const label=remotePingMs===null?'measuring…':Math.round(remotePingMs)+' ms';
     const healthy=remotePingMs!==null&&remotePingMs<180;
-    status.textContent=(roomRole==='host'?'HOST':'PLAYER '+roomPlayerId)+' · SERVER '+label+
+    status.textContent=(roomRole==='spectator'?'SPECTATOR':roomRole==='host'?'HOST':'PLAYER '+roomPlayerId)+' · SERVER '+label+
       (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
@@ -388,7 +389,7 @@
       .sort((a,b)=>a.slot-b.slot);
   }
   function spectatedPlayer(){
-    if(!player||player.hp>0||state!=='playing')return null;
+    if(!player||(player.hp>0&&roomRole!=='spectator')||state!=='playing')return null;
     const living=spectatorCandidates();
     if(!living.length){spectatorSlot=null;return null;}
     let selected=living.find(p=>p.slot===spectatorSlot);
@@ -396,7 +397,7 @@
     return selected;
   }
   function cycleSpectator(direction){
-    if(!player||player.hp>0||state!=='playing')return;
+    if(!player||(player.hp>0&&roomRole!=='spectator')||state!=='playing')return;
     const living=spectatorCandidates();
     if(!living.length)return;
     const current=living.findIndex(p=>p.slot===spectatorSlot);
@@ -1868,6 +1869,7 @@
   const PLAYER_COLORS=['#76f2d1','#ffb36e','#91b7ff','#f49edb','#f5d778'];
   const colorForPlayer=slot=>PLAYER_COLORS[Math.max(0,Math.min(4,(slot||1)-1))];
   function drawPlayer(){
+    if(roomRole==='spectator')return;
     if(player.hp<=0){
       drawSoul(player);
       return;
@@ -1945,7 +1947,7 @@
     // Unboxed names in the same stable color as their respective character.
     // No (YOU) suffix: the local player is already centered by the camera.
     if(roomRole==='none')return;
-    for(const person of [{...player,slot:roomPlayerId},...remotePlayers]){
+    for(const person of [...(roomRole==='spectator'?[]:[{...player,slot:roomPlayerId}]),...remotePlayers]){
       if(!person||!person.slot||person.infestedOn)continue;
       const identity=roomIdentity.get(person.slot);
       const name=(identity?.name||'Survivor '+person.slot).slice(0,20);
@@ -2251,7 +2253,7 @@
     ctx.restore();
     // Fixed screen-space HUD must never drift with the camera.
     drawDirectionalHUD();drawInteractPrompts();drawTeammateIndicators();
-    if(player.hp<=0&&state==='playing'){
+    if((player.hp<=0||roomRole==='spectator')&&state==='playing'){
       const watched=spectatedPlayer();
       if(watched){
         const name=roomIdentity.get(watched.slot)?.name||'Survivor '+watched.slot;
@@ -2319,7 +2321,7 @@
     if(e.target instanceof HTMLElement&&e.target.closest('input, textarea, select, [contenteditable="true"]'))return;
     if(!soundEnabled)unlockGameAudio();
     const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k)||((rewindTargeting||anchorTargeting||infestTargeting)&&k==='tab'))e.preventDefault();
-    if(player?.hp<=0&&state==='playing'&&k.startsWith('arrow')){
+    if((player?.hp<=0||roomRole==='spectator')&&state==='playing'&&k.startsWith('arrow')){
       // Arrow keys switch teammate cameras instead of controlling a dead soul.
       if(!e.repeat)cycleSpectator(k==='arrowleft'||k==='arrowup'?-1:1);
       return;
@@ -2346,7 +2348,7 @@
       if(state!=='menu'&&state!=='dead'&&state!=='victory')return;
       classChoice=validRole(card.dataset.role);
       refreshRoleSelection();
-      if(roomRole!=='none')sendRoom({type:'role',role:classChoice});
+      if(roomRole!=='none'&&roomRole!=='spectator')sendRoom({type:'role',role:classChoice});
     });
   });
   refreshRoleSelection();
@@ -2502,7 +2504,7 @@
     // Preserve deliberate diagonal movement and the joystick's analog speed.
     if(Math.abs(ux)<.30){ux=0;uy=Math.sign(uy);}
     else if(Math.abs(uy)<.30){uy=0;ux=Math.sign(ux);}
-    if(player?.hp<=0&&state==='playing'){
+    if((player?.hp<=0||roomRole==='spectator')&&state==='playing'){
       // Each deliberate stick push switches one living teammate. Returning
       // toward the center resets the latch; no rapid cycling while held.
       const pushed=strength>.48;
@@ -2597,14 +2599,16 @@
     // Never overwrite incoming server coordinates with client estimates.
     // Every browser has its own assigned slot (1–5) in the SAME server room.
     const occupants=Array.isArray(d.players)?d.players:[d.player,d.guestPlayer];
-    const authoritative=occupants[roomPlayerId-1];
+    const authoritative=roomRole==='spectator'
+      ?{...player,slot:0,hp:0,invincible:0,disconnected:true,infestedOn:null}
+      :occupants[roomPlayerId-1];
     if(!authoritative)return;
     if(guestPreviousHP!==null&&authoritative.hp<guestPreviousHP){
       clientHitFlashUntil=performance.now()+450;
       beep(100,.24,'sawtooth',.038);
       notify(authoritative.hp>0?'A HOLLOW HIT YOU!':'SIGNAL LOST — WAIT FOR RESCUE',1.5);
     }
-    guestPreviousHP=authoritative.hp;
+    guestPreviousHP=roomRole==='spectator'?null:authoritative.hp;
     // In multiplayer the server executes actions, so browser-side dash(),
     // interact() and skill() return before their sound effects. Play local
     // feedback only after the server confirms the action in a snapshot.
@@ -2620,7 +2624,7 @@
     }
     const wasDown=player?.hp<=0;
     player=authoritative;
-    remotePlayers=occupants.map((p,i)=>p&&i!==roomPlayerId-1?{...p,slot:i+1}:null).filter(Boolean);
+    remotePlayers=occupants.map((p,i)=>p&&(roomRole==='spectator'||i!==roomPlayerId-1)?{...p,slot:i+1}:null).filter(Boolean);
     if(player.hp>0){
       spectatorSlot=null;spectatorStickLatch=false;
     }else if(!wasDown){
@@ -2629,7 +2633,7 @@
     }
     guestPlayer=remotePlayers[0]||null;
     if(Array.isArray(d.playerRoles)){
-      const actualRole=d.playerRoles[roomPlayerId-1];
+      const actualRole=roomRole==='spectator'?null:d.playerRoles[roomPlayerId-1];
       if(Object.hasOwn(ROLE_DETAILS,actualRole))classChoice=actualRole;
     }
     cores=d.cores;relay=d.relay;exit=d.exit;
@@ -2846,7 +2850,7 @@
       }
       classChoice=validRole(lobbyClass.value);
       refreshRoleSelection();
-      if(roomRole!=='none')sendRoom({type:'role',role:classChoice});
+      if(roomRole!=='none'&&roomRole!=='spectator')sendRoom({type:'role',role:classChoice});
     });
     const setJoined=joined=>{
       // A host still needs to browse other active rooms. Keep the directory
@@ -2890,7 +2894,7 @@
         description.append(title,metadata);
         const button=document.createElement('button');
         button.type='button';
-        button.textContent=!entry.joinable?'Full':roomRole!=='none'?'Leave to join':'Join room';
+        button.textContent=!entry.joinable?'Full':roomRole!=='none'?'Leave to join':entry.spectatorOnly?'Watch room':'Join room';
         button.disabled=!entry.joinable||roomRole!=='none';
         button.title=roomRole!=='none'?'Leave your current room before joining another':'';
         button.addEventListener('click',()=>joinRequest(entry.code));
@@ -2909,6 +2913,8 @@
       if(saved){
         status.textContent='Restoring your last room and character…';
         sendRoom({type:'resume',code:saved.code,token:saved.token});
+      }else if(spectatorReconnectCode){
+        joinRequest(spectatorReconnectCode);
       }else if(invited&&/^[0-9A-F]{6}$/i.test(invited)){
         joinRequest(invited.toUpperCase());
         invited=null;
@@ -2936,7 +2942,7 @@
       if(m.type==='chat-message')chat.receive(m.message);
       if(m.type==='chat-error')chat.error(m.message);
       if(m.type==='resume-error'){
-        chat.clear();clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
+        chat.clear();clearSession();spectatorReconnectCode=null;roomRole='none';roomPlayerId=0;roomCount=0;
         setJoined(false);state='menu';showPage('lobby',true);
         status.textContent=m.message+'. Please join a room again.';
       }
@@ -2961,24 +2967,34 @@
         if(!m.resumed)sendRoom({type:'role',role:classChoice});
         if(roomRole==='guest'&&!m.resumed)
           setOverlay('JOINED THE WARD','Waiting for the room host to start.','WAIT FOR HOST');
-      }else if(m.type==='roster'&&roomPlayerId){
+      }else if(m.type==='spectator-joined'){
+        chat.clear();clearSession();
+        roomRole='spectator';roomPlayerId=0;spectatorReconnectCode=m.code;
+        guestPreviousHP=null;spectatorSlot=null;spectatorStickLatch=false;
+        code.value=m.code;
+        $('#currentRoomName').textContent=(m.name||'Hollow Ward')+' · ROOM '+m.code;
+        invite.textContent='ROOM '+m.code+' · Spectator view';
+        setJoined(true);showPage('play');showNetworkStatus();
+        status.textContent='Watching live match · Arrows / joystick switch views.';
+        sendRoom({type:'list'});
+      }else if(m.type==='roster'&&(roomPlayerId||roomRole==='spectator')){
         roomCount=m.count;
-        roomRole=m.hostId===roomPlayerId?'host':'guest';
+        if(roomRole!=='spectator')roomRole=m.hostId===roomPlayerId?'host':'guest';
         if(Array.isArray(m.players))renderRoster(m.players);
         showNetworkStatus();
         status.textContent=roomCount+' / 5 players connected'+
-          (roomRole==='host'?' · You are the host':'');
+          (roomRole==='host'?' · You are the host':roomRole==='spectator'?' · Spectating':'');
         $('#gameRoomCount').textContent=roomCount+' / 5 SURVIVORS';
-        lobbyClass.disabled=!['menu','dead','victory'].includes(state);
-        if(state==='menu'){
+        lobbyClass.disabled=roomRole==='spectator'||!['menu','dead','victory'].includes(state);
+        if(roomRole!=='spectator'&&state==='menu'){
           ui.button.firstChild.textContent=roomRole==='host'?'START GAME ':'WAIT FOR HOST ';
-        }else if(state==='leveldone'){
+        }else if(roomRole!=='spectator'&&state==='leveldone'){
           ui.button.firstChild.textContent=roomRole==='host'?
             (levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO ':'ENTER NEXT FLOOR '):
             'WAIT FOR HOST ';
         }
       }else if(m.type==='left'){
-        chat.clear();clearSession();roomRole='none';roomPlayerId=0;roomCount=0;
+        chat.clear();clearSession();spectatorReconnectCode=null;roomRole='none';roomPlayerId=0;roomCount=0;
         guestPlayer=null;remotePlayers=[];
         lastLevel=-1;guestPreviousHP=null;
         setJoined(false);
@@ -3007,8 +3023,8 @@
       joinRequest(value);
     });
     $('#refreshRooms').addEventListener('click',()=>sendRoom({type:'list'}));
-    $('#leaveRoom').addEventListener('click',()=>{clearSession();sendRoom({type:'leave'});});
-    $('#leaveGameRoom').addEventListener('click',()=>{clearSession();sendRoom({type:'leave'});});
+    $('#leaveRoom').addEventListener('click',()=>{clearSession();spectatorReconnectCode=null;sendRoom({type:'leave'});});
+    $('#leaveGameRoom').addEventListener('click',()=>{clearSession();spectatorReconnectCode=null;sendRoom({type:'leave'});});
     $('#backToLobby').addEventListener('click',()=>showPage('lobby'));
     $('#returnToGame').addEventListener('click',()=>{unlockGameAudio();showPage('play');});
     // Room cards and invitation links may join directly without using the
