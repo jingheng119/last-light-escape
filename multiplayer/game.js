@@ -67,6 +67,9 @@
   let lastCountdownNumber=0;
   function showPage(target,push=true){
     const page=target==='play'&&roomRole!=='none'?'play':'lobby';
+    // Start each visit to the game with Objectives collapsed.
+    // Players can still expand it manually whenever they want.
+    if(page==='play'&&activePage!=='play')$('#objectivesPanel').open=false;
     activePage=page;
     $('#lobbyPage').hidden=page!=='lobby';
     $('#playPage').hidden=page!=='play';
