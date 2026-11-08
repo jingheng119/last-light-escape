@@ -2592,3 +2592,44 @@ body.show-play .game-shell .mobile-controls .mobile-actions button.on-cooldown{
     background:linear-gradient(145deg,rgba(57,122,120,.55),rgba(27,75,84,.47));
   }
 }
+
+
+/* v4.29 — borderless HUDs, with one completion outline around the FULL
+   Objectives/Direction/Controls panel. Shared by desktop, mobile and fullscreen. */
+body.show-play .game-shell .side-objectives,
+body.show-play .game-shell:fullscreen .side-objectives {
+  border:1px solid transparent!important;
+  box-shadow:none!important;
+  transition:box-shadow .25s ease,border-color .25s ease;
+}
+body.show-play .game-shell .side-objectives-dropdown,
+body.show-play .game-shell .side-key-guide,
+body.show-play .game-shell .side-direction,
+body.show-play .game-shell .side-objectives-list .side-objective {
+  box-shadow:none!important;
+  border-color:transparent!important;
+}
+body.show-play .game-shell .room-chat .chat-drawer,
+body.show-play .game-shell:fullscreen .room-chat .chat-drawer {
+  border:1px solid transparent!important;
+  box-shadow:none!important;
+}
+/* No completed-item glow or nested dropdown ring: the outer HUD is the
+   only element highlighted, and only after ALL objectives are done. */
+body.show-play .game-shell .side-objectives-dropdown.all-complete,
+body.show-play .game-shell .side-objective.is-complete {
+  box-shadow:none!important;
+  background:transparent!important;
+}
+body.show-play .game-shell .side-objective.is-complete .status-label,
+body.show-play .game-shell .side-objective.is-complete strong {
+  color:inherit!important;
+  text-shadow:none!important;
+}
+body.show-play .game-shell .side-objectives.all-objectives-complete,
+body.show-play .game-shell:fullscreen .side-objectives.all-objectives-complete {
+  border-color:rgba(134,255,207,.92)!important;
+  box-shadow:0 0 0 1px rgba(120,255,205,.43),
+    0 0 22px rgba(77,238,176,.38),
+    inset 0 0 15px rgba(65,220,163,.13)!important;
+}
