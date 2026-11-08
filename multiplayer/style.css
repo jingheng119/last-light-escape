@@ -2684,7 +2684,7 @@ body.show-play .game-shell .mobile-controls .mobile-actions #touchDecoy:focus-vi
 
 
 /* v4.32 — compact chat lines and a low-profile message composer.
-   Both desktop and mobile use "NAME: > message" on the SAME line. */
+   Both desktop and mobile use "NAME ➤ message" on the SAME line. */
 body.show-play .game-shell .room-chat .chat-item{
   display:block;
   line-height:1.35;
@@ -2697,7 +2697,7 @@ body.show-play .game-shell .room-chat .chat-text{
   vertical-align:baseline;
 }
 body.show-play .game-shell .room-chat .chat-text::before{
-  content:' > ';
+  content:' ➤ ';
   color:#80bdb3;
   white-space:pre;
 }
