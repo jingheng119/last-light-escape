@@ -2066,10 +2066,25 @@
       ...(technician?[{x:technician.x*TILE,y:technician.y*TILE,r:68,alpha:.42}]:[]),
       ...decoys.map(d=>({x:d.x*TILE,y:d.y*TILE,r:145,alpha:.70}))
     ];
-    for(const l of lights){const lx=l.x-camera.x,ly=l.y-camera.y;
-      const g=c.createRadialGradient(lx,ly,0,lx,ly,l.r);g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);g.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=g;c.fillRect(lx-l.r,ly-l.r,l.r*2,l.r*2);}
+    for(const l of lights){
+      // The darkness buffer uses screen pixels. Convert world positions and
+      // light radii into that space before cutting visibility holes.
+      const lx=(l.x-camera.x)*CAMERA_ZOOM;
+      const ly=(l.y-camera.y)*CAMERA_ZOOM;
+      const radius=l.r*CAMERA_ZOOM;
+      const g=c.createRadialGradient(lx,ly,0,lx,ly,radius);
+      g.addColorStop(0,`rgba(0,0,0,${l.alpha})`);
+      g.addColorStop(.35,`rgba(0,0,0,${l.alpha*.85})`);
+      g.addColorStop(1,'rgba(0,0,0,0)');
+      c.fillStyle=g;
+      c.fillRect(lx-radius,ly-radius,radius*2,radius*2);
+    }
     c.globalCompositeOperation='source-over';
-    ctx.drawImage(darknessCanvas,camera.x,camera.y);
+    // Map the entire screen-sized darkness buffer to the complete visible
+    // world viewport. Previously it covered only W x H world units, exposing
+    // bright uncovered strips whenever mobile camera zoom dropped below 1.
+    ctx.drawImage(darknessCanvas,camera.x,camera.y,
+      W/CAMERA_ZOOM,H/CAMERA_ZOOM);
   }
   function drawMarker(x,y,clr,label){const a=clock*2;ctx.save();ctx.translate(x,y);ctx.strokeStyle=clr;ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,12+Math.sin(a)*2,0,Math.PI*2);ctx.stroke();ctx.fillStyle=clr;ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText(label,0,-19);ctx.restore();}
   function objectiveDirection(){return cores.find(c=>!c.collected)||(!survivor.rescued?survivor:technician&&!technician.rescued?technician:!relay.active?relay:exit);}
