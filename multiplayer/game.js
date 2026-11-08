@@ -2723,6 +2723,21 @@
       const mobileChat=window.matchMedia('(max-width:650px), (hover:none) and (pointer:coarse)').matches;
       panel.style.setProperty('--chat-gutter-width',Math.max(0,Math.floor(gap-(mobileChat?8:24)))+'px');
       panel.classList.toggle('chat-no-gutter',gap<180);
+      // The desktop action dock is fixed relative to the visible game shell,
+      // not the narrow canvas. This lets it occupy the empty right gutter
+      // without being clipped by .canvas-wrap { overflow: hidden }.
+      const dock=$('.mobile-controls');
+      if(dock){
+        const isDesktop=window.matchMedia('(min-width:981px) and (pointer:fine)').matches;
+        if(isDesktop){
+          const inset=10;
+          dock.style.setProperty('--dock-viewport-right',Math.max(0,Math.round(window.innerWidth-sr.right+inset))+'px');
+          dock.style.setProperty('--dock-viewport-bottom',Math.max(0,Math.round(window.innerHeight-sr.bottom+inset))+'px');
+        }else{
+          dock.style.removeProperty('--dock-viewport-right');
+          dock.style.removeProperty('--dock-viewport-bottom');
+        }
+      }
     };
     window.addEventListener('resize',positionChat,{passive:true});
     document.addEventListener('fullscreenchange',positionChat);
