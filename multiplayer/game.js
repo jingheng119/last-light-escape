@@ -2062,9 +2062,28 @@
   }
   function drawMarker(x,y,clr,label){const a=clock*2;ctx.save();ctx.translate(x,y);ctx.strokeStyle=clr;ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,12+Math.sin(a)*2,0,Math.PI*2);ctx.stroke();ctx.fillStyle=clr;ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText(label,0,-19);ctx.restore();}
   function objectiveDirection(){return cores.find(c=>!c.collected)||(!survivor.rescued?survivor:technician&&!technician.rescued?technician:!relay.active?relay:exit);}
-  function drawDirectionalHUD(){if(!player)return;const target=objectiveDirection(),angle=Math.atan2(target.y-player.y,target.x-player.x),x=W-52,y=53;
+  function directionLabel(){
+    return cores.some(c=>!c.collected)?'FIND THE CORES':
+      !survivor.rescued?'RESCUE THE ALLY':
+      technician&&!technician.rescued?'FIND TECHNICIAN':
+      !relay.active?'ACTIVATE RELAY':'REACH THE EXIT';
+  }
+  function drawDirectionalHUD(){
+    if(!player)return;
+    const target=objectiveDirection(),angle=Math.atan2(target.y-player.y,target.x-player.x),x=W-52,y=53;
+    if(window.matchMedia('(min-width:981px) and (pointer:fine)').matches){
+      // Desktop compass is now in the left sidebar, below Objectives.
+      const task=$('#sideDirectionTask'),distance=$('#sideDirectionDistance'),arrow=$('#sideDirectionArrow');
+      if(task&&distance&&arrow){
+        const next=directionLabel(),meters=Math.round(dist(player,target))+'m away';
+        if(task.textContent!==next)task.textContent=next;
+        if(distance.textContent!==meters)distance.textContent=meters;
+        arrow.style.transform='rotate('+angle+'rad)';
+      }
+      return;
+    }
     roundedRect(W-168,12,156,73,11,'#07191fd9');ctx.strokeStyle='#2e5f61';ctx.lineWidth=1;ctx.strokeRect(W-168+.5,12.5,155,72);
-    ctx.fillStyle='#81deca';ctx.font='bold 10px monospace';ctx.textAlign='left';ctx.fillText(cores.some(c=>!c.collected)?'FIND THE CORES':!survivor.rescued?'RESCUE THE ALLY':technician&&!technician.rescued?'FIND TECHNICIAN':!relay.active?'ACTIVATE RELAY':'REACH THE EXIT',W-158,33);
+    ctx.fillStyle='#81deca';ctx.font='bold 10px monospace';ctx.textAlign='left';ctx.fillText(directionLabel(),W-158,33);
     ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.fillStyle='#a5ffe3';ctx.beginPath();ctx.moveTo(19,0);ctx.lineTo(-7,-8);ctx.lineTo(-2,0);ctx.lineTo(-7,8);ctx.closePath();ctx.fill();ctx.restore();
     ctx.fillStyle='#7aadb0';ctx.font='10px monospace';ctx.textAlign='left';ctx.fillText(`${Math.round(dist(player,target))}m away`,W-158,60);
   }
