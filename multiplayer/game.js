@@ -1018,8 +1018,9 @@
   function syncTouchTargeting(){
     const shell=$('.game-shell');
     if(!shell)return;
-    const touch=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(pointer:coarse)').matches;
-    shell.classList.toggle('skill-targeting',touch&&state==='playing'&&(
+    // Desktop mouse targeting works through panels too. No browser APIs
+    // required here, as this function also runs in the headless server.
+    shell.classList.toggle('skill-targeting',state==='playing'&&(
       rewindTargeting&&classChoice==='rewinder'||
       anchorTargeting&&classChoice==='anchor'||
       infestTargeting&&classChoice==='infester'));
