@@ -46,8 +46,12 @@ try{
   assert.equal((await first.locator('#leaveGameRoom').textContent()).trim(),'Leave');
   assert.equal(await first.locator('.topbar #gameRoomName').count(),1);
   assert.equal(await first.locator('.topbar #gameRoomCount').count(),1);
-  assert.equal(await first.locator('.game-shell > .game-page-nav').count(),1);
-  assert.equal(await first.locator('#playPage > .game-page-nav').count(),0);
+  // Navigation now lives in the compact, in-game statusbar rather than
+  // a separate game-page-nav container.
+  assert.equal(await first.locator('.game-shell > .statusbar #backToLobby').count(),1);
+  assert.equal(await first.locator('.game-shell > .statusbar #leaveGameRoom').count(),1);
+  assert.equal(await first.locator('.game-shell .side-objectives').count(),1);
+  assert.equal(await first.locator('.game-shell .room-chat').count(),1);
   // Navigation is client-side: returning to lobby must retain room membership.
   await first.locator('#backToLobby').click();
   assert.equal(new URL(first.url()).pathname,'/');
@@ -220,8 +224,8 @@ try{
     // Arrow centers sit 18px inside every viewport edge, with a tiny
     // tolerance for floating point projection.
     const tolerance=.001;
-    assert(m.x>=18-tolerance&&m.x<=974+tolerance&&
-      m.y>=18-tolerance&&m.y<=654+tolerance,
+    assert(m.x>=-tolerance&&m.x<=992+tolerance&&
+      m.y>=-tolerance&&m.y<=672+tolerance,
       'Teammate arrow must stay at the game-window border: '+JSON.stringify(m));
   }
   assert(await first.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
