@@ -2515,7 +2515,10 @@
     button.addEventListener('pointercancel',e=>finish(e,true));
     button.addEventListener('lostpointercapture',e=>finish(e,true));
     button.addEventListener('click',e=>{
-      if(e.detail!==0&&Date.now()<suppressClickUntil)return;
+      // Touch release already activates the action on pointerup. Some mobile
+      // browsers synthesize a click with detail=0 afterward; do not interpret
+      // that as another Skill press (Anchor would mark then instantly return).
+      if(Date.now()<suppressClickUntil)return;
       activate();
     });
   }
