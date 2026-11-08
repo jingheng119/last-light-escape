@@ -2243,3 +2243,177 @@ body.show-play .game-shell:fullscreen .room-chat{
     max-height:calc(100% - var(--chat-safe-top,90px) - 8px)!important;
   }
 }
+
+
+/* v4.23 — compact landscape-touch HUD and full-bleed maze. These overrides
+   intentionally do not affect desktop pointer/fine or portrait layouts. */
+@media (orientation:landscape) and (pointer:coarse),
+       (orientation:landscape) and (max-width:980px) {
+  body.show-play,
+  body.show-play .shell {
+    height:100dvh;
+    overflow:hidden;
+  }
+  body.show-play .shell{
+    width:100%;
+    max-width:none;
+    padding:0 4px 4px;
+    display:flex;
+    flex-direction:column;
+  }
+  body.show-play .page-play:not([hidden]){
+    display:flex;
+    flex:1 1 auto;
+    min-height:0;
+    flex-direction:column;
+  }
+  body.show-play .game-shell,
+  body.show-play .game-shell:fullscreen{
+    display:flex;
+    flex:1 1 auto;
+    flex-direction:column;
+    width:100%;
+    min-height:0;
+    overflow:hidden;
+  }
+  body.show-play .game-shell .canvas-wrap,
+  body.show-play .game-shell:fullscreen .canvas-wrap{
+    display:block;
+    flex:1 1 auto;
+    min-height:0!important;
+    height:100%!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    overflow:hidden;
+  }
+  body.show-play .game-shell .canvas-wrap canvas,
+  body.show-play .game-shell:fullscreen .canvas-wrap canvas{
+    display:block;
+    width:100%!important;
+    height:100%!important;
+    object-fit:fill;
+  }
+  /* Compact objectives and Controls; no mobile keyboard shortcuts by default. */
+  body.show-play .game-shell .side-objectives,
+  body.show-play .game-shell:fullscreen .side-objectives{
+    top:var(--objectives-top,66px);
+    left:5px;
+    width:clamp(135px,15vw,175px)!important;
+    max-width:calc(100% - 12px)!important;
+    padding:7px 9px;
+    gap:5px;
+    border-radius:9px;
+    pointer-events:auto;
+    z-index:7;
+  }
+  body.show-play .game-shell .side-guide-heading{
+    font-size:8px;
+    letter-spacing:.065em;
+  }
+  body.show-play .game-shell .side-objectives-dropdown > summary{
+    padding:3px 0 5px;
+  }
+  body.show-play .game-shell .side-objectives-list{
+    margin-top:2px;
+    gap:3px;
+  }
+  body.show-play .game-shell .side-objectives-list .side-objective{
+    padding:5px 1px;
+  }
+  body.show-play .game-shell .side-objectives-list .side-objective .status-label{
+    font-size:7px;
+  }
+  body.show-play .game-shell .side-objectives-list .side-objective strong{
+    font-size:8px;
+  }
+  body.show-play .game-shell .side-direction{
+    display:block;
+    border-top:1px solid rgba(112,203,195,.20);
+    border-bottom:1px solid rgba(112,203,195,.20);
+    margin-top:5px;
+    padding:7px 1px;
+  }
+  body.show-play .game-shell .side-direction-heading{
+    font:800 8px monospace;
+    color:#8bc9c8;
+    margin-bottom:5px;
+    letter-spacing:.08em;
+  }
+  body.show-play .game-shell .side-direction-content{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:4px;
+  }
+  body.show-play .game-shell .side-direction-copy{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+    min-width:0;
+  }
+  body.show-play .game-shell .side-direction-copy strong{
+    font:800 8px monospace;
+    color:#a4ffdc;
+  }
+  body.show-play .game-shell .side-direction-copy span{
+    font:8px monospace;
+  }
+  body.show-play .game-shell .side-direction-arrow{
+    display:block;
+    font-size:19px;
+    color:#a4ffdc;
+    flex:none;
+  }
+  body.show-play .game-shell .side-key-guide{
+    display:flex;
+    padding-top:8px;
+    margin-top:0;
+    gap:5px;
+  }
+  body.show-play .game-shell .side-key-row,
+  body.show-play .game-shell .side-key-row kbd{
+    font-size:8px;
+  }
+
+  /* Chat is anchored just below the actual title/statusbar row.
+     Keep a clear gap above the right-hand action buttons. */
+  body.show-play .game-shell .room-chat,
+  body.show-play .game-shell .room-chat.chat-no-gutter,
+  body.show-play .game-shell:fullscreen .room-chat,
+  body.show-play .game-shell:fullscreen .room-chat.chat-no-gutter{
+    position:absolute;
+    top:var(--chat-safe-top,70px)!important;
+    right:5px!important;
+    left:auto!important;
+    bottom:auto!important;
+    width:clamp(170px,20vw,235px)!important;
+    max-width:calc(100% - 15px)!important;
+    height:clamp(120px,29vh,170px)!important;
+    max-height:calc(100% - var(--chat-safe-top,70px) - 185px)!important;
+    min-height:0;
+    z-index:8;
+  }
+  body.show-play .game-shell .room-chat .chat-drawer{
+    padding:5px;
+  }
+  body.show-play .game-shell .room-chat .chat-heading{
+    font-size:9px;
+    margin-bottom:3px;
+  }
+  body.show-play .game-shell .room-chat .chat-messages{
+    padding:3px;
+    margin-bottom:3px;
+    font-size:8px;
+  }
+  body.show-play .game-shell .room-chat .chat-quick{
+    grid-auto-rows:17px;
+    padding-bottom:2px;
+  }
+  body.show-play .game-shell .room-chat .chat-form input{
+    height:25px;
+  }
+  body.show-play .game-shell .room-chat .chat-form button{
+    font-size:8px;
+  }
+}
