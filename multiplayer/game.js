@@ -2942,9 +2942,13 @@
       if(m.type==='chat-message')chat.receive(m.message);
       if(m.type==='chat-error')chat.error(m.message);
       if(m.type==='resume-error'){
+        const previousSession=readSession();
         chat.clear();clearSession();spectatorReconnectCode=null;roomRole='none';roomPlayerId=0;roomCount=0;
         setJoined(false);state='menu';showPage('lobby',true);
-        status.textContent=m.message+'. Please join a room again.';
+        status.textContent=m.message+'. Rejoining as spectator if the match has started.';
+        // An expired playing slot cannot be reclaimed. The server will admit
+        // the visitor as a viewer, never create a replacement player mid-run.
+        if(previousSession?.code)joinRequest(previousSession.code);
       }
       if(m.type==='rooms'&&Array.isArray(m.rooms))drawRooms(m.rooms);
       if(m.type==='joined'){
