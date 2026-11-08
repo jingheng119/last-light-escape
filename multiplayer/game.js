@@ -1181,7 +1181,7 @@
         let destination=player.anchor;
         if(Number.isInteger(destination.slot)){
           const teammate=allPlayers().find(p=>p.slot===destination.slot&&p!==player);
-          if(!teammate||teammate.hp<=0||teammate.disconnected||teammate.infestedOn){
+          if(!teammate||teammate.hp<=0||teammate.disconnected){
             notify('ANCHOR — marked teammate is unavailable.');return;
           }
           destination={x:teammate.x,y:teammate.y};
