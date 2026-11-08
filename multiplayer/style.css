@@ -1995,7 +1995,7 @@
 .game-shell:fullscreen .side-objectives,
 body.show-play .game-shell .side-objectives,
 body.show-play .game-shell:fullscreen .side-objectives{
-  background:rgba(6,24,32,.70)!important;
+  background:rgba(6,24,32,1)!important;
 }
 .game-shell .room-chat,
 .game-shell:fullscreen .room-chat,
@@ -2005,11 +2005,11 @@ body.show-play .game-shell:fullscreen .room-chat{
 }
 .game-shell .room-chat .chat-drawer,
 .game-shell:fullscreen .room-chat .chat-drawer{
-  background:rgba(6,26,35,.70);
+  background:rgba(6,26,35,1);
   box-shadow:0 10px 26px rgba(0,0,0,.25);
 }
 .game-shell .room-chat .chat-messages{
-  background:rgba(7,25,34,.70);
+  background:rgba(7,25,34,1);
 }
 .game-shell .side-objectives-dropdown,
 .game-shell details.side-key-guide{background:transparent}
