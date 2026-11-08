@@ -1013,6 +1013,17 @@
     if(before===maxSkillCharges())player.abilityCooldown=SKILL_COOLDOWN[classChoice]*cooldownFactor();
     return true;
   }
+  // Targeting touch taps should reach the maze even behind Objectives/Chat.
+  // Keep chat buttons and inputs interactive while their background passes taps.
+  function syncTouchTargeting(){
+    const shell=$('.game-shell');
+    if(!shell)return;
+    const touch=typeof window!=='undefined'&&window.matchMedia('(pointer:coarse)').matches;
+    shell.classList.toggle('skill-targeting',touch&&state==='playing'&&(
+      rewindTargeting&&classChoice==='rewinder'||
+      anchorTargeting&&classChoice==='anchor'||
+      infestTargeting&&classChoice==='infester'));
+  }
   function requestAbility(){
     if(classChoice==='infester'){
       if(state!=='playing'||!player||player.hp<=0)return;
@@ -1022,6 +1033,7 @@
       if(!canUseSkill())return;
       if(!infestTargeting){infestTargeting=true;infestTargetIndex=0;
         notify('INFESTER — select a living teammate within 5.5 tiles.',3);
+        syncTouchTargeting();
       }else commitInfestTarget(chosenInfestTarget());
       return;
     }
@@ -1037,6 +1049,7 @@
       if(!canUseSkill())return;
       if(!anchorTargeting){anchorTargeting=true;anchorTargetIndex=0;
         notify('ANCHOR — select yourself or a teammate within 5.5 tiles.',3);
+        syncTouchTargeting();
       }else markAnchorTarget(chosenAnchorTarget());
       return;
     }
@@ -1045,6 +1058,7 @@
     if(!rewindTargeting){
       rewindTargeting=true;rewindTargetIndex=0;
       notify('REWINDER — tap a target to rewind, or tap outside the ring to cancel.',3);
+      syncTouchTargeting();
     }else commitRewindTarget(chosenRewindTarget());
   }
   function activateAbility(rewindTarget=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability',false,rewindTarget))return;
@@ -1673,6 +1687,7 @@
   }
   function formatTime(seconds){const n=Math.floor(seconds);return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;}
   function updateUI(){
+    syncTouchTargeting();
     if(!player)return;
     ui.health.textContent=Array.from({length:3},(_,i)=>i<player.hp?'♥':'♡').join(' ');
     ui.cores.textContent=`${cores.filter(c=>c.collected).length} / ${cores.length}`;
