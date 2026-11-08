@@ -1987,3 +1987,29 @@
     max-height:160px;
   }
 }
+
+/* Softer translucent UI panels: allow the full-bleed maze to remain visible
+   behind Objectives, the collapsed Controls section, and Team Chat.
+   Keep high-contrast text and the completed-objective glow intact. */
+.game-shell .side-objectives,
+.game-shell:fullscreen .side-objectives,
+body.show-play .game-shell .side-objectives,
+body.show-play .game-shell:fullscreen .side-objectives{
+  background:rgba(6,24,32,.57)!important;
+}
+.game-shell .room-chat,
+.game-shell:fullscreen .room-chat,
+body.show-play .game-shell .room-chat,
+body.show-play .game-shell:fullscreen .room-chat{
+  background:transparent!important;
+}
+.game-shell .room-chat .chat-drawer,
+.game-shell:fullscreen .room-chat .chat-drawer{
+  background:rgba(6,26,35,.60);
+  box-shadow:0 10px 26px rgba(0,0,0,.25);
+}
+.game-shell .room-chat .chat-messages{
+  background:rgba(7,25,34,.35);
+}
+.game-shell .side-objectives-dropdown,
+.game-shell details.side-key-guide{background:transparent}
