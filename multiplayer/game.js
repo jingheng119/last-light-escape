@@ -2495,6 +2495,16 @@
       suppressClickUntil=Date.now()+1500;
       try{button.setPointerCapture(e.pointerId);}catch(_){}
       clearHold();
+      // Anchor is a two-step tap action. On phones a short touch may end
+      // in pointercancel/lostcapture while another finger steers the joystick.
+      // Activate once on DOWN instead of relying on a later pointerup.
+      // Mark this gesture handled so pointerup and its synthetic click
+      // cannot accidentally recall the newly placed anchor.
+      if(actionName==='skill'&&classChoice==='anchor'){
+        held=true;
+        activate();
+        return;
+      }
       holdTimer=setTimeout(()=>{
         holdTimer=null;
         if(touchPointer===e.pointerId){
