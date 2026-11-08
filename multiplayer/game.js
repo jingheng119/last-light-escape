@@ -202,6 +202,8 @@
 
   // Temporary developer shortcut. Skipped runs never enter the best-time record.
   let rewindTargeting=false,rewindTargetIndex=0;
+  let anchorTargeting=false,anchorTargetIndex=0;
+  const ANCHOR_RADIUS=5.5;
   let developerSkipped=false;
   let classChoice = 'scout';
   let elapsed = 0, overallElapsed = 0, clock = 0, toastUntil = 0, hitFlash = 0, alertLevel = 0;
@@ -220,7 +222,7 @@
     teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 5 SECONDS',ready:'GUARD READY'},
     illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'},
     rewinder:{label:'REWINDER',skill:'TARGET REWIND · 5.5 TILES',ready:'REWIND READY'},
-    anchor:{label:'ANCHOR',skill:'PLACE ANCHOR · RETURN',ready:'ANCHOR READY'}
+    anchor:{label:'ANCHOR',skill:'TARGET ANCHOR · RETURN',ready:'ANCHOR READY'}
   };
   const ROLE_DESCRIPTIONS={
     scout: "Release a shockwave that stuns Hollows within 5.5 tiles for 2.5 seconds.",
@@ -229,7 +231,7 @@
     teleporter: "Activate Phase Guard for 5 seconds. If a Hollow strikes during this period, teleport to safety.",
     illusioner: "Summon an invincible roaming phantom that distracts Hollows for 5 seconds. Two phantoms can roam at once without replacing each other.",
     rewinder: "Choose yourself, a teammate, or a Hollow within 5.5 tiles; return that target to its position 3 seconds ago. Players gain 2 seconds of protection.",
-    anchor: "Press Skill once to place an anchor. Press again to teleport back through walls with 2 seconds of protection. The charge is spent on return."
+    anchor: "Choose yourself, a teammate, or ground within 5.5 tiles to mark a location. Press Skill again to teleport back through walls with 2 seconds of protection. Hollows cannot be marked. Cooldown begins on return."
 };
   function skillDescription(role){
     const charges=SKILL_MAX_CHARGES[role];
@@ -879,6 +881,25 @@
     rewindTargetIndex=((rewindTargetIndex%choices.length)+choices.length)%choices.length;
     return choices[rewindTargetIndex];
   }
+  function anchorChoices(){
+    if(!player||state!=='playing')return [];
+    const self={kind:'player',slot:roomPlayerId||1,entity:player};
+    const allies=remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&dist(p,player)<=ANCHOR_RADIUS)
+      .map(p=>({kind:'player',slot:p.slot,entity:p}));
+    allies.sort((a,b)=>dist(a.entity,player)-dist(b.entity,player)||a.slot-b.slot);
+    return [self,...allies];
+  }
+  function chosenAnchorTarget(){
+    const choices=anchorChoices();
+    if(!choices.length)return null;
+    anchorTargetIndex=((anchorTargetIndex%choices.length)+choices.length)%choices.length;
+    return choices[anchorTargetIndex];
+  }
+  function markAnchorTarget(target){
+    if(!target)return;
+    anchorTargeting=false;
+    activateAbility(target.kind==='ground'?{kind:'ground',x:target.x,y:target.y}:{kind:'player',slot:target.slot});
+  }
   function cancelRewindTarget(){rewindTargeting=false;}
   function commitRewindTarget(choice){
     if(!choice)return;
@@ -903,6 +924,15 @@
     return true;
   }
   function requestAbility(){
+    if(classChoice==='anchor'){
+      if(state!=='playing'||!player||player.hp<=0)return;
+      if(player.anchor){anchorTargeting=false;activateAbility();return;}
+      if(!canUseSkill())return;
+      if(!anchorTargeting){anchorTargeting=true;anchorTargetIndex=0;
+        notify('ANCHOR — select yourself, teammate or walkable ground within 5.5 tiles.',3);
+      }else markAnchorTarget(chosenAnchorTarget());
+      return;
+    }
     if(classChoice!=='rewinder'){activateAbility();return;}
     if(state!=='playing'||!player||player.hp<=0||!canUseSkill())return;
     if(!rewindTargeting){
@@ -980,8 +1010,19 @@
       beep(1080,.22,'triangle',.028);
     }else if(classChoice==='anchor'){
       if(!player.anchor){
-        player.anchor={x:player.x,y:player.y};
-        notify('ANCHOR — placed. Press F again to return!');
+        let position=null;
+        if(rewindTarget?.kind==='player'&&Number.isInteger(rewindTarget.slot)){
+          const target=allPlayers().find(p=>p.slot===rewindTarget.slot);
+          if(target&&target.hp>0&&!target.disconnected)position={x:target.x,y:target.y};
+        }else if(rewindTarget?.kind==='ground'&&Number.isFinite(rewindTarget.x)&&Number.isFinite(rewindTarget.y)){
+          position={x:rewindTarget.x,y:rewindTarget.y};
+        }
+        if(!position||dist(position,player)>ANCHOR_RADIUS||!canStand(position.x,position.y,.21)||
+           hollows.some(h=>dist(h,position)<.65)){
+          notify('ANCHOR — choose a valid player or empty walkable ground in range.');return;
+        }
+        player.anchor=position;
+        notify('ANCHOR — marked! Press Skill again to teleport.');
         beep(760,.18,'triangle',.024);
       }else{
         const destination=player.anchor;
@@ -1424,6 +1465,7 @@
     const available=skillCharges();
     const maximum=maxSkillCharges();
     ui.abilityStatus.textContent=rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':
+      anchorTargeting&&classChoice==='anchor'?'MARK ANCHOR · TAB / F':
       player.phaseGuardTime>0?'PHASE GUARD · '+player.phaseGuardTime.toFixed(1)+'s':
       player.invisibleTime>0?'VANISH ACTIVE · '+player.invisibleTime.toFixed(1)+'s':
       classChoice==='anchor'&&player.anchor?'ANCHOR PLACED · F TO RETURN':
@@ -1444,7 +1486,7 @@
     skillButton.classList.toggle('two-charges',maximum===2);
     ui.skillCD.textContent='';
     skillButton.querySelector('.action-name').textContent='SKILL';
-    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':available===0&&!(classChoice==='anchor'&&player.anchor)?
+    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':anchorTargeting?'Confirm anchor mark':available===0&&!(classChoice==='anchor'&&player.anchor)?
       'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
     const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
     const decoyCharge=Math.max(0,Math.min(1,1-player.decoyCooldown/(2*cooldownFactor())));
@@ -1988,6 +2030,17 @@
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
     drawItems();drawAnchors();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();drawChatBubbles();
+    if(anchorTargeting&&classChoice==='anchor'){
+      const selected=chosenAnchorTarget(),cx=player.x*TILE,cy=player.y*TILE;
+      ctx.save();ctx.strokeStyle='rgba(126,238,255,.85)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(cx,cy,ANCHOR_RADIUS*TILE,0,Math.PI*2);ctx.stroke();
+      for(const choice of anchorChoices()){
+        const on=choice.slot===selected?.slot;
+        ctx.strokeStyle=on?'#fff0a2':'#8feeff';ctx.lineWidth=on?4:2;
+        ctx.beginPath();ctx.arc(choice.entity.x*TILE,choice.entity.y*TILE,on?18:14,0,Math.PI*2);ctx.stroke();
+      }
+      ctx.restore();
+    }
     if(rewindTargeting&&classChoice==='rewinder'){
       const selected=chosenRewindTarget(),cx=player.x*TILE,cy=player.y*TILE;
       ctx.save();ctx.strokeStyle='rgba(175,153,255,.86)';ctx.lineWidth=2;
@@ -2056,10 +2109,13 @@
     if(activePage!=='play')return;
     if(e.target instanceof HTMLElement&&e.target.closest('input, textarea, select, [contenteditable="true"]'))return;
     if(!soundEnabled)unlockGameAudio();
-    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k)||(rewindTargeting&&k==='tab'))e.preventDefault();
+    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k)||((rewindTargeting||anchorTargeting)&&k==='tab'))e.preventDefault();
     if(keyMap[k]){moveHeld[keyMap[k]]=true;if(roomRole!=='none')sendRoom(guestInputPacket());}
     if(e.repeat)return;
     if(rewindTargeting&&k==='escape'){cancelRewindTarget();return;}
+    if(anchorTargeting&&k==='escape'){anchorTargeting=false;return;}
+    if(anchorTargeting&&k==='tab'){anchorTargetIndex++;return;}
+    if(anchorTargeting&&k==='enter'){markAnchorTarget(chosenAnchorTarget());return;}
     if(rewindTargeting&&k==='tab'){rewindTargetIndex++;return;}
     if(rewindTargeting&&k==='enter'){commitRewindTarget(chosenRewindTarget());return;}
     if(k==='m'){if(roomRole==='host')developerSkip(e.shiftKey);return;}
@@ -2166,7 +2222,7 @@
   // Tap a valid target within the Rewinder ring, or tap outside it to cancel.
   // Account for object-fit:contain letterboxing in mobile landscape/fullscreen.
   canvas.addEventListener('pointerdown',event=>{
-    if(!rewindTargeting||state!=='playing'||classChoice!=='rewinder')return;
+    if(state!=='playing'||!(rewindTargeting&&classChoice==='rewinder')&&!(anchorTargeting&&classChoice==='anchor'))return;
     event.preventDefault();
     const rect=canvas.getBoundingClientRect();
     const scale=Math.min(rect.width/W,rect.height/H);
@@ -2175,6 +2231,17 @@
     const py=(event.clientY-rect.top-(rect.height-H*scale)/2)/scale;
     const wx=(px/CAMERA_ZOOM+camera.x)/TILE;
     const wy=(py/CAMERA_ZOOM+camera.y)/TILE;
+    if(anchorTargeting&&classChoice==='anchor'){
+      if(Math.hypot(wx-player.x,wy-player.y)>ANCHOR_RADIUS){anchorTargeting=false;return;}
+      if(hollows.some(h=>Math.hypot(h.x-wx,h.y-wy)<.65))return;
+      const nearest=anchorChoices().slice().sort((a,b)=>
+        Math.hypot(a.entity.x-wx,a.entity.y-wy)-Math.hypot(b.entity.x-wx,b.entity.y-wy))[0];
+      if(nearest&&Math.hypot(nearest.entity.x-wx,nearest.entity.y-wy)<.65){
+        markAnchorTarget(nearest);return;
+      }
+      if(canStand(wx,wy,.21))markAnchorTarget({kind:'ground',x:wx,y:wy});
+      return;
+    }
     if(Math.hypot(wx-player.x,wy-player.y)>REWIND_RADIUS){
       cancelRewindTarget();
       return;
