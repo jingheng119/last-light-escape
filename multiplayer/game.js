@@ -218,7 +218,7 @@
 
   // Temporary developer shortcut. Skipped runs never enter the best-time record.
   let rewindTargeting=false,rewindTargetIndex=0;
-  let anchorTargeting=false,anchorTargetIndex=0,infestTargeting=false,infestTargetIndex=0;
+  let anchorTargeting=false,anchorTargetIndex=0,anchorMarkPendingAt=0,infestTargeting=false,infestTargetIndex=0;
   const ANCHOR_RADIUS=5.5,INFEST_RADIUS=5.5,INFEST_WALK_MULTIPLIER=1.3;
   let developerSkipped=false;
   let classChoice = 'scout';
@@ -965,8 +965,12 @@
     return choices[anchorTargetIndex];
   }
   function markAnchorTarget(target){
-    if(!target)return;
-    anchorTargeting=false;
+    if(!target||anchorMarkPendingAt)return;
+    // Network actions are authoritative. Do not close targeting until a
+    // snapshot actually confirms a placed anchor; otherwise a rejected mark
+    // looks like the mobile player's second tap just cancelled the skill.
+    if(roomRole!=='none')anchorMarkPendingAt=performance.now()||0.001;
+    else anchorTargeting=false;
     activateAbility({kind:'player',slot:target.slot});
   }
   function infestChoices(){
@@ -1023,6 +1027,7 @@
     }
     if(classChoice==='anchor'){
       if(state!=='playing'||!player||player.hp<=0)return;
+      if(anchorMarkPendingAt)return; // Await the server, not another touch.
       if(player.anchor){anchorTargeting=false;activateAbility();return;}
       if(!canUseSkill())return;
       if(!anchorTargeting){anchorTargeting=true;anchorTargetIndex=0;
@@ -1139,7 +1144,11 @@
             if(target!==player)targetSlot=target.slot;
           }
         }
-        if(!position||dist(position,player)>ANCHOR_RADIUS||!canStand(position.x,position.y,.21)){
+        // Self placement uses the same 0.18 clearance as touch movement.
+        // The older 0.21 check intermittently rejected otherwise valid
+        // positions beside walls, especially while moving on mobile.
+        const anchorClearance=targetSlot===null?.18:.21;
+        if(!position||dist(position,player)>ANCHOR_RADIUS||!canStand(position.x,position.y,anchorClearance)){
           notify('ANCHOR — choose yourself or a living teammate in range.');return;
         }
         player.anchor={...position,...(targetSlot!==null?{slot:targetSlot}:{})};
@@ -2682,6 +2691,7 @@
     if(roomRole==='none'||!d)return;
     if(!Number.isInteger(d.levelIndex)||d.levelIndex<0||d.levelIndex>=CONFIGS.length)return;
     if(lastLevel!==d.levelIndex||runSeed!==d.runSeed){
+      anchorMarkPendingAt=0;anchorTargeting=false;
       // A fresh run can restart on the SAME floor with a new maze seed.
       // Do not apply movement or objectives until the matching map arrives.
       if(!Array.isArray(d.grid)||!Array.isArray(d.cells))return;
@@ -2722,6 +2732,19 @@
     }
     const wasDown=player?.hp<=0;
     player=authoritative;
+    if(anchorMarkPendingAt){
+      if(player.anchor){
+        anchorMarkPendingAt=0;
+        anchorTargeting=false;
+      }else if(performance.now()-anchorMarkPendingAt>650){
+        // The server did not accept the mark. Keep target selection open
+        // rather than silently turning the second tap into a cancellation.
+        anchorMarkPendingAt=0;
+        if(state==='playing'&&classChoice==='anchor'&&player.hp>0)
+          notify('ANCHOR — position not marked. Tap Skill again to retry.',2.5);
+        else anchorTargeting=false;
+      }
+    }
     remotePlayers=occupants.map((p,i)=>p&&(roomRole==='spectator'||i!==roomPlayerId-1)?{...p,slot:i+1}:null).filter(Boolean);
     if(player.hp>0){
       spectatorSlot=null;spectatorStickLatch=false;
