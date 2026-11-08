@@ -1027,8 +1027,13 @@
     }
     if(classChoice==='anchor'){
       if(state!=='playing'||!player||player.hp<=0)return;
-      if(anchorMarkPendingAt)return; // Await the server, not another touch.
-      if(player.anchor){anchorTargeting=false;activateAbility();return;}
+      if(player.anchor){
+        anchorMarkPendingAt=0;anchorTargeting=false;activateAbility();return;
+      }
+      // A new, deliberate third press may arrive before the placement
+      // snapshot. Queue return after the already-sent placement request;
+      // blocking it made the Skill button seem unresponsive on mobile.
+      if(anchorMarkPendingAt){activateAbility();return;}
       if(!canUseSkill())return;
       if(!anchorTargeting){anchorTargeting=true;anchorTargetIndex=0;
         notify('ANCHOR — select yourself or a teammate within 5.5 tiles.',3);
@@ -1166,7 +1171,10 @@
           }
           destination={x:teammate.x,y:teammate.y};
         }
-        if(!canStand(destination.x,destination.y,.21)){
+        // The mark was placed at an already-valid player coordinate.
+        // Use the same 0.18 movement clearance for return as for placement,
+        // otherwise tight corridors allow marking but reject teleporting.
+        if(!canStand(destination.x,destination.y,.18)){
           notify('ANCHOR — marked destination is blocked.');return;
         }
         // Teleportation bypasses walls; invincibility prevents an instant hit.
@@ -2504,16 +2512,6 @@
       suppressClickUntil=Date.now()+1500;
       try{button.setPointerCapture(e.pointerId);}catch(_){}
       clearHold();
-      // Anchor is a two-step tap action. On phones a short touch may end
-      // in pointercancel/lostcapture while another finger steers the joystick.
-      // Activate once on DOWN instead of relying on a later pointerup.
-      // Mark this gesture handled so pointerup and its synthetic click
-      // cannot accidentally recall the newly placed anchor.
-      if(actionName==='skill'&&classChoice==='anchor'){
-        held=true;
-        activate();
-        return;
-      }
       holdTimer=setTimeout(()=>{
         holdTimer=null;
         if(touchPointer===e.pointerId){
@@ -2528,7 +2526,11 @@
       touchPointer=null;held=false;
       clearHold();hideActionTooltip(button);
       suppressClickUntil=Date.now()+800;
-      if(!cancelled&&!wasHeld)activate();
+      // A long hold is tooltip-only. Short Anchor presses should still count
+      // if mobile Safari cancels the pointer while the joystick is active.
+      // Each gesture is handled once because touchPointer is cleared here.
+      if(!wasHeld&&(!cancelled||(actionName==='skill'&&classChoice==='anchor')))
+        activate();
     };
     button.addEventListener('pointerup',e=>finish(e));
     button.addEventListener('pointercancel',e=>finish(e,true));
