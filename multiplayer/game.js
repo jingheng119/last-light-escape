@@ -2898,11 +2898,10 @@
         }
       }
     };
-    // Dragging is limited to desktop mouse/pen. The default layout is
-    // preserved until a person actually drags the TEAM CHAT heading.
+    // Both desktop mouse and mobile touch can drag the chat by its heading.
+    // Other chat content (messages, quick replies and input) stays untouched.
     const dragHandle=panel.querySelector('#chatDragHandle');
     let dragged=false,dragPointer=null,dragOrigin=null;
-    const isDesktopDrag=()=>window.matchMedia('(min-width:981px) and (pointer:fine)').matches;
     const positionDraggedChat=(left,top)=>{
       const shell=$('.game-shell'),bounds=shell.getBoundingClientRect();
       const width=panel.offsetWidth,height=panel.offsetHeight;
@@ -2913,7 +2912,7 @@
       panel.style.setProperty('--chat-drag-top',y+'px');
     };
     dragHandle.addEventListener('pointerdown',event=>{
-      if(!isDesktopDrag()||event.button!==0)return;
+      if(event.pointerType==='mouse'&&event.button!==0)return;
       const bounds=$('.game-shell').getBoundingClientRect();
       const rect=panel.getBoundingClientRect();
       dragged=true;dragPointer=event.pointerId;
@@ -2921,7 +2920,7 @@
       // Freeze the current size, avoiding jumps from top/bottom CSS constraints.
       panel.style.setProperty('--chat-drag-height',rect.height+'px');
       panel.classList.add('chat-is-dragged','chat-dragging');
-      dragHandle.setPointerCapture(event.pointerId);
+      try{dragHandle.setPointerCapture(event.pointerId);}catch(_){}
       positionDraggedChat(dragOrigin.left,dragOrigin.top);
       event.preventDefault();
     });
@@ -2937,20 +2936,18 @@
     };
     dragHandle.addEventListener('pointerup',endDrag);
     dragHandle.addEventListener('pointercancel',endDrag);
-    // Reset the custom position on mobile instead of interfering with touch UI.
+    // Preserve the chosen chat location across mobile orientation changes,
+    // window resizing and fullscreen, but clamp it within the game frame.
     const resizePositionChat=()=>{
-      if(!isDesktopDrag()&&panel.classList.contains('chat-is-dragged')){
-        panel.classList.remove('chat-is-dragged','chat-dragging');
-        panel.style.removeProperty('--chat-drag-height');
-      }else if(isDesktopDrag()&&panel.classList.contains('chat-is-dragged')){
+      positionChat();
+      if(panel.classList.contains('chat-is-dragged')){
         const x=parseFloat(panel.style.getPropertyValue('--chat-drag-left'))||8;
         const y=parseFloat(panel.style.getPropertyValue('--chat-drag-top'))||8;
         positionDraggedChat(x,y);
       }
-      positionChat();
     };
     window.addEventListener('resize',resizePositionChat,{passive:true});
-    document.addEventListener('fullscreenchange',positionChat);
+    document.addEventListener('fullscreenchange',resizePositionChat);
     if(typeof ResizeObserver!=='undefined'){
       const observer=new ResizeObserver(positionChat);
       observer.observe($('#gameWrapper'));
