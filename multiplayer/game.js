@@ -1155,9 +1155,31 @@
   const REVIVE_RADIUS=1.5; // Measured in maze tiles, not pixels.
   // Both voluntary release and carrier death emerge at the carrier's last
   // authoritative location. Infestation consumes a charge only on emergence.
+  function infesterEmergencePoint(carrier){
+    // The carrier may stand against a wall with the smaller mobile hitbox.
+    // Reusing their exact coordinates can trap the emerged Infester at a
+    // corner. Use a safe offset near the carrier, or the tile centre.
+    const tile=tileAt(carrier),center=TILE_CENTER(tile.x,tile.y);
+    const offsets=[
+      [.34,0],[-.34,0],[0,.34],[0,-.34],
+      [.34,.34],[-.34,.34],[.34,-.34],[-.34,-.34],[0,0]
+    ];
+    const candidates=offsets.map(([dx,dy])=>({x:center.x+dx,y:center.y+dy}))
+      .filter(p=>canStand(p.x,p.y,.25)&&dist(p,carrier)<1.25);
+    // Prefer nearby positions with a visible separation from the carrier.
+    candidates.sort((a,b)=>{
+      const da=dist(a,carrier),db=dist(b,carrier);
+      const score=d=>Math.abs(d-.42);
+      return score(da)-score(db);
+    });
+    return candidates[0]||center;
+  }
   function releaseInfester(passenger,carrier=null){
     if(!passenger?.infestedOn)return false;
-    if(carrier){passenger.x=carrier.x;passenger.y=carrier.y;}
+    if(carrier){
+      const landing=infesterEmergencePoint(carrier);
+      passenger.x=landing.x;passenger.y=landing.y;
+    }
     passenger.infestedOn=null;
     passenger.dashTime=0;
     passenger.invincible=Math.max(passenger.invincible,2);
