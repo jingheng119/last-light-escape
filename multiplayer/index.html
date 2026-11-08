@@ -7,8 +7,8 @@
   <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/style.css?v=full-height-maze-no-readiness-1" />
-  <script src="/game.js?v=fit-entire-gutter-2" defer></script>
+  <link rel="stylesheet" href="/style.css?v=desktop-header-compact-1" />
+  <script src="/game.js?v=desktop-header-compact-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -103,6 +103,7 @@
         <button type="button" id="backToLobby" class="game-nav-back">← Lobby</button>
         <button id="touchFullscreen" class="mobile-fullscreen-toggle" type="button" aria-label="Enter fullscreen" aria-pressed="false">⛶</button>
         <div class="status-item"><span class="status-label">ROLE</span><strong id="classStatus">SCOUT</strong></div>
+        <div class="hud-room-details" aria-label="Current multiplayer room"><strong id="hudRoomName">Hollow Ward</strong><span id="hudRoomCount">1 / 5 SURVIVORS</span></div>
         <div class="status-item"><span class="status-label">VITAL SIGNS</span><strong id="health" class="health">♥ ♥ ♥</strong></div>
         <div class="status-item"><span class="status-label">TIME</span><strong id="timer">00:00</strong></div>
         <div class="status-item status-item-last"><span class="status-label">THREAT LEVEL</span><strong id="threat" class="threat-calm">LOW</strong></div>
@@ -130,6 +131,7 @@
         </div>
       </aside>
       <div id="gameWrapper" class="canvas-wrap"><canvas id="game" width="992" height="672" role="img" aria-label="Top-down maze escape game"></canvas>
+        <div id="desktopStageInfo" class="desktop-stage-info" aria-label="Current stage and floor">BROWSER GAME V4.19 · STAGE 01 · FLOOR 01 / 09</div>
         <div id="overlay" class="overlay"><div class="overlay-panel" id="overlayPanel"><div class="overlay-kicker">SURVIVAL PROTOCOL / 001</div><div class="overlay-glyph" aria-hidden="true">◇</div><h2 id="overlayTitle">THE HOLLOW WARD</h2><p id="overlayText">The emergency elevator is offline. Restore its power and avoid the things lurking in the corridors.</p><div class="objectives"><span>◈ Collect power cores</span><span id="rescueObjective">✚ Rescue the survivor</span><span>⌁ Activate the relay</span><span>⇧ Escape together</span></div><div class="role-selection" id="roleSelection">
           <div class="role-choice-label" id="roleChoiceLabel">CHOOSE YOUR ROLE <span>· LOCKED FOR THE RUN</span></div>
           <div class="role-options" id="roleOptions" role="group" aria-label="Choose your character class">
