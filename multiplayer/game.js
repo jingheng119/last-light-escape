@@ -929,7 +929,7 @@
   function rewindChoices(){
     if(!player||state!=='playing')return [];
     const self={kind:'player',slot:roomPlayerId||1,entity:player,label:'SELF'};
-    const allies=remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&dist(p,player)<=REWIND_RADIUS)
+    const allies=remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&!p.infestedOn&&dist(p,player)<=REWIND_RADIUS)
       .map(p=>({kind:'player',slot:p.slot,entity:p,label:'ALLY '+p.slot}));
     const enemies=hollows.map((h,index)=>({kind:'hollow',index,entity:h,label:'HOLLOW'}))
       .filter(t=>dist(t.entity,player)<=REWIND_RADIUS);
@@ -953,7 +953,7 @@
   function anchorChoices(){
     if(!player||state!=='playing')return [];
     const self={kind:'player',slot:roomPlayerId||1,entity:player};
-    const allies=remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&dist(p,player)<=ANCHOR_RADIUS)
+    const allies=remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&!p.infestedOn&&dist(p,player)<=ANCHOR_RADIUS)
       .map(p=>({kind:'player',slot:p.slot,entity:p}));
     allies.sort((a,b)=>dist(a.entity,player)-dist(b.entity,player)||a.slot-b.slot);
     return [self,...allies];
@@ -1091,7 +1091,7 @@
       // randomly selected injured, connected, living teammate in range.
       const target=player.hp<3?player:(()=>{
         const candidates=allPlayers().filter(p=>p!==player&&p.hp>0&&p.hp<3&&
-          dist(p,player)<=MEDIC_HEAL_RADIUS);
+          !p.infestedOn&&dist(p,player)<=MEDIC_HEAL_RADIUS);
         return candidates.length?candidates[Math.floor(Math.random()*candidates.length)]:null;
       })();
       if(!target){notify('MEDIC — no injured teammate within range.');return;}
@@ -1130,7 +1130,7 @@
         :rewindTarget&&rewindTarget.kind==='player'&&Number.isInteger(rewindTarget.slot)
           ?allPlayers().find(p=>p.slot===rewindTarget.slot):null;
       if(!chosen||chosen.disconnected||chosen.hp===0||
-         dist(chosen,player)>REWIND_RADIUS){
+         chosen.infestedOn||dist(chosen,player)>REWIND_RADIUS){
         notify('REWINDER — select a valid target within range.');return;
       }
       const isHollow=rewindTarget.kind==='hollow';
@@ -1157,7 +1157,7 @@
         let position=null,targetSlot=null;
         if(rewindTarget?.kind==='player'&&Number.isInteger(rewindTarget.slot)){
           const target=allPlayers().find(p=>p.slot===rewindTarget.slot);
-          if(target&&target.hp>0&&!target.disconnected){
+          if(target&&target.hp>0&&!target.disconnected&&!target.infestedOn){
             position={x:target.x,y:target.y};
             // Teammate anchor travels with that player. Self stays fixed
             // at the marked position, like a ground anchor.
@@ -1181,7 +1181,7 @@
         let destination=player.anchor;
         if(Number.isInteger(destination.slot)){
           const teammate=allPlayers().find(p=>p.slot===destination.slot&&p!==player);
-          if(!teammate||teammate.hp<=0||teammate.disconnected){
+          if(!teammate||teammate.hp<=0||teammate.disconnected||teammate.infestedOn){
             notify('ANCHOR — marked teammate is unavailable.');return;
           }
           destination={x:teammate.x,y:teammate.y};
