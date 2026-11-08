@@ -7,8 +7,8 @@
   <meta name="description" content="Last Light: The Hollow Ward — an original atmospheric browser maze-survival game. Escape the ward, outsmart the Hollow, and restore the generators." />
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="/style.css?v=panels-opacity-70-1" />
-  <script src="/game.js?v=remove-page-footer-1" defer></script>
+  <link rel="stylesheet" href="/style.css?v=full-objectives-glow-chat-drag-1" />
+  <script src="/game.js?v=full-objectives-glow-chat-drag-1" defer></script>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -110,7 +110,7 @@
         <button type="button" id="leaveGameRoom" class="game-nav-leave">Leave</button>
       </div>
       <aside class="side-objectives" aria-label="Room objectives">
-        <details class="side-objectives-dropdown" open>
+        <details class="side-objectives-dropdown" id="objectivesPanel" open>
           <summary class="side-guide-heading">OBJECTIVES</summary>
           <div class="side-objectives-list">
             <div class="side-objective" id="survivorObjective"><span class="status-label" id="allyStatusLabel">SURVIVOR</span><strong id="survivorStatus">TRAPPED</strong></div>
@@ -212,7 +212,7 @@
       </div>
         <section class="room-chat" id="roomChat" aria-label="Team chat">
           <div id="chatDrawer" class="chat-drawer">
-            <div class="chat-heading"><strong>TEAM CHAT</strong></div>
+            <div class="chat-heading" id="chatDragHandle" title="Drag to reposition chat"><strong>TEAM CHAT</strong><span class="chat-drag-symbol" aria-hidden="true">⠿</span></div>
             <div id="chatMessages" class="chat-messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Recent room messages">
               <p class="chat-placeholder">Chat with your teammates in this room.</p>
             </div>
