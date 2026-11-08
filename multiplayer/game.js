@@ -231,7 +231,7 @@
     teleporter: "Activate Phase Guard for 5 seconds. If a Hollow strikes during this period, teleport to safety.",
     illusioner: "Summon an invincible roaming phantom that distracts Hollows for 5 seconds. Two phantoms can roam at once without replacing each other.",
     rewinder: "Choose yourself, a teammate, or a Hollow within 5.5 tiles; return that target to its position 3 seconds ago. Players gain 2 seconds of protection.",
-    anchor: "Mark yourself, a teammate, or walkable ground within 5.5 tiles. A teammate mark follows that player, so Skill teleports to their current location. Self/ground marks stay fixed. Gain 2 seconds of protection on teleport; Hollows cannot be marked."
+    anchor: "Choose yourself or a living teammate within 5.5 tiles. Marking yourself leaves a fixed anchor at your location; marking a teammate attaches the anchor to them as they move. Press Skill again to teleport to the anchor with 2 seconds of protection. Hollows cannot be marked."
 };
   function skillDescription(role){
     const charges=SKILL_MAX_CHARGES[role];
@@ -898,7 +898,7 @@
   function markAnchorTarget(target){
     if(!target)return;
     anchorTargeting=false;
-    activateAbility(target.kind==='ground'?{kind:'ground',x:target.x,y:target.y}:{kind:'player',slot:target.slot});
+    activateAbility({kind:'player',slot:target.slot});
   }
   function cancelRewindTarget(){rewindTargeting=false;}
   function commitRewindTarget(choice){
@@ -929,7 +929,7 @@
       if(player.anchor){anchorTargeting=false;activateAbility();return;}
       if(!canUseSkill())return;
       if(!anchorTargeting){anchorTargeting=true;anchorTargetIndex=0;
-        notify('ANCHOR — select yourself, teammate or walkable ground within 5.5 tiles.',3);
+        notify('ANCHOR — select yourself or a teammate within 5.5 tiles.',3);
       }else markAnchorTarget(chosenAnchorTarget());
       return;
     }
@@ -1019,12 +1019,9 @@
             // at the marked position, like a ground anchor.
             if(target!==player)targetSlot=target.slot;
           }
-        }else if(rewindTarget?.kind==='ground'&&Number.isFinite(rewindTarget.x)&&Number.isFinite(rewindTarget.y)){
-          position={x:rewindTarget.x,y:rewindTarget.y};
         }
-        if(!position||dist(position,player)>ANCHOR_RADIUS||!canStand(position.x,position.y,.21)||
-           (targetSlot===null&&hollows.some(h=>dist(h,position)<.65))){
-          notify('ANCHOR — choose a valid player or empty walkable ground in range.');return;
+        if(!position||dist(position,player)>ANCHOR_RADIUS||!canStand(position.x,position.y,.21)){
+          notify('ANCHOR — choose yourself or a living teammate in range.');return;
         }
         player.anchor={...position,...(targetSlot!==null?{slot:targetSlot}:{})};
         notify(targetSlot!==null?'ANCHOR — attached to teammate! Skill teleports to their current location.':
@@ -1032,7 +1029,7 @@
         beep(760,.18,'triangle',.024);
       }else{
         // A teammate-bound mark follows their current authoritative location.
-        // Ground and self marks remain fixed at the original position.
+        // Self marks remain fixed at the original position.
         let destination=player.anchor;
         if(Number.isInteger(destination.slot)){
           const teammate=allPlayers().find(p=>p.slot===destination.slot&&p!==player);
@@ -2240,8 +2237,8 @@
   bindDescribedAction('#touchDash','dash',()=>dash(null,true));
   bindDescribedAction('#touchDecoy','decoy',triggerDecoy);
   bindDescribedAction('#touchInteract','use',interact);
-  // Tap a valid target within the Rewinder ring, or tap outside it to cancel.
-  // Account for object-fit:contain letterboxing in mobile landscape/fullscreen.
+  // Rewinder can target players/Hollows. Anchor can target only self/teammates.
+  // Tap outside either ring to cancel; account for object-fit:contain letterboxing.
   canvas.addEventListener('pointerdown',event=>{
     if(state!=='playing'||!(rewindTargeting&&classChoice==='rewinder')&&!(anchorTargeting&&classChoice==='anchor'))return;
     event.preventDefault();
@@ -2254,13 +2251,12 @@
     const wy=(py/CAMERA_ZOOM+camera.y)/TILE;
     if(anchorTargeting&&classChoice==='anchor'){
       if(Math.hypot(wx-player.x,wy-player.y)>ANCHOR_RADIUS){anchorTargeting=false;return;}
-      if(hollows.some(h=>Math.hypot(h.x-wx,h.y-wy)<.65))return;
       const nearest=anchorChoices().slice().sort((a,b)=>
         Math.hypot(a.entity.x-wx,a.entity.y-wy)-Math.hypot(b.entity.x-wx,b.entity.y-wy))[0];
       if(nearest&&Math.hypot(nearest.entity.x-wx,nearest.entity.y-wy)<.65){
         markAnchorTarget(nearest);return;
       }
-      if(canStand(wx,wy,.21))markAnchorTarget({kind:'ground',x:wx,y:wy});
+      // Empty ground never creates an anchor; only a selected player does.
       return;
     }
     if(Math.hypot(wx-player.x,wy-player.y)>REWIND_RADIUS){
