@@ -1870,3 +1870,41 @@
 @media (prefers-reduced-motion: reduce){
   .game-shell .side-objective{transition:none}
 }
+
+/* Full-bleed desktop game viewport: render the maze across the entire area
+   below the HUD. Native canvas backing dimensions follow the CSS dimensions
+   so tiles, sprites and hit targets retain their proportions. */
+@media (min-width:981px) and (pointer:fine){
+  body.show-play .game-shell,
+  body.show-play .game-shell:fullscreen{position:relative}
+  body.show-play .game-shell .canvas-wrap,
+  body.show-play .game-shell:fullscreen .canvas-wrap{
+    width:100%!important;max-width:none!important;min-width:0;
+    height:100%!important;min-height:0;flex:1 1 auto;
+    margin:0!important;display:block;
+  }
+  body.show-play .game-shell .canvas-wrap canvas,
+  body.show-play .game-shell:fullscreen .canvas-wrap canvas{
+    width:100%!important;height:100%!important;
+    max-width:none;object-fit:fill;
+  }
+  /* Objectives and team chat now float over the full-width maze, rather
+     than sizing to gutters that no longer exist. */
+  body.show-play .game-shell .side-objectives,
+  body.show-play .game-shell:fullscreen .side-objectives{
+    width:clamp(180px,14vw,230px)!important;
+    max-width:calc(100% - 24px)!important;
+    left:12px;z-index:6;
+    background:rgba(6,24,32,.95);
+  }
+  body.show-play .game-shell .room-chat,
+  body.show-play .game-shell:fullscreen .room-chat{
+    width:clamp(225px,16vw,285px)!important;
+    right:12px;z-index:6;
+    background:rgba(6,24,32,.95);
+  }
+  body.show-play .game-shell .room-chat.chat-no-gutter,
+  body.show-play .game-shell:fullscreen .room-chat.chat-no-gutter{
+    bottom:12px;height:auto;
+  }
+}
