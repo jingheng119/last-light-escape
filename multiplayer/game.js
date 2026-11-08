@@ -1018,7 +1018,7 @@
   function syncTouchTargeting(){
     const shell=$('.game-shell');
     if(!shell)return;
-    const touch=typeof window!=='undefined'&&window.matchMedia('(pointer:coarse)').matches;
+    const touch=typeof window!=='undefined'&&typeof window.matchMedia==='function'&&window.matchMedia('(pointer:coarse)').matches;
     shell.classList.toggle('skill-targeting',touch&&state==='playing'&&(
       rewindTargeting&&classChoice==='rewinder'||
       anchorTargeting&&classChoice==='anchor'||
