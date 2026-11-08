@@ -1849,3 +1849,24 @@
     pointer-events:auto;
   }
 }
+
+/* Completed mission objectives emit a steady, gentle teal glow. Each
+   section is independent; the glow follows authoritative game state. */
+.game-shell .side-objective{
+  border-radius:8px;
+  transition:background .24s ease, box-shadow .24s ease, border-color .24s ease;
+}
+.game-shell .side-objective.is-complete{
+  background:rgba(45,203,159,.12);
+  box-shadow:0 0 0 1px rgba(120,255,205,.55),
+    0 0 18px rgba(77,238,176,.3),inset 0 0 14px rgba(65,220,163,.14);
+  padding:9px 10px;
+}
+.game-shell .side-objective.is-complete .status-label,
+.game-shell .side-objective.is-complete strong{
+  color:#a4ffdc!important;
+  text-shadow:0 0 9px rgba(123,255,204,.65);
+}
+@media (prefers-reduced-motion: reduce){
+  .game-shell .side-objective{transition:none}
+}
