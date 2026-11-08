@@ -45,6 +45,13 @@
     button: $('#primaryBtn'), hint: $('#overlayHint'), toast: $('#toast'), flash: $('#screenFlash'),
     roleOptions: $('#roleOptions'), roleLocked: $('#roleLocked'), lockedRoleText: $('#lockedRoleText'), roleLabel: $('#roleChoiceLabel')
   };
+  // A pointer click on <summary> can leave a persistent neon focus outline
+  // in some browsers. Keep focus indicators for keyboard users only.
+  for(const summary of document.querySelectorAll('.side-objectives-dropdown > summary, .side-key-guide > summary')){
+    summary.addEventListener('click',event=>{
+      if(event.detail>0)summary.blur();
+    });
+  }
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
   let roomTiles = new Set(), noiseEvents = [], illusions = [], survivor = null, technician = null;
   // Slots 3–5 are simulated on the server, with the same original rules.
