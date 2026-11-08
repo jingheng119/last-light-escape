@@ -83,7 +83,7 @@ const bridge=`
       return true;
     },
     role(id,value){
-      const role=['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor'].includes(value)?value:'scout';
+      const role=['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor','infester'].includes(value)?value:'scout';
       if(id===1)classChoice=role;
       else if(id===2)guestClassChoice=role;
       else if(id>=3&&id<=5)extraControls[id-3].role=role;
