@@ -1702,8 +1702,11 @@
     // been completed. Stage 2 requires both rescued allies.
     const allAlliesRescued=!!survivor?.rescued&&(!technician||!!technician.rescued);
     const allCoresCollected=cores.length>0&&cores.every(core=>core.collected);
-    $('#objectivesPanel').classList.toggle('all-complete',
-      allAlliesRescued&&allCoresCollected&&!!relay.active);
+    const objectivesComplete=allAlliesRescued&&allCoresCollected&&!!relay.active;
+    $('#objectivesPanel').classList.toggle('all-complete',objectivesComplete);
+    // Glow the OUTER Objectives / Controls HUD only once every objective
+    // is finished. Keep individual rows and the inner dropdown unlit.
+    $('.side-objectives').classList.toggle('all-objectives-complete',objectivesComplete);
     const available=skillCharges();
     const maximum=maxSkillCharges();
     ui.abilityStatus.textContent=player.infestedOn?'INFESTING TEAMMATE '+player.infestedOn+' · F TO EMERGE':
