@@ -1669,3 +1669,14 @@
     font-size: 11px;
   }
 }
+
+/* Match the right chat panel's top edge with the auto-positioned left
+   objectives panel. Keep its existing right, width, and bottom sizing. */
+@media (min-width:1151px) and (pointer:fine){
+  .game-shell .room-chat,
+  .game-shell .room-chat.chat-no-gutter,
+  .game-shell:fullscreen .room-chat,
+  .game-shell:fullscreen .room-chat.chat-no-gutter{
+    top:var(--objectives-top,70px);
+  }
+}
