@@ -2179,3 +2179,66 @@ body.show-play .game-shell:fullscreen .room-chat{
     left:auto!important;
   }
 }
+
+
+/* v4.22 — short desktop viewport scroll and right-side panel corrections. */
+@media (min-width:981px) and (pointer:fine) {
+  /* Previous no-scroll rule required a 560px-tall CSS viewport, so at
+     higher browser zoom the whole page began scrolling again. */
+  html:has(body.show-play), body.show-play {
+    height:100%;
+    overflow:hidden!important;
+  }
+  body.show-play .shell {
+    height:100vh;
+    height:100dvh;
+    min-height:0;
+    overflow:hidden!important;
+    display:flex;
+    flex-direction:column;
+  }
+  body.show-play .page-play:not([hidden]) {
+    display:flex;
+    flex:1 1 auto;
+    min-height:0;
+    flex-direction:column;
+  }
+  body.show-play .game-shell {
+    display:flex;
+    flex:1 1 auto;
+    flex-direction:column;
+    min-height:0;
+    overflow:hidden;
+  }
+  body.show-play .game-shell .canvas-wrap {
+    flex:1 1 auto;
+    min-height:0;
+  }
+  body.show-play .game-shell .overlay-panel {
+    max-height:calc(100% - 24px);
+    overflow-y:auto;
+  }
+
+  /* Inside the outer game border; stay fixed on screen when scrolling
+     anywhere else. Preserve the existing button formation and handlers. */
+  body.show-play .game-shell .canvas-wrap .mobile-controls,
+  body.show-play .game-shell:fullscreen .canvas-wrap .mobile-controls {
+    position:fixed!important;
+    inset:auto clamp(28px,2vw,40px) 12px auto!important;
+    margin:0!important;
+    z-index:20;
+  }
+
+  /* Team Chat begins near the game's top edge rather than beneath the
+     former objectives offset. A manually dragged chat keeps its own spot. */
+  body.show-play .game-shell .room-chat:not(.chat-is-dragged),
+  body.show-play .game-shell .room-chat.chat-no-gutter:not(.chat-is-dragged),
+  body.show-play .game-shell:fullscreen .room-chat:not(.chat-is-dragged),
+  body.show-play .game-shell:fullscreen .room-chat.chat-no-gutter:not(.chat-is-dragged) {
+    top:8px!important;
+    right:5px!important;
+    left:auto!important;
+    bottom:auto!important;
+    max-height:calc(100% - 16px)!important;
+  }
+}
