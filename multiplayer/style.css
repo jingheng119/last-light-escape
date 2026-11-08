@@ -2155,3 +2155,27 @@ body.show-play .game-shell:fullscreen .room-chat{
 @media (max-width:980px),(hover:none) and (pointer:coarse){
   body.show-play .game-shell .desktop-stage-info{display:none!important}
 }
+
+
+/* UI positioning fix: keep desktop actions anchored to the visible viewport,
+   independent of page scroll and game-shell geometry. */
+@media (min-width:981px) and (pointer:fine){
+  body.show-play .canvas-wrap .mobile-controls,
+  body.show-play .game-shell:fullscreen .canvas-wrap .mobile-controls{
+    position:fixed!important;
+    inset:auto 10px 10px auto!important;
+    left:auto!important;
+    top:auto!important;
+    z-index:20;
+  }
+
+  /* Team Chat is aligned as close as possible to the game's right edge.
+     Keep draggable user positioning intact. */
+  body.show-play .game-shell .room-chat:not(.chat-is-dragged),
+  body.show-play .game-shell .room-chat.chat-no-gutter:not(.chat-is-dragged),
+  body.show-play .game-shell:fullscreen .room-chat:not(.chat-is-dragged),
+  body.show-play .game-shell:fullscreen .room-chat.chat-no-gutter:not(.chat-is-dragged){
+    right:5px!important;
+    left:auto!important;
+  }
+}
