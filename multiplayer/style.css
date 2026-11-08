@@ -1755,3 +1755,54 @@
     max-width:none;
   }
 }
+
+/* Desktop play: the brand header takes an entire unnecessary row. Put the
+   live room identity into the status bar instead, and stage info at the map
+   bottom like the mobile stage label. Keep the mobile header unchanged. */
+.game-shell .hud-room-details{display:none}
+.game-shell .desktop-stage-info{display:none}
+@media (min-width:981px) and (pointer:fine){
+  body.show-play .topbar{display:none}
+  body.show-play .game-shell .statusbar,
+  body.show-play .game-shell:fullscreen .statusbar{
+    grid-template-columns:auto auto minmax(80px,.65fr) minmax(160px,1.6fr)
+      minmax(85px,.75fr) minmax(65px,.65fr) minmax(90px,.75fr) auto;
+    column-gap:clamp(8px,1.15vw,22px);
+    padding-inline:clamp(12px,1.5vw,24px);
+  }
+  body.show-play .game-shell .hud-room-details{
+    display:flex;flex-direction:column;gap:5px;
+    min-width:0;max-width:100%;align-items:center;
+    text-align:center;justify-self:stretch;
+    color:#d1f6ee;
+  }
+  body.show-play .hud-room-details strong{
+    max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font-size:clamp(11px,.95vw,15px);font-weight:800;
+  }
+  body.show-play .hud-room-details span{
+    font:10px monospace;color:#83c9c5;white-space:nowrap;
+  }
+  body.show-play .statusbar .status-item:nth-child(5),
+  body.show-play .statusbar .status-item:nth-child(6){
+    justify-self:center;text-align:left;
+  }
+  body.show-play .statusbar .status-item:nth-child(7){
+    justify-self:end;text-align:right;
+  }
+  body.show-play .canvas-wrap .desktop-stage-info,
+  body.show-play .game-shell:fullscreen .canvas-wrap .desktop-stage-info{
+    display:block;position:absolute;bottom:10px;right:10px;z-index:3;
+    pointer-events:none;max-width:calc(100% - 20px);
+    color:#a9eadb;background:rgba(7,25,33,.83);
+    border:1px solid rgba(112,216,196,.38);border-radius:7px;
+    padding:6px 9px;font:750 9px monospace;letter-spacing:.035em;
+    white-space:nowrap;
+  }
+}
+/* Mobile keeps its room title in the original header and stage badge in the
+   existing mobile-control overlay. */
+@media (max-width:980px),(hover:none) and (pointer:coarse){
+  .game-shell .hud-room-details,
+  .game-shell .desktop-stage-info{display:none!important}
+}
