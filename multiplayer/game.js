@@ -2787,6 +2787,18 @@
         panel.style.setProperty('--chat-safe-top',
           Math.max(8,Math.round(chatHeader.getBoundingClientRect().bottom-sr.top+8))+'px');
       }
+      // In landscape touch mode, grow chat downward only as far as the
+      // uppermost action button (Decoy/Use/Skill/Dash), leaving 10px clearance.
+      const mobileLandscape=window.matchMedia('(orientation:landscape) and (pointer:coarse), (orientation:landscape) and (max-width:980px)').matches;
+      if(mobileLandscape){
+        const controls=['#touchDecoy','#touchInteract','#touchAbility','#touchDash']
+          .map(selector=>$(selector)).filter(Boolean);
+        const actionTop=Math.min(...controls.map(el=>el.getBoundingClientRect().top));
+        panel.style.setProperty('--chat-bottom-clearance',
+          Math.max(10,Math.round(sr.bottom-actionTop+10))+'px');
+      }else{
+        panel.style.removeProperty('--chat-bottom-clearance');
+      }
       sizeGameViewport();
       // Mobile retains its original object-fit/letterbox treatment.
       // Desktop canvas now matches its container and fills the game shell.
