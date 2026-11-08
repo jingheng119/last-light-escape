@@ -1726,3 +1726,32 @@
   .game-shell .side-key-guide,
   .game-shell .side-live-status{display:none}
 }
+
+/* Keep the old live-status updater targets in the DOM, but don't draw their
+   obsolete footer labels. Controls already show cooldown/decoy states. */
+.game-shell .side-live-status[hidden]{display:none!important}
+
+/* After removing the bottom footer, the playable page must grow to fill
+   the remaining desktop viewport. Without this, a black strip is left
+   below the game despite the outer shell having free height. */
+@media (min-width:981px) and (min-height:560px) and (pointer:fine){
+  .show-play .shell{display:flex;flex-direction:column;min-height:0}
+  .show-play .page-play{
+    display:flex;flex-direction:column;
+    flex:1 1 auto;min-height:0;
+  }
+  .show-play .page-play[hidden]{display:none!important}
+  .show-play .game-shell{
+    flex:1 1 auto;
+    height:100%;
+    min-height:0;
+    max-height:none;
+  }
+  .show-play .game-shell .canvas-wrap{
+    flex:1 1 auto;
+    min-height:0;
+    height:100%;
+    width:min(100%,calc((100dvh - 108px) * 1.47619));
+    max-width:none;
+  }
+}
