@@ -2013,3 +2013,43 @@ body.show-play .game-shell:fullscreen .room-chat{
 }
 .game-shell .side-objectives-dropdown,
 .game-shell details.side-key-guide{background:transparent}
+
+/* One completed glow on the OBJECTIVES group, not separate item glows. */
+.game-shell .side-objective.is-complete{
+  box-shadow:none!important;background:transparent!important;
+  padding:10px 5px;
+}
+.game-shell .side-objective.is-complete .status-label,
+.game-shell .side-objective.is-complete strong{
+  color:inherit!important;text-shadow:none!important;
+}
+.game-shell .side-objectives-dropdown.all-complete{
+  border-radius:12px;
+  box-shadow:0 0 0 1px rgba(120,255,205,.65),
+    0 0 24px rgba(77,238,176,.35),inset 0 0 18px rgba(65,220,163,.13);
+}
+.game-shell .side-objectives-dropdown.all-complete > summary{
+  color:#adffe0;text-shadow:0 0 10px rgba(123,255,204,.55);
+}
+/* Desktop Team Chat is draggable by its heading. */
+@media (min-width:981px) and (pointer:fine){
+  .game-shell .room-chat .chat-heading{cursor:grab;touch-action:none;user-select:none;justify-content:space-between}
+  .game-shell .room-chat.chat-dragging .chat-heading{cursor:grabbing}
+  .game-shell .room-chat.chat-is-dragged,
+  body.show-play .game-shell .room-chat.chat-is-dragged,
+  body.show-play .game-shell .room-chat.chat-is-dragged.chat-no-gutter,
+  body.show-play .game-shell:fullscreen .room-chat.chat-is-dragged,
+  body.show-play .game-shell:fullscreen .room-chat.chat-is-dragged.chat-no-gutter{
+    position:absolute!important;
+    left:var(--chat-drag-left,8px)!important;
+    top:var(--chat-drag-top,100px)!important;
+    right:auto!important;bottom:auto!important;
+    height:var(--chat-drag-height,260px)!important;
+    max-height:none!important;
+    z-index:9;
+  }
+}
+.game-shell .room-chat .chat-drag-symbol{font-size:15px;opacity:.65}
+@media (max-width:980px),(hover:none) and (pointer:coarse){
+  .game-shell .room-chat .chat-drag-symbol{display:none}
+}
