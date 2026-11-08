@@ -2815,22 +2815,18 @@
     const renderRoster=players=>{
       savedPlayers=players;
       roomIdentity=new Map(players.map(person=>[person.id,person]));
-      const scouts=players.filter(person=>person.role==='scout').length;
-      const medics=players.filter(person=>person.role==='medic').length;
-      const teleporters=players.filter(person=>person.role==='teleporter').length;
-      const invisiblers=players.filter(person=>person.role==='invisibler').length;
-      const illusioners=players.filter(person=>person.role==='illusioner').length;
-      const infesters=players.filter(person=>person.role==='infester').length;
-      const rewinders=players.filter(person=>person.role==='rewinder').length;
-      const anchors=players.filter(person=>person.role==='anchor').length;
-      $('#scoutCount').textContent=String(scouts);
-      $('#medicCount').textContent=String(medics);
-      $('#teleporterCount').textContent=String(teleporters);
-      $('#invisiblerCount').textContent=String(invisiblers);
-      $('#illusionerCount').textContent=String(illusioners);
-      $('#infesterCount').textContent=String(infesters);
-      $('#rewinderCount').textContent=String(rewinders);
-      $('#anchorCount').textContent=String(anchors);
+      // Only show classes currently represented by a room participant.
+      for(const [role,countId] of [
+        ['scout','scoutCount'],['medic','medicCount'],
+        ['invisibler','invisiblerCount'],['teleporter','teleporterCount'],
+        ['illusioner','illusionerCount'],['rewinder','rewinderCount'],
+        ['anchor','anchorCount'],['infester','infesterCount']
+      ]){
+        const count=players.filter(person=>person.role===role).length;
+        const label=$('#'+countId);
+        label.textContent=String(count);
+        label.closest('.class-summary-item').hidden=count===0;
+      }
       $('#rosterCount').textContent=players.length+' / 5 players';
     };
     nicknameInput.addEventListener('change',()=>{
@@ -2866,9 +2862,7 @@
       code.disabled=joined;
       // Refresh labels such as YOUR ROOM and JOIN (after leaving).
       if(joined)renderRoster(savedPlayers);
-      else{savedPlayers=[];roomIdentity.clear();
-        $('#scoutCount').textContent='0';$('#medicCount').textContent='0';
-        rosterCountLabel.textContent='0 / 5 players';}
+      else{renderRoster([]);}
       sendRoom({type:'list'});
     };
     const drawRooms=rooms=>{
