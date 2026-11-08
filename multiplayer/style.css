@@ -1680,3 +1680,49 @@
     top:var(--objectives-top,70px);
   }
 }
+
+/* v4.19: Move the former bottom shortcut strip into the vacant lower
+   section of the left gutter. The gameplay now gets the footer's height. */
+.game-shell .side-key-guide{
+  display:flex;flex-direction:column;gap:8px;
+  padding-top:14px;margin-top:2px;
+  border-top:1px solid rgba(112,203,195,.20);
+}
+.game-shell .side-guide-heading{
+  color:#8bc9c8;font:800 10px monospace;letter-spacing:.11em;
+}
+.game-shell .side-key-row{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:6px;color:#add4d4;font:750 10px monospace;
+}
+.game-shell .side-key-row kbd{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:38px;padding:4px 6px;
+  border:1px solid #3e6872;border-radius:5px;
+  background:#152d38;color:#e1f5f0;
+  font:750 10px monospace;
+}
+.game-shell .side-live-status{
+  display:flex;flex-direction:column;gap:6px;
+  padding-top:12px;margin-top:2px;
+  border-top:1px solid rgba(112,203,195,.20);
+  color:#7de5c4;font:750 9px monospace;
+  overflow-wrap:anywhere;
+}
+@media (min-width:1151px) and (pointer:fine){
+  .game-shell .side-objectives,
+  .game-shell:fullscreen .side-objectives{
+    max-height:calc(100% - var(--objectives-top,70px) - 10px);
+    overflow-y:auto;
+    overflow-x:hidden;
+    scrollbar-width:thin;
+    scrollbar-color:#3d7772 transparent;
+    pointer-events:auto;
+  }
+}
+@media (max-width:1150px),(hover:none) and (pointer:coarse){
+  /* Touch players use on-screen controls; don't occupy their limited
+     side gutter with keyboard shortcuts or the old desktop footer status. */
+  .game-shell .side-key-guide,
+  .game-shell .side-live-status{display:none}
+}
