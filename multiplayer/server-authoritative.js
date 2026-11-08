@@ -8,7 +8,7 @@ import { makeMatchStore, buildMatchResult } from './match-store.js';
 
 const PORT=Number(process.env.PORT||3001);
 const HOST=process.env.HOST||'0.0.0.0';
-const MAX_ROOMS=16, MAX_PLAYERS=5;
+const MAX_ROOMS=16, MAX_PLAYERS=5, MAX_SPECTATORS=24;
 const RECONNECT_GRACE_MS=90000;
 const CHAT_HISTORY_LIMIT=50,CHAT_MAX_LENGTH=240,CHAT_MIN_INTERVAL_MS=850;
 const CHAT_BURST_WINDOW_MS=10000,CHAT_BURST_LIMIT=6;
@@ -72,8 +72,10 @@ function makeCode(){
 function listRooms(){
   return [...rooms.values()].map(room=>({
     code:room.code,name:room.name,players:room.clients.size,
-    capacity:MAX_PLAYERS,status:room.engine.status()==='menu'?'waiting':'in-progress',
-    joinable:room.members.size<MAX_PLAYERS
+    spectators:room.spectators.size,
+    capacity:MAX_PLAYERS,status:room.started?'in-progress':'waiting',
+    joinable:room.started?room.spectators.size<MAX_SPECTATORS:room.members.size<MAX_PLAYERS,
+    spectatorOnly:room.started
   })).sort((a,b)=>Number(b.status==='waiting')-Number(a.status==='waiting'));
 }
 function broadcastLobby(){
@@ -83,6 +85,7 @@ function broadcastLobby(){
 function publish(room,full=false){
   const snapshot=room.engine.snapshot(full);
   for(const ws of room.clients.values())send(ws,{type:'snapshot',snapshot});
+  for(const ws of room.spectators)send(ws,{type:'snapshot',snapshot});
 }
 function notifyRoom(room){
   const roles=room.engine.snapshot(false).playerRoles;
@@ -93,6 +96,7 @@ function notifyRoom(room){
   const update={type:'roster',count:room.clients.size,
     capacity:MAX_PLAYERS,hostId:room.hostId,players};
   for(const ws of room.clients.values())send(ws,update);
+  for(const ws of room.spectators)send(ws,update);
   broadcastLobby();
 }
 function persistCompletedMatch(room){
@@ -108,7 +112,7 @@ function persistCompletedMatch(room){
 }
 function createRoom(name){
   const room={code:makeCode(),name:safeRoomName(name),engine:createRoomEngine(),
-    clients:new Map(),members:new Map(),hostId:1,ticks:0,
+    clients:new Map(),members:new Map(),spectators:new Set(),started:false,hostId:1,ticks:0,
     chatHistory:[],chatSerial:0,
     matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0};
   rooms.set(room.code,room);
@@ -123,9 +127,9 @@ function createRoom(name){
       if(++room.ticks%2===0)publish(room,room.ticks%150===0);
     }catch(error){
       console.error('Room simulation failed',room.code,error);
-      for(const ws of room.clients.values()){
+      for(const ws of [...room.clients.values(),...room.spectators]){
         send(ws,{type:'error',message:'Room simulation stopped'});
-        ws.room=null;ws.playerId=null;
+        ws.room=null;ws.playerId=null;ws.isSpectator=false;
       }
       for(const member of room.members.values())clearTimeout(member.timer);
       clearInterval(room.timer);rooms.delete(room.code);broadcastLobby();
@@ -135,6 +139,11 @@ function createRoom(name){
 }
 function destroyRoom(room){
   for(const member of room.members.values())clearTimeout(member.timer);
+  for(const ws of room.spectators){
+    send(ws,{type:'left',message:'The room has closed.'});
+    ws.room=null;ws.playerId=null;ws.isSpectator=false;
+  }
+  room.spectators.clear();
   clearInterval(room.timer);rooms.delete(room.code);broadcastLobby();
 }
 function expireMember(room,id){
@@ -146,16 +155,29 @@ function expireMember(room,id){
   if(!room.members.size)destroyRoom(room);
   else notifyRoom(room);
 }
+function joinSpectator(ws,room){
+  if(ws.room)return send(ws,{type:'error',message:'Leave your current room first'});
+  if(!room)return send(ws,{type:'error',message:'Room not found'});
+  if(room.spectators.size>=MAX_SPECTATORS)
+    return send(ws,{type:'error',message:'Spectator seats are full'});
+  ws.room=room;ws.playerId=null;ws.isSpectator=true;
+  room.spectators.add(ws);
+  send(ws,{type:'spectator-joined',code:room.code,name:room.name});
+  sendChatHistory(room,ws);
+  notifyRoom(room);publish(room,true);
+}
 function join(ws,room){
   if(ws.room)return send(ws,{type:'error',message:'Leave your current room first'});
   if(!room)return send(ws,{type:'error',message:'Room not found'});
+  // After first start, every new arrival is a spectator, even a former player.
+  if(room.started)return joinSpectator(ws,room);
   if(room.members.size>=MAX_PLAYERS)return send(ws,{type:'error',message:'Room is full'});
   const id=[1,2,3,4,5].find(id=>!room.members.has(id));
   if(!id)return send(ws,{type:'error',message:'Room is full'});
   const token=randomBytes(32).toString('hex');
   ws.nickname=safeNickname(ws.pendingNickname,id);
   room.members.set(id,{token,name:ws.nickname,timer:null});
-  room.clients.set(id,ws);ws.room=room;ws.playerId=id;
+  room.clients.set(id,ws);ws.room=room;ws.playerId=id;ws.isSpectator=false;
   if(id===1&&room.members.size>1)room.engine.rejoinHost();
   else if(id!==1)room.engine.join(id);
   if(room.members.size===1)room.hostId=id;
@@ -181,7 +203,7 @@ function resume(ws,code,token){
     previous.close(4000,'Session resumed elsewhere');
   }
   ws.nickname=member.name;
-  room.clients.set(id,ws);ws.room=room;ws.playerId=id;
+  room.clients.set(id,ws);ws.room=room;ws.playerId=id;ws.isSpectator=false;
   if(!room.engine.resume(id)){
     room.clients.delete(id);ws.room=null;ws.playerId=null;
     expireMember(room,id);
@@ -195,7 +217,15 @@ function resume(ws,code,token){
 }
 function leave(ws,temporary=false){
   const room=ws.room;
-  if(!room||room.clients.get(ws.playerId)!==ws)return;
+  if(!room)return;
+  if(ws.isSpectator){
+    room.spectators.delete(ws);
+    ws.room=null;ws.playerId=null;ws.isSpectator=false;
+    if(!temporary)send(ws,{type:'left'});
+    notifyRoom(room);
+    return;
+  }
+  if(room.clients.get(ws.playerId)!==ws)return;
   const id=ws.playerId;
   ws.room=null;ws.playerId=null;
   room.clients.delete(id);
@@ -263,6 +293,7 @@ wss.on('connection',(ws,req)=>{
     if(m.type==='leave')return leave(ws);
     const room=ws.room,id=ws.playerId;
     if(!room)return;
+    if(ws.isSpectator)return; // Read-only: no character commands, chat, or host controls.
     if(m.type==='chat')return receiveChat(room,ws,m);
     if(m.type==='input'){
       const now=Date.now();
@@ -290,6 +321,7 @@ wss.on('connection',(ws,req)=>{
         const previous=room.engine.status();
         room.engine.start();
         if(room.engine.status()==='countdown'&&previous!=='countdown'){
+          room.started=true;
           room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;
         }
         publish(room,true);broadcastLobby();
