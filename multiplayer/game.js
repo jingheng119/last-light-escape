@@ -118,7 +118,7 @@
       (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
-  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.anchor=null;guestPlayer.trail=[];}
+  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.anchor=null;guestPlayer.infestedOn=null;guestPlayer.trail=[];}
   let extraContextGuest=null;
   function allPlayers(){
     // A player action temporarily swaps the global 'player' reference.
@@ -1231,7 +1231,7 @@
       dist(b,origin)-dist(a,origin));
     return candidates[0]||{x:origin.x,y:origin.y};
   }
-  function damage(){if(player.hp<=0||player.disconnected||player.invincible>0||player.dashTime>0||state!=='playing')return;
+  function damage(){if(player.hp<=0||player.disconnected||player.infestedOn||player.invincible>0||player.dashTime>0||state!=='playing')return;
     if(player.phaseGuardTime>0){
       player.phaseGuardTime=0;
       const from={x:player.x,y:player.y};
@@ -1806,6 +1806,10 @@
       ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
       ctx.beginPath();ctx.arc(x,y,18+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
     }
+    if(remotePlayers.some(p=>p.infestedOn===player.slot)){
+      ctx.strokeStyle='#a2f4bd';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(x,y,19+Math.sin(clock*5)*2,0,Math.PI*2);ctx.stroke();
+    }
     halo(x,y,70,color+'25');ctx.fillStyle='#061d23';ctx.beginPath();ctx.ellipse(x,y+6,12,6,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#0d3940';ctx.beginPath();ctx.arc(x,y-2,5,0,Math.PI*2);ctx.fill();
@@ -1846,6 +1850,10 @@
       if(teammate.phaseGuardTime>0){
         ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
         ctx.beginPath();ctx.arc(x,y,17+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
+      }
+      if(remotePlayers.some(p=>p.infestedOn===teammate.slot)||player.infestedOn===teammate.slot){
+        ctx.strokeStyle='#a2f4bd';ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(x,y,19+Math.sin(clock*5)*2,0,Math.PI*2);ctx.stroke();
       }
       halo(x,y,30,color+'36');
       ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
