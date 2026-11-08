@@ -39,7 +39,7 @@
   const ui = {
     health: $('#health'), cores: $('#cores'), relay: $('#relay'), timer: $('#timer'), threat: $('#threat'),
     dash: $('#dashStatus'), decoys: $('#decoys'), skillCD: $('#skillCD'), dashCD: $('#dashCD'), decoyCD: $('#decoyCD'), level: $('#missionLevel'), stageCard: $('#stageInfoCard'), mobileStage: $('#mobileStageInfo'),
-    note: $('#fieldNote'), overlay: $('#overlay'), title: $('#overlayTitle'), text: $('#overlayText'),
+    overlay: $('#overlay'), title: $('#overlayTitle'), text: $('#overlayText'),
     classSelect: $('#classSelect'), classStatus: $('#classStatus'), survivorStatus: $('#survivorStatus'), abilityStatus: $('#abilityStatus'),
     allyLabel: $('#allyStatusLabel'), rescueObjective: $('#rescueObjective'),
     button: $('#primaryBtn'), hint: $('#overlayHint'), toast: $('#toast'), flash: $('#screenFlash'),
@@ -498,7 +498,6 @@
     $('#desktopStageInfo').textContent=ui.level.textContent;
     ui.mobileStage.children[0].textContent='BROWSER GAME V4.19';
     ui.mobileStage.children[1].textContent=`STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
-    ui.note.textContent=cfg.note;
     ui.allyLabel.textContent=cfg.stage===2?'ALLIES':'SURVIVOR';
     ui.rescueObjective.textContent=cfg.stage===2?'✚ Rescue both allies':'✚ Rescue the survivor';
     const gameShell=$('.game-shell');
