@@ -1404,3 +1404,60 @@
 
 /* Empty role counts should not take up space in the room summary. */
 .class-summary-item[hidden]{display:none!important}
+
+
+/* Room objectives belong in the unused LEFT gutter; the live IDs are moved
+   from the top HUD, not duplicated. This stays outside the playable canvas. */
+.game-shell .side-objectives{
+  position:absolute;z-index:5;
+  top:190px;left:14px;
+  width:min(226px, var(--objectives-gutter-width, 226px));
+  display:flex;flex-direction:column;gap:13px;
+  padding:15px 16px;line-height:1.35;
+  border:1px solid #326c6a;border-radius:12px;
+  background:rgba(6,26,35,.93);
+  pointer-events:none;
+}
+.game-shell .side-objective{display:flex;flex-direction:column;gap:6px;min-width:0}
+.game-shell .side-objective:not(:last-child){
+  border-bottom:1px solid rgba(112,203,195,.16);
+  padding-bottom:12px;
+}
+.game-shell .side-objective .status-label{
+  color:#8bc9c8;font:800 10px monospace;letter-spacing:.11em;
+}
+.game-shell .side-objective strong{
+  color:#e4fff7;font:800 clamp(12px,1.15vw,16px) monospace;
+  overflow-wrap:anywhere;
+}
+.game-shell .side-objective #relay{color:#d6f4ee}
+@media (max-width:1150px){
+  .game-shell .side-objectives{
+    top:155px;left:10px;gap:9px;padding:10px 11px;
+    width:min(180px,var(--objectives-gutter-width,180px));
+  }
+  .game-shell .side-objective{gap:3px}
+  .game-shell .side-objective:not(:last-child){padding-bottom:8px}
+  .game-shell .side-objective .status-label{font-size:9px}
+  .game-shell .side-objective strong{font-size:12px}
+}
+@media (max-width:650px), (hover:none) and (pointer:coarse){
+  .game-shell .side-objectives{
+    top:78px;left:5px;
+    width:min(178px,var(--objectives-gutter-width,178px));
+    padding:9px 10px;gap:9px;border-radius:9px;
+  }
+  .game-shell .side-objective .status-label{font-size:8px}
+  .game-shell .side-objective strong{font-size:11px}
+}
+@media (max-width:600px) and (orientation:portrait){
+  /* When there is no left gutter, keep the objectives compact and below
+     the top HUD rather than forcing the game canvas to shrink. */
+  .game-shell .side-objectives{
+    top:88px;left:6px;width:min(125px,calc(100% - 12px));
+    padding:7px 8px;gap:5px;
+  }
+  .game-shell .side-objective:not(:last-child){padding-bottom:5px}
+  .game-shell .side-objective .status-label{font-size:7px}
+  .game-shell .side-objective strong{font-size:10px}
+}
