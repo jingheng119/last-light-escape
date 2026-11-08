@@ -56,6 +56,7 @@
   // screens never removes a player from their server-side room.
   let activePage='lobby';
   let lastCountdownNumber=0;
+  let setRoomChatCountdown=()=>{};
   function showPage(target,push=true){
     const page=target==='play'&&roomRole!=='none'?'play':'lobby';
     activePage=page;
@@ -2650,6 +2651,7 @@
       const number=Math.max(1,Math.ceil(d.countdownRemaining||0));
       if(number!==lastCountdownNumber||previous!=='countdown'){
         lastCountdownNumber=number;
+        setRoomChatCountdown(number);
         countdownBeep(number);
         setOverlay(''+number,'GET READY · THE WARD OPENS SOON','STARTING…',
           'ALL SURVIVORS BEGIN TOGETHER');
@@ -2657,6 +2659,7 @@
       ui.overlay.classList.add('countdown-active');
       ui.button.disabled=true;
     }else{
+      if(lastCountdownNumber!==0)setRoomChatCountdown(null);
       lastCountdownNumber=0;
       ui.overlay.classList.remove('countdown-active');
       ui.button.disabled=false;
@@ -2687,7 +2690,7 @@
   function setupRoomChat(){
     const panel=$('#roomChat'),log=$('#chatMessages');
     const input=$('#chatInput'),form=$('#chatForm'),feedback=$('#chatFeedback');
-    let messages=[];
+    let messages=[], countdownNumber=null;
     // The chat is in the empty right gutter, outside the centered maze.
     // Measure that gutter because the canvas size changes with aspect ratio,
     // screen height, and fullscreen mode.
@@ -2715,7 +2718,7 @@
     }
     requestAnimationFrame(positionChat);
     const clear=()=>{
-      messages=[];chatBubbles.clear();feedback.textContent='';input.value='';render();
+      messages=[];countdownNumber=null;chatBubbles.clear();feedback.textContent='';input.value='';render();
     };
     const render=()=>{
       const nearBottom=log.scrollHeight-log.scrollTop-log.clientHeight<35;
@@ -2735,6 +2738,18 @@
         const body=document.createElement('span');
         body.className='chat-text';
         body.textContent=message.text;
+        item.append(author,body);log.appendChild(item);
+      }
+      if(countdownNumber!==null){
+        // Transient system countdown sourced from the authoritative snapshot.
+        // Update one chat line rather than spamming persistent chat history.
+        const item=document.createElement('div');
+        item.className='chat-item chat-countdown';
+        const author=document.createElement('span');
+        author.className='chat-author';author.textContent='SYSTEM';
+        const body=document.createElement('span');
+        body.className='chat-text';
+        body.textContent='GAME STARTS IN '+countdownNumber+'…';
         item.append(author,body);log.appendChild(item);
       }
       if(nearBottom)log.scrollTop=log.scrollHeight;
@@ -2775,6 +2790,11 @@
     });
     return {
       clear,
+      countdown:number=>{
+        const next=Number.isInteger(number)&&number>=1&&number<=5?number:null;
+        if(countdownNumber===next)return;
+        countdownNumber=next;render();
+      },
       history:entries=>{
         messages=Array.isArray(entries)?entries.filter(validMessage).slice(-50):[];
         feedback.textContent='';render();
@@ -2786,6 +2806,7 @@
   }
   function connectRoom(){
     const chat=setupRoomChat();
+    setRoomChatCountdown=chat.countdown;
     const status=$('#roomStatus'),invite=$('#roomInvite'),
       create=$('#createRoom'),join=$('#joinRoom'),code=$('#joinRoomCode'),
       roomName=$('#roomName'),directory=$('#roomList'),roomBrowser=$('#roomBrowser'),
