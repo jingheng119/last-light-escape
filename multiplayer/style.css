@@ -1958,3 +1958,32 @@
   .game-shell .side-objectives-list .side-objective .status-label{font-size:7px}
   .game-shell .side-objectives-list .side-objective strong{font-size:9px}
 }
+
+/* Align Team Chat beneath the in-canvas directional guide and keep it
+   ABOVE the desktop Dash / Skill dock. The canvas guide occupies 12-85px
+   below the status row; the dock occupies the lower ~260px of the shell.
+   Chat remains scrollable when fewer vertical pixels are available. */
+@media (min-width:981px) and (pointer:fine){
+  body.show-play .game-shell .room-chat,
+  body.show-play .game-shell .room-chat.chat-no-gutter,
+  body.show-play .game-shell:fullscreen .room-chat,
+  body.show-play .game-shell:fullscreen .room-chat.chat-no-gutter{
+    top:calc(var(--objectives-top,78px) + 94px);
+    bottom:270px;
+    height:auto;
+    min-height:0;
+    max-height:none;
+    right:12px;
+  }
+}
+/* On touch screens use the same vertical order while preserving the
+   mobile chat's compact height and the existing bottom touch controls. */
+@media (max-width:980px), (hover:none) and (pointer:coarse){
+  body.show-play .game-shell .room-chat,
+  body.show-play .game-shell .room-chat.chat-no-gutter{
+    top:calc(var(--objectives-top,60px) + 91px);
+    bottom:auto;
+    height:min(160px,max(88px,calc(100% - var(--objectives-top,60px) - 330px)));
+    max-height:160px;
+  }
+}
