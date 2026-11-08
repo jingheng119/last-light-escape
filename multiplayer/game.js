@@ -231,7 +231,7 @@
     teleporter: "Activate Phase Guard for 5 seconds. If a Hollow strikes during this period, teleport to safety.",
     illusioner: "Summon an invincible roaming phantom that distracts Hollows for 5 seconds. Two phantoms can roam at once without replacing each other.",
     rewinder: "Choose yourself, a teammate, or a Hollow within 5.5 tiles; return that target to its position 3 seconds ago. Players gain 2 seconds of protection.",
-    anchor: "Choose yourself, a teammate, or ground within 5.5 tiles to mark a location. Press Skill again to teleport back through walls with 2 seconds of protection. Hollows cannot be marked. Cooldown begins on return."
+    anchor: "Mark yourself, a teammate, or walkable ground within 5.5 tiles. A teammate mark follows that player, so Skill teleports to their current location. Self/ground marks stay fixed. Gain 2 seconds of protection on teleport; Hollows cannot be marked."
 };
   function skillDescription(role){
     const charges=SKILL_MAX_CHARGES[role];
@@ -1010,24 +1010,41 @@
       beep(1080,.22,'triangle',.028);
     }else if(classChoice==='anchor'){
       if(!player.anchor){
-        let position=null;
+        let position=null,targetSlot=null;
         if(rewindTarget?.kind==='player'&&Number.isInteger(rewindTarget.slot)){
           const target=allPlayers().find(p=>p.slot===rewindTarget.slot);
-          if(target&&target.hp>0&&!target.disconnected)position={x:target.x,y:target.y};
+          if(target&&target.hp>0&&!target.disconnected){
+            position={x:target.x,y:target.y};
+            // Teammate anchor travels with that player. Self stays fixed
+            // at the marked position, like a ground anchor.
+            if(target!==player)targetSlot=target.slot;
+          }
         }else if(rewindTarget?.kind==='ground'&&Number.isFinite(rewindTarget.x)&&Number.isFinite(rewindTarget.y)){
           position={x:rewindTarget.x,y:rewindTarget.y};
         }
         if(!position||dist(position,player)>ANCHOR_RADIUS||!canStand(position.x,position.y,.21)||
-           hollows.some(h=>dist(h,position)<.65)){
+           (targetSlot===null&&hollows.some(h=>dist(h,position)<.65))){
           notify('ANCHOR — choose a valid player or empty walkable ground in range.');return;
         }
-        player.anchor=position;
-        notify('ANCHOR — marked! Press Skill again to teleport.');
+        player.anchor={...position,...(targetSlot!==null?{slot:targetSlot}:{})};
+        notify(targetSlot!==null?'ANCHOR — attached to teammate! Skill teleports to their current location.':
+          'ANCHOR — position marked! Press Skill again to teleport.');
         beep(760,.18,'triangle',.024);
       }else{
-        const destination=player.anchor;
-        // Anchor records a walkable position. Return bypasses wall paths,
-        // and invulnerability applies before the next collision test.
+        // A teammate-bound mark follows their current authoritative location.
+        // Ground and self marks remain fixed at the original position.
+        let destination=player.anchor;
+        if(Number.isInteger(destination.slot)){
+          const teammate=allPlayers().find(p=>p.slot===destination.slot&&p!==player);
+          if(!teammate||teammate.hp<=0||teammate.disconnected){
+            notify('ANCHOR — marked teammate is unavailable.');return;
+          }
+          destination={x:teammate.x,y:teammate.y};
+        }
+        if(!canStand(destination.x,destination.y,.21)){
+          notify('ANCHOR — marked destination is blocked.');return;
+        }
+        // Teleportation bypasses walls; invincibility prevents an instant hit.
         player.x=destination.x;player.y=destination.y;
         player.anchor=null;
         player.invincible=Math.max(player.invincible,2);
@@ -1670,7 +1687,11 @@
     const people=roomRole==='none'?[player]:[player,...remotePlayers];
     for(const p of people){
       if(!p?.anchor||p.hp<=0)continue;
-      const x=p.anchor.x*TILE,y=p.anchor.y*TILE;
+      const teammate=Number.isInteger(p.anchor.slot)?
+        people.find(person=>person?.slot===p.anchor.slot&&person.hp>0&&!person.disconnected):null;
+      const point=Number.isInteger(p.anchor.slot)?teammate:p.anchor;
+      if(!point)continue;
+      const x=point.x*TILE,y=point.y*TILE;
       const pulse=1+Math.sin(clock*4)*.12;
       ctx.save();halo(x,y,40,'#6be7ff3f');ctx.translate(x,y);ctx.rotate(Math.PI/4);
       ctx.strokeStyle='#80eaff';ctx.lineWidth=2.5;ctx.strokeRect(-9*pulse,-9*pulse,18*pulse,18*pulse);
