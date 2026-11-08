@@ -1653,11 +1653,12 @@
 @media (min-width: 1151px) and (pointer: fine) {
   .game-shell .side-objectives,
   .game-shell:fullscreen .side-objectives {
-    top: 88px;
+    /* Fill the real left gutter rather than stopping at a fixed 220px. */
+    top: var(--objectives-top, 70px);
     left: 10px;
-    width: min(220px, var(--objectives-gutter-width, 170px));
+    width: var(--objectives-gutter-width, 170px);
     max-width: var(--objectives-gutter-width, 170px);
-    padding: 12px;
+    padding: clamp(9px, 1vw, 16px);
     gap: 10px;
   }
   .game-shell .side-objectives.objectives-narrow{
