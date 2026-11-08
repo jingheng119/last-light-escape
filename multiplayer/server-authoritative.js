@@ -275,7 +275,7 @@ wss.on('connection',(ws,req)=>{
            (m.target.kind==='player'&&Number.isInteger(m.target.slot)&&m.target.slot>=1&&m.target.slot<=5)||
            (m.target.kind==='hollow'&&Number.isInteger(m.target.index)&&m.target.index>=0&&m.target.index<100)
          )?{kind:m.target.kind,...(m.target.kind==='player'?{slot:m.target.slot}:{index:m.target.index})}:null);
-    else if(m.type==='role'&&['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor'].includes(m.role)){
+    else if(m.type==='role'&&['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor','infester'].includes(m.role)){
       if(['menu','dead','victory'].includes(room.engine.status())){
         room.engine.role(id,m.role);
         notifyRoom(room);
