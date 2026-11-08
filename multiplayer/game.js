@@ -4,8 +4,10 @@
  */
 (() => {
   'use strict';
-  // Fixed render viewport, variable world dimensions by stage.
-  const TILE=32,W=992,H=672;
+  // Responsive client viewport; world coordinates and tile dimensions stay
+  // constant so resizing never stretches the maze or changes collision.
+  const TILE=32;
+  let W=992,H=672;
   let COLS=31,ROWS=21;
   const STAGE_ONE_FLOORS=9,STAGE_TWO_SIZE={cols:61,rows:41};
   const CONFIGS = [
@@ -214,7 +216,25 @@
   let lastFrame = 0, audioCtx = null, soundEnabled = false, best = 0;
   let musicBus=null,musicNextAt=0,musicStep=0,musicStage=0;
   let nextAmbientAt = 0, nextWarningAt = 0, previousThreat = 0;
-  const CAMERA_ZOOM = 1.65;
+  let CAMERA_ZOOM = 1.65;
+  function sizeGameViewport(){
+    // The multiplayer headless engine has no real browser layout; leave its
+    // original fixed simulation viewport untouched.
+    if(typeof window==='undefined'||typeof window.matchMedia!=='function')return;
+    const desktop=window.matchMedia('(min-width:981px) and (pointer:fine)').matches;
+    const wrap=$('#gameWrapper');
+    if(!wrap)return;
+    const rect=wrap.getBoundingClientRect();
+    const nextW=desktop?Math.max(320,Math.round(rect.width)):992;
+    const nextH=desktop?Math.max(240,Math.round(rect.height)):672;
+    const nextZoom=desktop?
+      Math.max(1.65,nextW/(COLS*TILE),nextH/(ROWS*TILE)):1.65;
+    if(nextW===W&&nextH===H&&Math.abs(nextZoom-CAMERA_ZOOM)<.001)return;
+    W=nextW;H=nextH;CAMERA_ZOOM=nextZoom;
+    canvas.width=W;canvas.height=H;
+    darknessCanvas.width=W;darknessCanvas.height=H;
+    if(player&&grid)updateCamera(0,true);
+  }
   const SCOUT_STUN_RADIUS = 5.5;
   const MEDIC_HEAL_RADIUS = 5.5;
   const SKILL_COOLDOWN = {scout:13,medic:26,invisibler:14,teleporter:16,illusioner:27,rewinder:13,anchor:10,infester:13};
@@ -2323,6 +2343,9 @@
       }
     }
     if(activePage==='play'){
+      // Resize on the next animation frame when the room or fullscreen
+      // layout changes, without recreating the game or losing player state.
+      sizeGameViewport();
       updateMusic();
       if(roomRole!=='none')ambientAudio();
       if(state==='playing')updateCamera(dt);
@@ -2710,8 +2733,9 @@
       const shell=$('.game-shell'),canvas=$('#game');
       if(!shell||!canvas)return;
       const sr=shell.getBoundingClientRect(),cr=canvas.getBoundingClientRect();
-      // object-fit:contain can leave a wide unused gutter INSIDE the
-      // canvas element in landscape fullscreen. Measure the painted maze.
+      sizeGameViewport();
+      // Mobile retains its original object-fit/letterbox treatment.
+      // Desktop canvas now matches its container and fills the game shell.
       const paintedWidth=Math.min(cr.width,cr.height*(canvas.width/canvas.height));
       const mazeLeft=cr.left+(cr.width-paintedWidth)/2;
       const mazeRight=cr.left+(cr.width+paintedWidth)/2;
