@@ -2753,6 +2753,13 @@
       const shell=$('.game-shell'),canvas=$('#game');
       if(!shell||!canvas)return;
       const sr=shell.getBoundingClientRect(),cr=canvas.getBoundingClientRect();
+      // Keep the undragged desktop chat below the full status header.
+      // Measure dynamically so browser zoom, fullscreen and HUD wrapping work.
+      const chatHeader=$('.game-shell .statusbar');
+      if(chatHeader){
+        panel.style.setProperty('--chat-safe-top',
+          Math.max(8,Math.round(chatHeader.getBoundingClientRect().bottom-sr.top+8))+'px');
+      }
       sizeGameViewport();
       // Mobile retains its original object-fit/letterbox treatment.
       // Desktop canvas now matches its container and fills the game shell.
