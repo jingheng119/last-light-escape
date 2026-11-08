@@ -1147,7 +1147,7 @@
         // Self placement uses the same 0.18 clearance as touch movement.
         // The older 0.21 check intermittently rejected otherwise valid
         // positions beside walls, especially while moving on mobile.
-        const anchorClearance=targetSlot===null?.18:.21;
+        const anchorClearance=targetSlot === null ? 0.18 : 0.21;
         if(!position||dist(position,player)>ANCHOR_RADIUS||!canStand(position.x,position.y,anchorClearance)){
           notify('ANCHOR — choose yourself or a living teammate in range.');return;
         }
