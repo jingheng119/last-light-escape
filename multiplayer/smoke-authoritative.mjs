@@ -346,6 +346,64 @@ function readyMedicRoom(){
   assert.equal(players[0].hp,3,'Medic can heal after an unsuccessful attempt');
 }
 
+// Infester remains untargetable to support skills only while attached.
+// Existing Anchor marks may still return to an Infester after attachment.
+function makeInfesterSupportRoom(role){
+  const room=createRoomEngine();
+  room.join(2);room.join(3);
+  room.role(1,role);room.role(2,'infester');room.role(3,'scout');
+  room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  const players=room.snapshot(false).players;
+  for(const p of players){p.x=1.5;p.y=1.5;p.invincible=100;}
+  return {room,players};
+}
+{
+  const {room,players}=makeInfesterSupportRoom('anchor');
+  room.action(2,'ability',null,false,{kind:'player',slot:3});
+  assert.equal(players[1].infestedOn,3,'Infester attaches to their carrier');
+  room.action(1,'ability',null,false,{kind:'player',slot:2});
+  assert.equal(players[0].anchor,null,'Attached Infester cannot receive a new Anchor mark');
+  room.action(2,'ability');
+  assert.equal(players[1].infestedOn,null,'Emerging immediately clears attached state');
+  room.action(1,'ability',null,false,{kind:'player',slot:2});
+  assert.equal(players[0].anchor?.slot,2,'Emerged Infester can be marked by Anchor');
+  room.action(1,'ability');
+  assert.equal(players[0].anchor,null,'Anchor can teleport back to emerged teammate');
+}
+{
+  const {room,players}=makeInfesterSupportRoom('anchor');
+  room.action(1,'ability',null,false,{kind:'player',slot:2});
+  assert.equal(players[0].anchor?.slot,2,'Mark the Infester before they attach');
+  room.action(2,'ability',null,false,{kind:'player',slot:3});
+  assert.equal(players[1].infestedOn,3);
+  room.action(1,'ability');
+  assert.equal(players[0].anchor,null,
+    'An existing Anchor mark can still return while its Infester is attached');
+}
+{
+  const {room,players}=makeInfesterSupportRoom('rewinder');
+  room.action(2,'ability',null,false,{kind:'player',slot:3});
+  room.action(1,'ability',null,false,{kind:'player',slot:2});
+  assert.equal(players[0].abilityCharges,2,
+    'Rewinder must not consume a charge targeting an attached Infester');
+  room.action(2,'ability');
+  room.action(1,'ability',null,false,{kind:'player',slot:2});
+  assert.equal(players[0].abilityCharges,1,
+    'Rewinder can target an Infester after emergence');
+}
+{
+  const {room,players}=makeInfesterSupportRoom('medic');
+  players[1].hp=2;
+  room.action(2,'ability',null,false,{kind:'player',slot:3});
+  room.action(1,'ability');
+  assert.equal(players[1].hp,2,'Medic cannot heal attached Infester');
+  assert.equal(players[0].abilityCharges,2,'Failed Medic heal does not use a charge');
+  room.action(2,'ability');
+  room.action(1,'ability');
+  assert.equal(players[1].hp,3,'Medic can heal Infester after emergence');
+}
+
 // A diagonal mobile dash must slide along an impassable wall instead of
 // reversing direction or stopping on contact. Straight-on dashes still stop.
 function testWallDash(direction,{touch=false,atWall=false}={}){
