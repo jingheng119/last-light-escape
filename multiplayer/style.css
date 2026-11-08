@@ -2235,10 +2235,11 @@ body.show-play .game-shell:fullscreen .room-chat{
   body.show-play .game-shell .room-chat.chat-no-gutter:not(.chat-is-dragged),
   body.show-play .game-shell:fullscreen .room-chat:not(.chat-is-dragged),
   body.show-play .game-shell:fullscreen .room-chat.chat-no-gutter:not(.chat-is-dragged) {
-    top:8px!important;
+    /* Measured just below the actual status header (including zoom changes). */
+    top:var(--chat-safe-top,90px)!important;
     right:5px!important;
     left:auto!important;
     bottom:auto!important;
-    max-height:calc(100% - 16px)!important;
+    max-height:calc(100% - var(--chat-safe-top,90px) - 8px)!important;
   }
 }
