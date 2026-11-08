@@ -1461,3 +1461,42 @@
   .game-shell .side-objective .status-label{font-size:7px}
   .game-shell .side-objective strong{font-size:10px}
 }
+
+/* v4.19: compact HUD columns inside the screen edges, with the objectives
+   tucked up beside (rather than over) the left fullscreen control. */
+.game-shell .statusbar{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  align-items:center;
+  padding-inline:clamp(30px,6.5vw,112px);
+  gap:clamp(12px,3vw,38px);
+}
+.game-shell .statusbar .status-item{min-width:0}
+.game-shell .statusbar .status-item:nth-child(1){justify-self:start}
+.game-shell .statusbar .status-item:nth-child(2){justify-self:center}
+.game-shell .statusbar .status-item:nth-child(3){justify-self:center}
+.game-shell .statusbar .status-item:nth-child(4){justify-self:end;text-align:right;display:flex}
+@media (min-width:1151px) and (pointer:fine){
+  .game-shell .side-objectives{top:152px}
+}
+@media (max-width:1150px){
+  .game-shell .statusbar{padding-inline:clamp(24px,5vw,64px);gap:12px}
+}
+@media (max-width:650px), (hover:none) and (pointer:coarse){
+  .game-shell .statusbar{padding:9px clamp(12px,3.2vw,34px);gap:8px}
+  .game-shell .statusbar .status-item{min-width:0}
+  .game-shell .side-objectives{
+    top:78px;
+    left:74px;
+    width:min(165px,calc(100% - 86px));
+    gap:7px;
+    padding:9px 10px;
+  }
+  .game-shell .side-objective:not(:last-child){padding-bottom:6px}
+}
+@media (max-width:600px) and (orientation:portrait){
+  .game-shell .side-objectives{
+    top:88px;left:62px;width:min(128px,calc(100% - 70px));
+  }
+  .game-shell .statusbar{padding-inline:10px}
+}
