@@ -2053,3 +2053,48 @@ body.show-play .game-shell:fullscreen .room-chat{
 @media (max-width:980px),(hover:none) and (pointer:coarse){
   .game-shell .room-chat .chat-drag-symbol{display:none}
 }
+
+/* Transparent HUD backgrounds: 0% opacity applies to panel surfaces, not
+   labels, controls, or the full-completion objective glow. */
+.game-shell .side-objectives,
+.game-shell:fullscreen .side-objectives,
+body.show-play .game-shell .side-objectives,
+body.show-play .game-shell:fullscreen .side-objectives{
+  background:rgba(6,24,32,0)!important;
+}
+.game-shell .side-objectives-dropdown,
+.game-shell details.side-key-guide{
+  background:transparent!important;
+}
+.game-shell .room-chat,
+.game-shell:fullscreen .room-chat,
+body.show-play .game-shell .room-chat,
+body.show-play .game-shell:fullscreen .room-chat{
+  background:transparent!important;
+}
+.game-shell .room-chat .chat-drawer,
+.game-shell:fullscreen .room-chat .chat-drawer{
+  background:rgba(6,26,35,0)!important;
+  box-shadow:none;
+}
+.game-shell .room-chat .chat-messages{
+  background:rgba(7,25,34,0)!important;
+}
+
+/* Default Team Chat location: desktop bottom-left, beneath the compact
+   objectives panel. Preserve manual drag overrides after moving it. */
+@media (min-width:981px) and (pointer:fine){
+  body.show-play .game-shell .room-chat:not(.chat-is-dragged),
+  body.show-play .game-shell .room-chat.chat-no-gutter:not(.chat-is-dragged),
+  body.show-play .game-shell:fullscreen .room-chat:not(.chat-is-dragged),
+  body.show-play .game-shell:fullscreen .room-chat.chat-no-gutter:not(.chat-is-dragged){
+    left:12px!important;
+    right:auto!important;
+    top:auto!important;
+    bottom:12px!important;
+    height:clamp(205px,36vh,330px)!important;
+    max-height:calc(100% - var(--objectives-top,70px) - 20px)!important;
+    width:clamp(225px,16vw,285px)!important;
+    min-height:0;
+  }
+}
