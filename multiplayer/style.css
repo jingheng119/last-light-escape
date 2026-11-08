@@ -2417,3 +2417,62 @@ body.show-play .game-shell:fullscreen .room-chat{
     font-size:8px;
   }
 }
+
+
+/* v4.24 — smaller mobile landscape Objectives / Direction / Controls HUD.
+   Keep the two dropdowns functional; give the maze more unobstructed space. */
+@media (orientation:landscape) and (pointer:coarse),
+       (orientation:landscape) and (max-width:980px) {
+  body.show-play .game-shell .side-objectives,
+  body.show-play .game-shell:fullscreen .side-objectives {
+    width:clamp(112px,12vw,138px)!important;
+    max-width:calc(100% - 10px)!important;
+    padding:5px 7px!important;
+    gap:0!important;
+    border-radius:8px;
+  }
+  body.show-play .game-shell .side-guide-heading{
+    font-size:7px!important;
+    letter-spacing:.035em!important;
+  }
+  body.show-play .game-shell .side-objectives-dropdown > summary{
+    min-height:22px;
+    padding:2px 0 4px!important;
+    gap:3px;
+  }
+  body.show-play .game-shell .side-objectives-dropdown > summary::after,
+  body.show-play .game-shell .side-key-guide > summary::after{
+    font-size:10px;
+  }
+  body.show-play .game-shell .side-direction{
+    margin:3px 0!important;
+    padding:5px 0!important;
+  }
+  body.show-play .game-shell .side-direction-heading{
+    font-size:7px!important;
+    margin-bottom:4px!important;
+  }
+  body.show-play .game-shell .side-direction-copy strong{
+    font-size:7px!important;
+    line-height:1.2;
+  }
+  body.show-play .game-shell .side-direction-copy span{
+    font-size:7px!important;
+    line-height:1.2;
+  }
+  body.show-play .game-shell .side-direction-arrow{
+    font-size:16px!important;
+  }
+  body.show-play .game-shell .side-key-guide{
+    padding-top:4px!important;
+    margin-top:0!important;
+    gap:2px!important;
+  }
+  body.show-play .game-shell .side-key-guide > summary{
+    min-height:21px;
+    padding:2px 0!important;
+  }
+  body.show-play .game-shell .side-objectives-list .side-objective{
+    padding:4px 1px!important;
+  }
+}
