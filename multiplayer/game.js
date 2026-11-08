@@ -2708,6 +2708,11 @@
         const leftInset=10,safetyGap=12;
         const freeWidth=Math.max(0,Math.floor(mazeLeft-sr.left-leftInset-safetyGap));
         objectives.style.setProperty('--objectives-gutter-width',freeWidth+'px');
+        const statusbar=$('.game-shell .statusbar');
+        if(statusbar){
+          const top=Math.max(0,Math.round(statusbar.getBoundingClientRect().bottom-sr.top+8));
+          objectives.style.setProperty('--objectives-top',top+'px');
+        }
         objectives.classList.toggle('objectives-narrow',freeWidth<110);
       }
       // On touch/mobile the chat sits 8px from the right edge. Reserve another
