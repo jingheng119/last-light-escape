@@ -2071,7 +2071,8 @@
   function drawDirectionalHUD(){
     if(!player)return;
     const target=objectiveDirection(),angle=Math.atan2(target.y-player.y,target.x-player.x),x=W-52,y=53;
-    if(window.matchMedia('(min-width:981px) and (pointer:fine)').matches){
+    if(typeof window!=='undefined'&&typeof window.matchMedia==='function'&&
+      window.matchMedia('(min-width:981px) and (pointer:fine)').matches){
       // Desktop compass is now in the left sidebar, below Objectives.
       const task=$('#sideDirectionTask'),distance=$('#sideDirectionDistance'),arrow=$('#sideDirectionArrow');
       if(task&&distance&&arrow){
