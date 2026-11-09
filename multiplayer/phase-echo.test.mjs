@@ -40,7 +40,12 @@ assert.equal(team[0].abilityCharges,before-1,
   'A transformed player can still use their character skill');
 // A wall tile should not trap the survivor when the ghost timer ends.
 assert.equal(room.testPhaseInsideWall(1),true);
-for(let i=0;i<101;i++)room.tick(.05);
+const wallStartX=team[0].x;
+room.input(1,{right:true},{x:0,y:0});
+room.tick(.05);
+assert(team[0].x>wallStartX+.1,'Ghost can travel through solid walls');
+room.input(1,{}, {x:0,y:0});
+for(let i=0;i<100;i++)room.tick(.05);
 const after=room.snapshot(true);
 assert.equal(team[0].phaseEchoTime,0,'Ghost transformation expires');
 assert.equal(after.grid[Math.floor(team[0].y)][Math.floor(team[0].x)],0,
