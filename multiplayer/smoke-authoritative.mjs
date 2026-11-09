@@ -93,7 +93,11 @@ function makeRewindRoom(){
   room.tick(.033);
   state=room.snapshot(false);
   assert(state.illusions[0].life<5,'Phantom duration must tick down');
-  assert(state.illusions[0].x>=initial.x,'Phantom cannot walk backward');
+  // A Phantom may turn or reverse at a dead end. Verify bounded movement
+  // rather than assuming every randomly generated corridor runs east.
+  const phantomStep=Math.hypot(state.illusions[0].x-initial.x,state.illusions[0].y-initial.y);
+  assert(phantomStep>.001&&phantomStep<=3.5*.033+.001,
+    'Phantom must travel at its configured speed without teleporting');
   assert(state.hollows.some(ghost=>ghost.mode==='illusion'),
     'Nearby Hollows must chase an illusion rather than a real survivor');
   assert.equal(p.hp,hp,'Hollow contact with a phantom does not injure its owner');
