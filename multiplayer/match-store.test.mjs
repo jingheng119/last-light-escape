@@ -16,6 +16,7 @@ assert.equal(result.outcome,'victory');
 assert.equal(result.floorsCleared,27);
 assert.equal(result.elapsedSeconds,180.5);
 assert.equal(result.competitive,true);
+assert.equal(result.isDeveloperRun,false,'Normal victories are not developer runs');
 assert.deepEqual(result.players,[
   {slot:1,nickname:'Captain',role:'medic',hearts:2},
   {slot:2,nickname:'Runner',role:'symbiote',hearts:1}
@@ -37,6 +38,7 @@ mockRoom.engine.snapshot=()=>({
   playerRoles:['medic','scout'],players:[{hp:0},{hp:0}]
 });
 assert.equal(buildMatchResult(mockRoom).floorsCleared,17);
+assert.equal(buildMatchResult(mockRoom).isDeveloperRun,false,'A normal loss must not be flagged as developer');
 mockRoom.unranked=true;
 mockRoom.engine.snapshot=()=>({
   state:'victory',levelIndex:26,overallElapsed:18,
@@ -44,6 +46,7 @@ mockRoom.engine.snapshot=()=>({
 });
 const skipped=buildMatchResult(mockRoom);
 assert.equal(skipped.competitive,false,'Developer skip must never qualify for ranking');
+assert.equal(skipped.isDeveloperRun,true,'Developer skip must be explicitly identifiable in Neon');
 assert.deepEqual(skipped.achievements,[],'Developer skip cannot earn achievements');
 assert.deepEqual(achievementsForResult({...result,competitive:false}),[]);
 // Floor-by-floor progression survives runs that never reach the ending.
@@ -165,6 +168,7 @@ const fakePool=class {
     queries.push({sql,args});
     if(sql.includes('SELECT room_name')){
       assert(sql.includes("competitive=TRUE"));
+      assert(sql.includes('is_developer_run=FALSE'));
       assert(sql.includes("outcome='victory'"));
       assert(sql.includes('floors_cleared=27'));
       assert(sql.includes('jsonb_array_length(players)'));
@@ -190,14 +194,17 @@ const store=makeMatchStore({databaseUrl:'postgres://test:pass@localhost/test',
   loadDriver:async()=>({Pool:fakePool})});
 assert.equal(store.enabled,true);
 assert.equal(await store.save(result),true);
-assert.equal(queries.length,6,'Schema upgrades and insert run once');
+assert.equal(queries.length,7,'Schema upgrades and insert run once');
 assert(queries[0].sql.includes('CREATE TABLE IF NOT EXISTS'));
 assert(queries[1].sql.includes('DROP CONSTRAINT IF EXISTS'));
 assert(queries[2].sql.includes('BETWEEN 0 AND 27'));
-assert(queries[5].sql.includes('ON CONFLICT (match_id) DO NOTHING'));
-assert.equal(queries[5].args[0],'match-123');
-assert.equal(JSON.parse(queries[5].args[5])[0].nickname,'Captain');
-assert.equal(queries[5].args[6],true);
+assert(queries[5].sql.includes('is_developer_run BOOLEAN NOT NULL DEFAULT FALSE'));
+assert(queries[6].sql.includes('ON CONFLICT (match_id) DO NOTHING'));
+assert(queries[6].sql.includes('is_developer_run'));
+assert.equal(queries[6].args[0],'match-123');
+assert.equal(JSON.parse(queries[6].args[5])[0].nickname,'Captain');
+assert.equal(queries[6].args[6],true);
+assert.equal(queries[6].args[8],false);
 const solo=await store.leaderboard('solo');
 assert.equal(solo.category,'solo');
 assert.equal(solo.entries[0].seconds,120.5);
@@ -210,7 +217,9 @@ assert.equal(team.entries[0].players.length,2);
 assert.equal(team.entries[0].achievements[3].id,'team');
 assert.equal((await store.leaderboard('invalid')).available,false);
 assert.equal(await store.save(result),true);
-assert.equal(queries.length,9,'Repeated save does not recreate schema');
+assert.equal(queries.length,10,'Repeated save does not recreate schema');
+assert.equal(await store.save(skipped),true);
+assert.equal(queries.at(-1).args[8],true,'Neon insert must mark developer run true');
 await store.close();
 assert.equal(ended,true);
 const disabled=makeMatchStore({databaseUrl:''});
