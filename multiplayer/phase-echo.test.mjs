@@ -52,6 +52,7 @@ room.input(1,{}, {x:0,y:0});
 for(let i=0;i<95;i++)room.tick(.05);
 const after=room.snapshot(true);
 assert.equal(team[0].phaseEchoTime,0,'Ghost transformation expires');
+assert.equal(team[0].invincible,0,'Human must be vulnerable immediately after Phase Echo expires');
 assert.equal(after.grid[Math.floor(team[0].y)][Math.floor(team[0].x)],0,
   'Human must reappear on a walkable tile');
 assert.equal(team[0].hp,1,'Transformation does not restore or remove hearts');
