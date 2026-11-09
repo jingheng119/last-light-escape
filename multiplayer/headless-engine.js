@@ -40,8 +40,23 @@ const bridge=`
         extraPlayers[id-3].slot=id;
         extraPlayers[id-3].abilityCharges=SKILL_MAX_CHARGES[extraControls[id-3].role];
         extraPlayers[id-3].x=1.5;extraPlayers[id-3].y=1.5;
-        extraPlayers[id-3].hp=3;extraPlayers[id-3].bondedOn=null;extraPlayers[id-3].dashTime=0;
-        extraPlayers[id-3].dashCooldown=0;extraPlayers[id-3].trail=[];
+        // A new slot must not inherit the host's temporary state or cooldowns.
+        // This also holds if a fresh teammate is added after a host ability.
+        extraPlayers[id-3].hp=3;
+        extraPlayers[id-3].invincible=0;
+        extraPlayers[id-3].bondedOn=null;
+        extraPlayers[id-3].dashTime=0;
+        extraPlayers[id-3].dashCooldown=0;
+        extraPlayers[id-3].decoys=3;
+        extraPlayers[id-3].decoyCooldown=0;
+        extraPlayers[id-3].abilityCooldown=0;
+        extraPlayers[id-3].abilityUseSerial=0;
+        extraPlayers[id-3].phaseGuardTime=0;
+        extraPlayers[id-3].invisibleTime=0;
+        extraPlayers[id-3].ghostTrapped=0;
+        extraPlayers[id-3].reviveProgress=0;
+        extraPlayers[id-3].anchor=null;
+        extraPlayers[id-3].trail=[];
       }
       roomCount=allPlayers().length;
     },
