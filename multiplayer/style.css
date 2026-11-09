@@ -2787,3 +2787,18 @@ body.show-play .game-shell .room-chat .chat-form button{
 .profile-recovery-controls input{box-sizing:border-box;flex:1 1 220px;min-width:0;padding:8px 10px;border:1px solid #517278;border-radius:7px;background:#06191d;color:#e9f9f4}
 .profile-recovery-controls button{padding:8px 11px;border-radius:7px;border:1px solid #607b7d;background:#214249;color:#e6f9f3;cursor:pointer}
 #profileSyncStatus{margin:8px 0 0;font-size:.78rem;color:#a2c7bf}
+
+/* Separate ranked solo and co-op charts. */
+.leaderboard-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0 10px}
+.leaderboard-tabs button{cursor:pointer;border:1px solid #52757a;border-radius:8px;
+  background:#122a30;color:#b7d8d7;font-size:.84rem;padding:10px 14px}
+.leaderboard-tabs button.active{background:#295052;border-color:#83b4a8;
+  color:#f1fff8;font-weight:700}
+.leaderboard-tabs button:focus-visible{outline:2px solid #cdece2;outline-offset:2px}
+.leaderboard-achievements{display:flex!important;flex-direction:row!important;flex-wrap:wrap;gap:5px!important;margin-top:4px}
+.leaderboard-achievements>span{color:#f3d6a0!important;font-size:.71rem!important;
+  background:#302922;border:1px solid #705e43;border-radius:50px;padding:3px 8px}
+.leaderboard-entry>div>span{line-height:1.55}
+@media(max-width:520px){.leaderboard-entry{grid-template-columns:26px minmax(0,1fr) 69px;gap:7px}
+  .leaderboard-entry>b{font-size:.82rem}
+  .leaderboard-tabs button{flex:1;padding:9px 8px}}
