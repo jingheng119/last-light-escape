@@ -915,7 +915,7 @@
       !p.disconnected&&dist(p,player)<=1.5)
       .sort((a,b)=>dist(a,player)-dist(b,player))[0];
     if(trapped){
-      trapped.ghostTrapped=0;trapped.ghostGrace=3;
+      trapped.ghostTrapped=0;
       trapped.invincible=Math.max(trapped.invincible,2);
       notify('GHOST CURSE LIFTED — TEAMMATE RESCUED!',3);
       beep(1040,.25);updateUI();return;
@@ -1460,12 +1460,11 @@
   }
   function updatePlayer(dt){
     if(player.hp<=0||player.disconnected)return;
-    player.ghostGrace=Math.max(0,(player.ghostGrace||0)-dt);
     if(player.ghostTrapped>0){
       player.ghostTrapped=Math.max(0,player.ghostTrapped-dt);
       player.dashTime=0;player.trail=[];
       if(player.ghostTrapped===0){
-        player.ghostGrace=3;player.invincible=0;
+        player.invincible=0;
         damage();
       }
       recordRewindPosition(player);
@@ -1527,9 +1526,9 @@
   function checkGhostContact(){
     if(state!=='playing'||player.hp<=0||player.disconnected||player.infestedOn||player.ghostTrapped>0)return;
     // A phasing Ghost can freeze even an invincible or dashing survivor.
-    // Only the brief post-rescue grace prevents immediately being retrapped.
+    // There is no Ghost retrapping grace after teammate rescue.
     const ghost=hollows.find(h=>h.variant==='ghost'&&dist(player,h)<.80);
-    if(ghost&&(player.ghostGrace||0)<=0){
+    if(ghost){
       player.ghostTrapped=30;player.dashTime=0;player.trail=[];
       // Forget any cached pursuit of this player immediately. Frozen players
       // are also excluded from future target acquisition below.
