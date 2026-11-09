@@ -44,6 +44,8 @@ const bridge=`
         // This also holds if a fresh teammate is added after a host ability.
         extraPlayers[id-3].hp=3;
         extraPlayers[id-3].invincible=0;
+        extraPlayers[id-3].phaseEchoCharge=0;
+        extraPlayers[id-3].phaseEchoTime=0;
         extraPlayers[id-3].bondedOn=null;
         extraPlayers[id-3].dashTime=0;
         extraPlayers[id-3].dashCooldown=0;
@@ -136,6 +138,25 @@ const bridge=`
       }
     },
     action:perform,
+    // Test-only hooks; never exposed as network commands.
+    testRescueEcho(){
+      if(!echoAlly||state!=='playing')return false;
+      const original={x:player.x,y:player.y};
+      player.x=echoAlly.x;player.y=echoAlly.y;
+      interact();
+      player.x=original.x;player.y=original.y;
+      return echoAlly.rescued;
+    },
+    testPhaseInsideWall(id){
+      const character=id===1?player:id===2?guestPlayer:extraPlayers[id-3];
+      if(!character||character.phaseEchoTime<=0)return false;
+      const point={x:2.5,y:2.5};
+      // Find an actual solid interior tile rather than assuming maze layout.
+      for(let y=1;y<ROWS-1;y++)for(let x=1;x<COLS-1;x++){
+        if(!floorAt(x,y)){character.x=x+.5;character.y=y+.5;return true;}
+      }
+      return false;
+    },
     // Only local regression tests may reposition an authoritative Hollow.
     // This helper is never exposed to WebSocket clients.
     testPlaceHollow(index,x,y,stun=100){
@@ -178,7 +199,7 @@ const bridge=`
         countdownRemaining:state==='countdown'?countdownRemaining:0,
         player,guestPlayer,players:[player.disconnected?null:player,guestPlayer?.disconnected?null:guestPlayer,...extraPlayers.map(p=>p?.disconnected?null:p)],
         playerRoles:[classChoice,guestClassChoice,...extraControls.map(c=>c.role)],
-        cores,relay,exit,decoys,illusions,noiseEvents,skillWaves,survivor,technician,
+        cores,relay,exit,decoys,illusions,noiseEvents,skillWaves,survivor,technician,echoAlly,
         classChoice,guestClassChoice,
         hollows:hollows.map(h=>({
           x:h.x,y:h.y,angle:h.angle,variant:h.variant,
