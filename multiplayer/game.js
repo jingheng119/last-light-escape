@@ -246,7 +246,7 @@
   let classChoice = 'scout';
   let elapsed = 0, overallElapsed = 0, clock = 0, toastUntil = 0, hitFlash = 0, alertLevel = 0;
   let lastFrame = 0, audioCtx = null, soundEnabled = false, best = 0;
-  let musicBus=null,musicNextAt=0,musicStep=0,musicStage=0;
+  let musicBus=null,musicNextAt=0,musicStep=0,musicStage=0,musicMuted=false;
   let nextAmbientAt = 0, nextWarningAt = 0, previousThreat = 0;
   let CAMERA_ZOOM = 1.65;
   function sizeGameViewport(){
@@ -683,7 +683,7 @@
       musicBus.gain.cancelScheduledValues(t);
       musicBus.gain.setTargetAtTime(0,t,.045);
     }catch(e){}
-    musicBus=null;musicNextAt=0;
+    musicBus=null;musicNextAt=0;musicMuted=false;
   }
   function musicTone(freq,at,duration,type,volume,filterFrequency=0){
     if(!audioCtx||!musicBus)return;
@@ -899,8 +899,9 @@
   }
   function updateMusic(){
     // Once a run starts, keep the stage soundtrack playing through pauses,
-    // the elevator/floor-complete screen and the next-floor countdown.
-    // Only exit/menu, game over, or audio being disabled should stop it.
+    // the elevator/floor-complete screen. The countdown is silent, but the
+    // soundtrack timeline keeps moving so it never starts over afterward.
+    // Only exit/menu, game over, or disabled audio should stop it.
     const musicActive=['playing','paused','leveldone','countdown'].includes(state);
     if(!soundEnabled||!musicActive||!player){
       stopMusic();return;
@@ -914,9 +915,17 @@
         musicBus=audioCtx.createGain();
         // Use a normal master gain. Individual score voices are mixed
         // audibly at the source, rather than amplifying a near-silent mix.
-        musicBus.gain.value=1.0;
+        musicMuted=state==='countdown';
+        musicBus.gain.value=musicMuted?0:1;
         musicBus.connect(audioCtx.destination);
         musicStage=stage;musicStep=0;musicNextAt=audioCtx.currentTime+.07;
+      }
+      const shouldMute=state==='countdown';
+      if(musicMuted!==shouldMute){
+        musicMuted=shouldMute;
+        const t=audioCtx.currentTime;
+        musicBus.gain.cancelScheduledValues(t);
+        musicBus.gain.setTargetAtTime(shouldMute?0:1,t,.015);
       }
       const score=MUSIC_SCALE[stage]||MUSIC_SCALE[1];
       // Schedule only a short look-ahead. No accumulating timers or intervals.
