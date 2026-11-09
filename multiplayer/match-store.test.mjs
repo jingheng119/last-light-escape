@@ -125,6 +125,38 @@ assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a v
     'A loss cannot earn victory-only achievements');
 }
 
+// Public beta gate: incomplete legitimate runs can retain stage badges,
+// but may never receive victory-only achievements or ranked times.
+{
+  const roster=new Map([[1,{name:'Stage Tester'}]]);
+  const room={
+    matchId:'failed-after-stage',name:'Trial',unranked:false,
+    members:roster,matchParticipants:new Map(roster),
+    engine:{snapshot:()=>({
+      state:'dead',levelIndex:19,overallElapsed:509,
+      playerRoles:['anchor'],players:[{hp:0}]
+    })}
+  };
+  const failed=buildMatchResult(room);
+  assert.equal(failed.competitive,false);
+  assert.equal(failed.floorsCleared,19);
+  assert.deepEqual(failed.achievements.map(a=>a.id),['ward','engine'],
+    'Legitimate failed runs retain stage achievements, not victory awards');
+  room.unranked=true;
+  assert.deepEqual(buildMatchResult(room).achievements,[],
+    'Developer skip disqualifies every achievement');
+  room.unranked=false;
+  room.engine.snapshot=()=>({
+    state:'victory',levelIndex:26,overallElapsed:625,
+    playerRoles:['anchor'],players:[{hp:0}]
+  });
+  const finish=buildMatchResult(room);
+  assert.equal(finish.competitive,true);
+  assert.deepEqual(finish.achievements.map(a=>a.id),
+    ['ward','engine','signal','solo'],
+    'Finishing with zero hearts must not grant Everyone Made It');
+}
+
 const queries=[];
 let ended=false;
 const fakePool=class {
