@@ -3375,6 +3375,25 @@
         badges.appendChild(badge);
       }
     };
+    const recordFloorProgress=result=>{
+      if(!result||result.eligible!==true||
+         !Number.isInteger(result.floorsCleared)||
+         result.floorsCleared<1||result.floorsCleared>27)return;
+      const current=readProgress();
+      const badgeIds=(Array.isArray(result.achievements)?result.achievements:[])
+        .map(b=>b.id).filter(id=>ACHIEVEMENTS[id]);
+      const next={
+        runs:Math.max(0,Number(current.runs)||0),
+        bestFloors:Math.max(Number(current.bestFloors)||0,result.floorsCleared),
+        bestTime:current.bestTime==null?null:current.bestTime,
+        badges:[...new Set([...(current.badges||[]),...badgeIds])]
+      };
+      try{localStorage.setItem(PROGRESS_KEY,JSON.stringify(next));}catch{}
+      renderProgress();
+      const unlocked=badgeIds.filter(id=>!(current.badges||[]).includes(id));
+      if(unlocked.length)status.textContent='Achievement unlocked: '+
+        unlocked.map(id=>ACHIEVEMENTS[id]).join(', ');
+    };
     const recordProgress=result=>{
       if(!result||!Number.isFinite(result.floorsCleared))return;
       if(result.eligible!==true)return;
@@ -3530,6 +3549,7 @@
         // the visitor as a viewer, never create a replacement player mid-run.
         if(previousSession?.code)joinRequest(previousSession.code);
       }
+      if(m.type==='floor-progress')recordFloorProgress(m);
       if(m.type==='match-result'&&m.result)recordProgress(m.result);
       if(m.type==='rooms'&&Array.isArray(m.rooms))drawRooms(m.rooms);
       if(m.type==='joined'){
