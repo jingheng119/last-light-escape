@@ -2645,16 +2645,24 @@
   // inactive tabs, which previously froze the host whenever the guest tab
   // was being controlled on the same computer.
   let simulationLast=performance.now();
+  let lastControlPacket='',lastControlSentAt=0;
   setInterval(()=>{
     const now=performance.now();
-    const dt=Math.min(.10,Math.max(0,(now-simulationLast)/1000));
     simulationLast=now;
     if(roomRole!=='none'&&now-remotePingAt>2000){
       remotePingAt=now;sendRoom({type:'ping',at:now});
     }
-    if(roomRole!=='none'&&now-lastInput>=35){
+    if(roomRole!=='none'&&roomRole!=='spectator'&&now-lastInput>=35){
       lastInput=now;
-      sendRoom(guestInputPacket());
+      // Send a changed joystick/key state immediately. Keep an occasional
+      // control heartbeat; do not transmit identical held input ~29 times/s.
+      // The server owns movement and collision, so this is not prediction.
+      const packet=guestInputPacket();
+      const signature=JSON.stringify([packet.keys,packet.joystick]);
+      if(signature!==lastControlPacket||now-lastControlSentAt>=250){
+        lastControlPacket=signature;lastControlSentAt=now;
+        sendRoom(packet);
+      }
     }
   },35);
   function tick(timestamp){
