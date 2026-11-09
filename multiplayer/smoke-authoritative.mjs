@@ -408,6 +408,47 @@ function makeInfesterSupportRoom(role){
   assert.equal(players[1].hp,3,'Medic can heal Infester after emergence');
 }
 
+// Stage III contains only standard, invisible, and wall-phasing Ghost Hollows.
+{
+  const room=createRoomEngine();
+  room.join(2);
+  room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  room.skip(true);room.skip(true);
+  const state=room.snapshot(true);
+  assert.equal(state.levelIndex,18);
+  const counts={};
+  for(const h of state.hollows)counts[h.variant]=(counts[h.variant]||0)+1;
+  assert.deepEqual(Object.keys(counts).sort(),['ghost','invisible','standard']);
+  assert.equal(counts.standard,1);
+  assert.equal(counts.invisible,5);
+  assert.equal(counts.ghost,6);
+  assert(!state.hollows.some(h=>h.variant==='hunter'||h.variant==='dasher'));
+  const ghost=state.hollows.find(h=>h.variant==='ghost');
+  assert(ghost,'Stage III spawns ghosts');
+  const startX=ghost.x,startY=ghost.y;
+  // All other enemies are harmless during this focused Ghost rescue test.
+  for(const h of state.hollows){
+    if(h!==ghost){h.x=48.5;h.y=38.5;h.stunned=999;}
+  }
+  const victim=state.players[0],rescuer=state.players[1];
+  victim.invincible=0;
+  victim.x=ghost.x;victim.y=ghost.y;
+  rescuer.x=1.5;rescuer.y=1.5;rescuer.invincible=100;
+  room.tick(.033);
+  assert.equal(victim.ghostTrapped,30,'Ghost touch freezes a survivor for 30 seconds');
+  assert.equal(victim.hp,3,'Ghost contact does not immediately take a heart');
+  room.input(1,{right:true},{x:0,y:0});
+  const beforeX=victim.x,beforeY=victim.y;
+  room.tick(.033);
+  assert.equal(victim.x,beforeX,'Trapped survivor cannot move horizontally');
+  assert.equal(victim.y,beforeY,'Trapped survivor cannot move vertically');
+  assert(ghost.x!==startX||ghost.y!==startY,'Ghost patrol keeps moving instead of chasing');
+  rescuer.x=victim.x;rescuer.y=victim.y;
+  room.action(2,'interact');
+  assert.equal(victim.ghostTrapped,0,'Another player rescues frozen survivor using USE/E');
+  assert(victim.ghostGrace>0,'Rescue grants brief protection against instant retrapping');
+}
 // A diagonal mobile dash must slide along an impassable wall instead of
 // reversing direction or stopping on contact. Straight-on dashes still stop.
 function testWallDash(direction,{touch=false,atWall=false}={}){
