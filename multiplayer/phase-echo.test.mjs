@@ -38,14 +38,18 @@ const before=team[0].abilityCharges;
 room.action(1,'ability',null,false,{kind:'player',slot:1});
 assert.equal(team[0].abilityCharges,before-1,
   'A transformed player can still use their character skill');
-// A wall tile should not trap the survivor when the ghost timer ends.
-assert.equal(room.testPhaseInsideWall(1),true);
-const wallStartX=team[0].x;
+// The ghost must cross from a genuine walkable corridor into a solid tile.
+// A test that begins *inside* a wall could otherwise miss a collision bug.
+const approach=room.testApproachWall(1);
+assert(approach,'Stage 3 maze must have a corridor adjacent to a solid wall');
 room.input(1,{right:true},{x:0,y:0});
-room.tick(.05);
-assert(team[0].x>wallStartX+.1,'Ghost can travel through solid walls');
+for(let i=0;i<6;i++)room.tick(.05);
+assert(Math.floor(team[0].x)>=approach.wallX,
+  'Ghost must pass through the wall from the adjacent open tile');
+assert.equal(room.snapshot(true).grid[Math.floor(team[0].y)][Math.floor(team[0].x)],1,
+  'Phased survivor must physically occupy a solid tile while ghosted');
 room.input(1,{}, {x:0,y:0});
-for(let i=0;i<100;i++)room.tick(.05);
+for(let i=0;i<95;i++)room.tick(.05);
 const after=room.snapshot(true);
 assert.equal(team[0].phaseEchoTime,0,'Ghost transformation expires');
 assert.equal(after.grid[Math.floor(team[0].y)][Math.floor(team[0].x)],0,
