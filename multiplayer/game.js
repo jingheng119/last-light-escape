@@ -753,6 +753,67 @@
       copperPercussion(t+(i+.5)*beat,'tick');
     }
   }
+  // Stage III: THE LOST SIGNAL (original, procedural ambient score).
+  // 80 BPM, D minor/add9 and cold suspended intervals; a 16-bar / 48-second
+  // repeating maze soundscape. Its sparse texture leaves room for footsteps,
+  // warning sounds and teammate communication.
+  const SIGNAL_CHORDS=[
+    [38,45,52,62],[34,41,50,57],[36,43,48,55],[33,40,50,57],
+    [38,45,53,60],[36,43,50,57],[34,41,48,55],[33,40,45,52]
+  ];
+  const SIGNAL_NOTES=[74,69,77,72,81,76,72,69,77,74,72,65,69,72,64,62];
+  function signalVoice(midi,at,duration,volume,kind,pan=0){
+    if(!musicBus)return;
+    const hz=440*Math.pow(2,(midi-69)/12),end=at+duration;
+    const env=audioCtx.createGain(),stereo=typeof audioCtx.createStereoPanner==='function'?
+      audioCtx.createStereoPanner():null;
+    if(stereo){stereo.pan.value=pan;env.connect(stereo);stereo.connect(musicBus);}
+    else env.connect(musicBus);
+    const attack=kind==='drone'?Math.min(1.2,duration*.22):
+      kind==='mist'?Math.min(.85,duration*.24):.012;
+    env.gain.setValueAtTime(.0001,at);
+    env.gain.linearRampToValueAtTime(volume,at+attack);
+    if(kind==='drone'||kind==='mist'){
+      env.gain.setValueAtTime(volume,Math.max(at+attack,end-.9));
+      env.gain.linearRampToValueAtTime(.0001,end);
+    }else env.gain.exponentialRampToValueAtTime(.0001,end);
+    const partials=kind==='drone'?[1,1.004,2,3.002]:
+      kind==='mist'?[1,1.007,1.5,2.003]:
+      kind==='bell'?[1,2.01,3.98]:[1,2];
+    const amplitudes=kind==='drone'?[1,.34,.15,.045]:
+      kind==='mist'?[1,.24,.095,.055]:kind==='bell'?[1,.21,.06]:[1,.12];
+    const filter=audioCtx.createBiquadFilter();filter.type='lowpass';
+    filter.frequency.value=kind==='drone'?550:kind==='mist'?1250:kind==='bell'?3100:700;
+    filter.connect(env);
+    for(let i=0;i<partials.length;i++){
+      const osc=audioCtx.createOscillator(),level=audioCtx.createGain();
+      osc.type=kind==='heartbeat'?'triangle':'sine';
+      osc.frequency.setValueAtTime(hz*partials[i],at);
+      level.gain.value=amplitudes[i];osc.connect(level).connect(filter);
+      osc.start(at);osc.stop(end+.025);
+    }
+  }
+  function scheduleSignalBar(t,beat,bar){
+    const chord=SIGNAL_CHORDS[Math.floor(bar/2)%SIGNAL_CHORDS.length];
+    const pan=bar%2===0?-.34:.34;
+    // Continuous low-frequency foundation; shimmering, detuned upper air.
+    signalVoice(chord[0]-12,t,beat*4,.024,'drone',-.1);
+    signalVoice(chord[1],t,beat*4,.009,'mist',pan);
+    signalVoice(chord[2],t,beat*3.85,.007,'mist',-pan);
+    if(bar%2===0)
+      signalVoice(chord[3],t+beat*.8,beat*2.6,.006,'mist',.50);
+    // Unpredictable distant signals, not a conventional hummable melody.
+    if(bar%4!==3){
+      const note=SIGNAL_NOTES[bar%SIGNAL_NOTES.length];
+      signalVoice(note,t+beat*(bar%2===0?1.5:2.5),beat*2.1,.022,'bell',pan);
+      signalVoice(note-12,t+beat*(bar%2===0?1.65:2.65),beat*1.7,.008,'bell',-pan);
+    }
+    // Occasional submerged sonar taps, intentionally spacious.
+    if(bar%4===0||bar%4===2)
+      signalVoice(38,t+beat*.05,beat*.48,.028,'heartbeat',0);
+    if(bar%4===2)
+      signalVoice(38,t+beat*3.02,beat*.28,.012,'heartbeat',0);
+  }
   function updateMusic(){
     if(!soundEnabled||state!=='playing'||!player){
       stopMusic();return;
@@ -760,7 +821,7 @@
     try{
       audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();
       if(audioCtx.state==='suspended')return;
-      const stage=CONFIGS[levelIndex].stage>=2?2:1;
+      const stage=CONFIGS[levelIndex].stage||1;
       if(!musicBus||musicStage!==stage){
         stopMusic();
         musicBus=audioCtx.createGain();
@@ -770,11 +831,17 @@
         musicBus.connect(audioCtx.destination);
         musicStage=stage;musicStep=0;musicNextAt=audioCtx.currentTime+.07;
       }
-      const score=MUSIC_SCALE[stage];
+      const score=MUSIC_SCALE[stage]||MUSIC_SCALE[1];
       // Schedule only a short look-ahead. No accumulating timers or intervals.
       let scheduled=0;
       while(musicNextAt<audioCtx.currentTime+.12&&scheduled++<3){
-        const beat=stage===2?60/108:score.beat,step=musicStep++,t=musicNextAt;
+        const beat=stage===3?60/80:stage===2?60/108:score.beat,step=musicStep++,t=musicNextAt;
+        if(stage===3){
+          // Sixteen bars at 80 BPM, naturally repeating every 48 seconds.
+          if(step%8===0)scheduleSignalBar(t,beat,Math.floor(step/8)%16);
+          musicNextAt+=beat*.5;
+          continue;
+        }
         if(stage===2){
           // Eight-bar Gentle Clockwork arrangement, loops continuously.
           if(step%8===0)scheduleCopperBar(t,beat,Math.floor(step/8)%8);
