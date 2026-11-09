@@ -32,7 +32,8 @@ export function buildFloorProgress(room){
 export function buildMatchResult(room){
   const snapshot=room.engine.snapshot(false);
   if(!MATCH_OUTCOMES.has(snapshot.state))return null;
-  const players=[...room.members.entries()].map(([slot,member])=>{
+  // Preserve the original party size even if a teammate disconnects later.
+  const players=[...(room.matchParticipants||room.members).entries()].map(([slot,member])=>{
     const role=snapshot.playerRoles?.[slot-1];
     return {
       slot,nickname:String(member.name||'Survivor '+slot).slice(0,20),
@@ -111,22 +112,28 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
         return false;
       }
     },
-    async leaderboard(){
+    async leaderboard(category='solo'){
+      // Always filter by the party that STARTED the run. This is enforced
+      // against the stored original roster; clients cannot supply scores.
+      if(!['solo','team'].includes(category))return {available:false,entries:[]};
       if(!enabled)return {available:false,entries:[]};
       try{
         const db=await ensure();
+        const condition=category==='solo'?'= 1':'BETWEEN 2 AND 5';
         const {rows}=await db.query(`SELECT room_name,elapsed_seconds,players,
              floors_cleared,achievements,completed_at
           FROM last_light_matches
           WHERE competitive=TRUE AND outcome='victory' AND floors_cleared=27
+            AND jsonb_typeof(players)='array'
+            AND jsonb_array_length(players) ${condition}
           ORDER BY elapsed_seconds ASC,completed_at ASC LIMIT 20`);
-        return {available:true,entries:rows.map((row,i)=>({
+        return {available:true,category,entries:rows.map((row,i)=>({
           rank:i+1,roomName:row.room_name,seconds:Number(row.elapsed_seconds),
           players:row.players,achievements:row.achievements,completedAt:row.completed_at
         }))};
       }catch(error){
         log.error('Leaderboard query failed:',error?.message||error);
-        return {available:false,entries:[]};
+        return {available:false,category,entries:[]};
       }
     },
     async close(){if(pool)await pool.end();}
