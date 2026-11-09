@@ -2773,3 +2773,8 @@ body.show-play .game-shell .room-chat .chat-form button{
 .leaderboard-entry>div span{font-size:.78rem;color:#9fb9bd;overflow-wrap:anywhere}
 .leaderboard-entry>b{text-align:right;font-variant-numeric:tabular-nums;color:#b5e5d9}
 @media(max-width:650px){.progression-heading{flex-direction:column}.progression-stages{grid-template-columns:1fr}.progression-panel{padding:14px}}
+
+.my-progression{margin-top:16px;padding:12px 14px;background:#203a3c;border:1px solid #517474;border-radius:8px;color:#def5eb;font-size:.88rem;font-weight:700}
+.earned-achievements{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.earned-achievements:empty{display:none}
+.earned-achievement{border:1px solid #99805a;border-radius:99px;background:#352c24;color:#f4d69b;font-size:.78rem;padding:5px 10px}
