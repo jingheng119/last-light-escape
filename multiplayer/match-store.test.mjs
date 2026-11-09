@@ -4,6 +4,7 @@ import {makeMatchStore,buildMatchResult,achievementsForResult,buildFloorProgress
 const mockRoom={
   matchId:'match-123',name:'The Ward',unranked:false,
   members:new Map([[1,{name:'Captain'}],[2,{name:'Runner'}]]),
+  matchParticipants:new Map([[1,{name:'Captain'}],[2,{name:'Runner'}]]),
   engine:{snapshot:()=>({
     state:'victory',levelIndex:26,overallElapsed:180.5,
     playerRoles:['medic','infester'],players:[{hp:2},{hp:1}]
@@ -21,6 +22,11 @@ assert.deepEqual(result.players,[
 ]);
 assert.deepEqual(result.achievements.map(a=>a.id),
   ['ward','engine','signal','team','alive']);
+mockRoom.members.delete(2);
+const disconnected=buildMatchResult(mockRoom);
+assert.equal(disconnected.players.length,2,
+  'Starting roster prevents a disconnected team becoming a solo leaderboard entry');
+mockRoom.members.set(2,{name:'Runner'});
 mockRoom.engine.snapshot=()=>({
   state:'playing',levelIndex:4,overallElapsed:14,
   playerRoles:['medic','scout'],players:[{hp:2},{hp:0}]
@@ -64,11 +70,25 @@ const fakePool=class {
   constructor(opts){assert.equal(opts.connectionString,'postgres://test:pass@localhost/test');}
   async query(sql,args){
     queries.push({sql,args});
-    if(sql.includes('SELECT room_name'))return {rows:[{
-      room_name:'The Ward',elapsed_seconds:180.5,players:result.players,
-      floors_cleared:27,achievements:result.achievements,
-      completed_at:'2026-11-09T12:00:00Z'
-    }]};
+    if(sql.includes('SELECT room_name')){
+      assert(sql.includes("competitive=TRUE"));
+      assert(sql.includes("outcome='victory'"));
+      assert(sql.includes('floors_cleared=27'));
+      assert(sql.includes('jsonb_array_length(players)'));
+      assert(sql.includes('ORDER BY elapsed_seconds ASC,completed_at ASC'));
+      if(sql.includes('= 1'))return {rows:[{
+        room_name:'Solo Escape',elapsed_seconds:120.5,
+        players:[{slot:1,nickname:'Soloist',role:'rewinder',hearts:1}],
+        floors_cleared:27,achievements:[{id:'solo',title:'Lone Survivor'}],
+        completed_at:'2026-11-09T12:01:00Z'
+      }]};
+      assert(sql.includes('BETWEEN 2 AND 5'));
+      return {rows:[{
+        room_name:'The Ward',elapsed_seconds:180.5,players:result.players,
+        floors_cleared:27,achievements:result.achievements,
+        completed_at:'2026-11-09T12:00:00Z'
+      }]};
+    }
     return {rowCount:1};
   }
   async end(){ended=true;}
@@ -85,14 +105,24 @@ assert(queries[5].sql.includes('ON CONFLICT (match_id) DO NOTHING'));
 assert.equal(queries[5].args[0],'match-123');
 assert.equal(JSON.parse(queries[5].args[5])[0].nickname,'Captain');
 assert.equal(queries[5].args[6],true);
-assert.equal((await store.leaderboard()).entries[0].seconds,180.5);
-assert(queries[6].sql.includes('WHERE competitive=TRUE'));
+const solo=await store.leaderboard('solo');
+assert.equal(solo.category,'solo');
+assert.equal(solo.entries[0].seconds,120.5);
+assert.equal(solo.entries[0].players[0].role,'rewinder');
+assert.equal(solo.entries[0].achievements[0].id,'solo');
+const team=await store.leaderboard('team');
+assert.equal(team.category,'team');
+assert.equal(team.entries[0].seconds,180.5);
+assert.equal(team.entries[0].players.length,2);
+assert.equal(team.entries[0].achievements[3].id,'team');
+assert.equal((await store.leaderboard('invalid')).available,false);
 assert.equal(await store.save(result),true);
-assert.equal(queries.length,8,'Repeated save does not recreate schema');
+assert.equal(queries.length,9,'Repeated save does not recreate schema');
 await store.close();
 assert.equal(ended,true);
 const disabled=makeMatchStore({databaseUrl:''});
 assert.equal(disabled.enabled,false);
 assert.equal(await disabled.save(result),false);
 assert.equal((await disabled.leaderboard()).available,false);
-console.log('PASS: 27-floor match persistence, schema migrations, achievements, ranked leaderboard and skip exclusion.');
+assert.equal((await disabled.leaderboard('team')).available,false);
+console.log('PASS: solo/team leaderboards, original roster integrity, role and achievement details, and ranked-run exclusion.');
