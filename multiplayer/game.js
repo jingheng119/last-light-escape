@@ -276,7 +276,7 @@
     illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'},
     rewinder:{label:'REWINDER',skill:'TARGET REWIND · 5.5 TILES',ready:'REWIND READY'},
     anchor:{label:'ANCHOR',skill:'TARGET ANCHOR · RETURN',ready:'ANCHOR READY'},
-    infester:{label:'INFESTER',skill:'ATTACH TO TEAMMATE · SPEED BOOST',ready:'INFEST READY'}
+    infester:{label:'SYMBIOTE',skill:'ATTACH TO TEAMMATE · SPEED BOOST',ready:'BOND READY'}
   };
   const ROLE_DESCRIPTIONS={
     scout: "Release a shockwave that stuns Hollows within 5.5 tiles for 2.5 seconds.",
@@ -286,7 +286,7 @@
     illusioner: "Summon an invincible roaming phantom that distracts Hollows for 5 seconds. Two phantoms can roam at once without replacing each other.",
     rewinder: "Choose yourself, a teammate, or a Hollow within 5.5 tiles; return that target to its position 3 seconds ago. Players gain 2 seconds of protection.",
     anchor: "Choose yourself or a living teammate within 5.5 tiles. Marking yourself leaves a fixed anchor at your location; marking a teammate attaches the anchor to them as they move. Press Skill again to teleport to the anchor with 2 seconds of protection. Hollows cannot be marked.",
-    infester: "Infest a teammate within 5.5 tiles to boost their walking speed by 30%. Press Skill again to emerge freely, or emerge automatically at the hit location when the teammate loses a heart (including their final heart). Gain 2 seconds of invincibility and start the 13-second cooldown only on emergence."
+    infester: "Bond with a teammate within 5.5 tiles to boost their walking speed by 30%. Press Skill again to emerge freely, or emerge automatically at the hit location when the teammate loses a heart (including their final heart). Gain 2 seconds of invincibility and start the 13-second cooldown only on emergence."
 };
   function skillDescription(role){
     const charges=SKILL_MAX_CHARGES[role];
@@ -1203,12 +1203,12 @@
   function requestAbility(){
     if(classChoice==='infester'){
       if(state!=='playing'||!player||player.hp<=0)return;
-      // While attached, the second press always releases the Infester.
+      // While attached, the second press always releases the Symbiote.
       // The server decides the emergence location and starts the cooldown.
       if(player.infestedOn){activateAbility();return;}
       if(!canUseSkill())return;
       if(!infestTargeting){infestTargeting=true;infestTargetIndex=0;
-        notify('INFESTER — select a living teammate within 5.5 tiles.',3);
+        notify('SYMBIOTE — select a living teammate within 5.5 tiles.',3);
         syncTouchTargeting();
       }else commitInfestTarget(chosenInfestTarget());
       return;
@@ -1254,12 +1254,12 @@
         allPlayers().find(p=>p.slot===rewindTarget.slot):null;
       if(!host||host===player||host.hp<=0||host.disconnected||host.infestedOn||
          dist(host,player)>INFEST_RADIUS){
-        notify('INFESTER — select a living teammate in range.');return;
+        notify('SYMBIOTE — select a living teammate in range.');return;
       }
       player.infestedOn=host.slot;player.x=host.x;player.y=host.y;
       player.dashTime=0;player.trail=[];
       // Do not consume a charge here; the cooldown starts on emergence.
-      notify('INFESTER — attached! Press Skill to emerge · teammate speed +30%.');
+      notify('SYMBIOTE — attached! Press Skill to emerge · teammate speed +30%.');
       beep(780,.25,'sine',.025);
     }else if(classChoice==='medic'){
       // Self-healing always takes priority. When healthy, heal exactly one
@@ -1432,12 +1432,12 @@
   // authoritative location. Infestation consumes a charge only on emergence.
   function infesterEmergencePoint(carrier){
     // The carrier may stand against a wall with the smaller mobile hitbox.
-    // Reusing their exact coordinates can trap the emerged Infester at a
+    // Reusing their exact coordinates can trap the emerged Symbiote at a
     // corner. Use a safe offset near the carrier, or the tile centre.
     const tile=tileAt(carrier),center=TILE_CENTER(tile.x,tile.y);
     const offsets=[
       // When space permits, emerge visibly apart from the carrier so skills
-      // such as Anchor can select the Infester independently of the host.
+      // such as Anchor can select the Symbiote independently of the host.
       [.82,0],[-.82,0],[0,.82],[0,-.82],
       [.82,.82],[-.82,.82],[.82,-.82],[-.82,-.82],
       [.34,0],[-.34,0],[0,.34],[0,-.34],
@@ -1464,12 +1464,12 @@
     passenger.dashTime=0;
     passenger.invincible=Math.max(passenger.invincible,2);
     consumeInfesterCharge(passenger);
-    notify('INFESTER — emerged! Invincible for 2 seconds.',3);
+    notify('SYMBIOTE — emerged! Invincible for 2 seconds.',3);
     return true;
   }
   function consumeInfesterCharge(passenger){
     // A release may occur during another player's damage() context. Use the
-    // Infester's own charge/cooldown, not the damaged player's role.
+    // Symbiote's own charge/cooldown, not the damaged player's role.
     if((passenger.abilityCharges??1)<=0)return;
     passenger.abilityCharges--;
     passenger.abilityUseSerial=(passenger.abilityUseSerial||0)+1;
@@ -1580,7 +1580,7 @@
       return;
     }
     // Losing even one heart sends the carrier to spawn. Release the attached
-    // Infester at the impact position before that happens, including final death.
+    // Symbiote at the impact position before that happens, including final death.
     releaseInfestersFor(player);
     player.hp--;
     player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
@@ -1925,7 +1925,7 @@
     $('.side-objectives').classList.toggle('all-objectives-complete',objectivesComplete);
     const available=skillCharges();
     const maximum=maxSkillCharges();
-    ui.abilityStatus.textContent=player.ghostTrapped>0?'GHOST CURSE · '+Math.ceil(player.ghostTrapped)+'s LEFT':player.infestedOn?'INFESTING TEAMMATE '+player.infestedOn+' · F TO EMERGE':
+    ui.abilityStatus.textContent=player.ghostTrapped>0?'GHOST CURSE · '+Math.ceil(player.ghostTrapped)+'s LEFT':player.infestedOn?'BONDED TO TEAMMATE '+player.infestedOn+' · F TO EMERGE':
       infestTargeting&&classChoice==='infester'?'SELECT TEAMMATE · TAB / F':
       rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':
       anchorTargeting&&classChoice==='anchor'?'MARK ANCHOR · TAB / F':
