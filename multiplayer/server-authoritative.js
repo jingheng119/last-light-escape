@@ -4,6 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createRoomEngine } from './headless-engine.js';
+import { createInputGate } from './input-rate.js';
 import { makeMatchStore, buildMatchResult, buildFloorProgress } from './match-store.js';
 import { makeProfileStore,validProfileKey } from './profile-store.js';
 
@@ -341,7 +342,7 @@ wss.on('connection',(ws,req)=>{
       return ws.close(1008,'Origin invalid');
   }catch{return ws.close(1008,'Origin invalid');}
   lobbyClients.add(ws);send(ws,{type:'rooms',rooms:listRooms()});
-  let lastInputAt=0,lastInputSignature=null;
+  const acceptInput=createInputGate(20);
   ws.on('message',raw=>{
     if(raw.length>16000)return;
     let m;try{m=JSON.parse(raw.toString());}catch{return;}
@@ -399,9 +400,7 @@ wss.on('connection',(ws,req)=>{
       const signature=JSON.stringify([keys.up,keys.down,keys.left,keys.right,stick.x,stick.y]);
       // Do not drop a quick key release or joystick direction change.
       // Only suppress identical packets within the existing 20 ms window.
-      if(signature===lastInputSignature&&now-lastInputAt<20)return;
-      lastInputAt=now;
-      lastInputSignature=signature;
+      if(!acceptInput(signature,now))return;
       room.engine.input(id,keys,stick);
     }else if(m.type==='action'&&['dash','interact','decoy','ability'].includes(m.name))
       room.engine.action(id,m.name,safeDirection(m.direction),m.name==='dash'&&m.touch===true,
