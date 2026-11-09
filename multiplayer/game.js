@@ -109,6 +109,9 @@
   let roomRole='none',roomSocket=null,roomCount=0,guestPlayer=null,lastSync=0,lastInput=0,lastLevel=-1,lastSentStaticLevel=-1,lastFullSnapshot=0,remotePingAt=0,remotePingMs=null,lastGuestUIAt=0;
   let remoteKeys={up:false,down:false,left:false,right:false},remoteStick={x:0,y:0},guestClassChoice='scout',guestContextHost=null;
   let localDashUntil=0,localDashDir=null,hostInputClock=0,hostLastGuestInput=0;
+  // Client-side diagnostics only: measure the delivery stream, not server FPS.
+  let snapshotWindowStart=0,snapshotWindowCount=0,snapshotRate=null;
+  let lastSnapshotArrival=0,maxSnapshotGap=0,reportedSnapshotGap=0;
   let guestPreviousHP=null,guestWasPlaying=false;
   let spectatorReconnectCode=null;
   let clientToastUntil=0,clientHitFlashUntil=0;
@@ -140,7 +143,10 @@
     if(!status)return;
     const label=remotePingMs===null?'measuring…':Math.round(remotePingMs)+' ms';
     const healthy=remotePingMs!==null&&remotePingMs<180;
-    status.textContent=(roomRole==='spectator'?'SPECTATOR':roomRole==='host'?'HOST':'PLAYER '+roomPlayerId)+' · SERVER '+label+
+    const stream=snapshotRate===null?'SNAP measuring…':'SNAP '+snapshotRate.toFixed(1)+'/s';
+    const gaps=reportedSnapshotGap>0?' · GAP '+Math.round(reportedSnapshotGap)+' ms':'';
+    status.textContent=(roomRole==='spectator'?'SPECTATOR':roomRole==='host'?'HOST':'PLAYER '+roomPlayerId)+
+      ' · PING '+label+' · '+stream+gaps+
       (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
@@ -3638,6 +3644,9 @@
     socket.addEventListener('open',()=>{
       if(socket!==roomSocket)return;
       reconnectAttempts=0;
+      snapshotWindowStart=0;snapshotWindowCount=0;snapshotRate=null;
+      lastSnapshotArrival=0;maxSnapshotGap=0;reportedSnapshotGap=0;
+      showNetworkStatus();
       sendRoom({type:'list'});sendRoom({type:'ping',at:performance.now()});
       syncProfile();
       const saved=readSession();
@@ -3663,6 +3672,20 @@
     socket.addEventListener('message',event=>{
       if(socket!==roomSocket)return;
       let m;try{m=JSON.parse(event.data);}catch{return;}
+      if(m.type==='snapshot'&&roomRole!=='none'){
+        const now=performance.now();
+        if(!snapshotWindowStart)snapshotWindowStart=now;
+        if(lastSnapshotArrival)maxSnapshotGap=Math.max(maxSnapshotGap,now-lastSnapshotArrival);
+        lastSnapshotArrival=now;
+        snapshotWindowCount++;
+        const windowMs=now-snapshotWindowStart;
+        if(windowMs>=2000){
+          snapshotRate=snapshotWindowCount*1000/windowMs;
+          reportedSnapshotGap=maxSnapshotGap;
+          snapshotWindowStart=now;snapshotWindowCount=0;maxSnapshotGap=0;
+          showNetworkStatus();
+        }
+      }
       if(m.type==='pong'&&typeof m.at==='number'){
         const ms=Math.max(0,performance.now()-m.at);
         remotePingMs=remotePingMs===null?ms:remotePingMs*.72+ms*.28;
