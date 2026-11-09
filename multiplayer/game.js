@@ -814,65 +814,77 @@
     if(bar%4===2)
       signalVoice(38,t+beat*3.02,beat*.28,.012,'heartbeat',0);
   }
-  // Stage I: THE HOLLOW WARD — original abandoned-maze ambient theme.
-  // 88 BPM, A minor / suspended harmony; 16 bars (about 43.6 seconds).
-  // Rounded lower drones, distant glass echoes and a sparse wandering motif.
+  // Stage I: THE HOLLOW WARD — original six-eight music-box lament.
+  // Different from Stage III's sustained electronic drones: a recognizable
+  // 16-bar E minor melody in 6/8, with felt-piano arpeggios and cello.
+  // A 72 BPM quarter-note pulse makes the full loop 40 seconds.
   const WARD_CHORDS=[
-    [45,52,57,64],[41,48,52,59],[43,50,57,64],[40,47,52,59],
-    [45,52,59,64],[41,48,55,60],[43,50,55,62],[40,47,52,57]
+    [40,47,52,55],[36,43,48,52],[43,50,55,59],[38,45,50,54],
+    [40,47,52,55],[36,43,48,52],[45,52,57,60],[38,45,50,54],
+    [40,47,52,55],[36,43,48,52],[43,50,55,59],[38,45,50,54],
+    [45,52,57,60],[36,43,48,52],[38,45,50,54],[40,47,52,55]
   ];
-  const WARD_ECHO=[76,72,79,74,76,71,69,72,81,76,74,71,72,69,67,64];
+  // Explicit melody phrases (MIDI, six eighth-note slots per bar).
+  // Nulls are breaths; repeated motifs give the opening ward its identity.
+  const WARD_MELODY=[
+    [76,null,74,71,72,null],[74,null,72,71,67,null],
+    [71,74,79,null,78,76],[74,null,71,null,69,null],
+    [76,null,79,78,76,74],[72,null,71,69,67,null],
+    [69,72,76,null,74,72],[71,null,69,null,66,null],
+    [76,null,74,71,72,74],[76,null,72,71,67,null],
+    [71,74,79,78,76,null],[74,null,71,69,66,null],
+    [69,72,76,74,72,null],[67,72,76,null,74,72],
+    [71,null,69,66,69,71],[76,null,71,null,64,null]
+  ];
   function wardVoice(midi,at,duration,volume,kind,pan=0){
     if(!musicBus)return;
     const hz=440*Math.pow(2,(midi-69)/12),end=at+duration;
     const env=audioCtx.createGain();
-    const panner=typeof audioCtx.createStereoPanner==='function'?
+    const stereo=typeof audioCtx.createStereoPanner==='function'?
       audioCtx.createStereoPanner():null;
-    if(panner){panner.pan.value=pan;env.connect(panner);panner.connect(musicBus);}
+    if(stereo){stereo.pan.value=pan;env.connect(stereo);stereo.connect(musicBus);}
     else env.connect(musicBus);
-    const attack=kind==='air'?Math.min(.75,duration*.22):
-      kind==='ground'?Math.min(.36,duration*.15):.018;
+    const plucked=kind==='musicbox'||kind==='felt';
+    const attack=plucked?.007:kind==='cello'?.42:.025;
     env.gain.setValueAtTime(.0001,at);
     env.gain.linearRampToValueAtTime(volume,at+attack);
-    if(kind==='air'||kind==='ground'){
-      env.gain.setValueAtTime(volume,Math.max(at+attack,end-.65));
+    if(plucked)env.gain.exponentialRampToValueAtTime(.0001,end);
+    else{
+      env.gain.setValueAtTime(volume,Math.max(at+attack,end-.55));
       env.gain.linearRampToValueAtTime(.0001,end);
-    }else env.gain.exponentialRampToValueAtTime(.0001,end);
-    const partials=kind==='air'?[1,1.003,2.01]:
-      kind==='ground'?[1,2,3.01]:kind==='echo'?[1,2.005,4.01]:[1,2];
-    const levels=kind==='air'?[1,.24,.09]:
-      kind==='ground'?[1,.19,.07]:kind==='echo'?[1,.24,.065]:[1,.10];
+    }
+    const partials=kind==='musicbox'?[1,2.002,3.98,6.03]:
+      kind==='felt'?[1,2,3.005]:kind==='cello'?[1,2.004,3.01]:[1,2];
+    const levels=kind==='musicbox'?[1,.20,.09,.025]:
+      kind==='felt'?[1,.20,.055]:kind==='cello'?[1,.26,.07]:[1,.16];
     const filter=audioCtx.createBiquadFilter();filter.type='lowpass';
-    filter.frequency.value=kind==='air'?1250:kind==='ground'?540:
-      kind==='echo'?2450:920;
+    filter.frequency.value=kind==='musicbox'?3500:kind==='felt'?1600:
+      kind==='cello'?680:450;
     filter.connect(env);
     for(let i=0;i<partials.length;i++){
-      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-      o.type=kind==='step'?'triangle':'sine';
-      o.frequency.setValueAtTime(hz*partials[i],at);
-      g.gain.value=levels[i];o.connect(g).connect(filter);
-      o.start(at);o.stop(end+.025);
+      const osc=audioCtx.createOscillator(),level=audioCtx.createGain();
+      osc.type=kind==='pulse'?'triangle':'sine';
+      osc.frequency.setValueAtTime(hz*partials[i],at);
+      level.gain.value=levels[i];
+      osc.connect(level).connect(filter);osc.start(at);osc.stop(end+.025);
     }
   }
   function scheduleWardBar(t,beat,bar){
-    const chord=WARD_CHORDS[Math.floor(bar/2)%WARD_CHORDS.length];
-    const side=bar%2===0?-.32:.32;
-    // Air against old brick, fading harmonic traces, no dominant beat.
-    wardVoice(chord[0]-12,t,beat*4,.025,'ground',-.12);
-    wardVoice(chord[1],t,beat*3.9,.011,'air',side);
-    wardVoice(chord[2],t+beat*.1,beat*3.6,.007,'air',-side);
-    if(bar%2===0)wardVoice(chord[3],t+beat*.65,beat*2.8,.006,'air',.25);
-    // A short, recognizable signal, with a quieter reflection in the corridor.
-    if(bar%4!==3){
-      const note=WARD_ECHO[bar%WARD_ECHO.length];
-      const offset=bar%2===0?1.15:2.15;
-      wardVoice(note,t+beat*offset,beat*1.75,.029,'echo',side);
-      wardVoice(note-12,t+beat*(offset+.36),beat*1.75,.010,'echo',-side);
+    const chord=WARD_CHORDS[bar%16],notes=WARD_MELODY[bar%16];
+    const eighth=beat/2,pan=bar%2===0?-.22:.22;
+    // A steady six-eight cradle pulse rather than Stage III's sonar drones.
+    wardVoice(chord[0]-12,t,beat*2.95,.022,'cello',-.16);
+    for(let i=0;i<6;i++){
+      const index=[0,2,3,1,2,3][i];
+      wardVoice(chord[index]+12,t+i*eighth,eighth*.88,
+        i===0||i===3?.012:.008,'felt',i%2?-.30:.30);
+      if(notes[i]!==null)
+        wardVoice(notes[i],t+i*eighth,eighth*(i===0||i===3?2.0:1.24),
+          i===0?.030:.022,'musicbox',pan);
     }
-    if(bar%4===0||bar%4===2)
-      wardVoice(45,t+beat*.1,beat*.38,.015,'step',0);
-    if(bar%8===6)
-      wardVoice(48,t+beat*3.0,beat*.26,.010,'step',.18);
+    // Soft two-beat heartbeat marking the compound meter.
+    wardVoice(52,t+eighth*.05,eighth*.28,.007,'pulse',0);
+    wardVoice(52,t+eighth*3.05,eighth*.23,.005,'pulse',0);
   }
   function updateMusic(){
     if(!soundEnabled||state!=='playing'||!player){
@@ -895,10 +907,10 @@
       // Schedule only a short look-ahead. No accumulating timers or intervals.
       let scheduled=0;
       while(musicNextAt<audioCtx.currentTime+.12&&scheduled++<3){
-        const beat=stage===3?60/80:stage===2?60/108:score.beat,step=musicStep++,t=musicNextAt;
+        const beat=stage===1?60/72:stage===3?60/80:stage===2?60/108:score.beat,step=musicStep++,t=musicNextAt;
         if(stage===1){
-          // The Hollow Ward: sixteen-bar, 88 BPM ambient loop.
-          if(step%8===0)scheduleWardBar(t,beat,Math.floor(step/8)%16);
+          // Six-eight music-box lament: 16 bars, 40 seconds per loop.
+          if(step%6===0)scheduleWardBar(t,beat,Math.floor(step/6)%16);
           musicNextAt+=beat*.5;
           continue;
         }
