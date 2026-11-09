@@ -346,6 +346,8 @@ wss.on('connection',(ws,req)=>{
     if(m.type==='list')return send(ws,{type:'rooms',rooms:listRooms()});
     if(m.type==='profile-key'){
       if(!validProfileKey(m.key))return send(ws,{type:'profile-error',message:'Invalid recovery key.'});
+      if(ws.room?.started&&ws.profileKey&&ws.profileKey!==m.key)
+        return send(ws,{type:'profile-error',message:'Change recovery keys between matches, not during a run.'});
       ws.profileKey=m.key;
       // Never send the secret back in a server response or room broadcast.
       void profileStore.read(m.key).then(data=>send(ws,{
