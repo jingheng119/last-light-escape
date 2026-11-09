@@ -3352,6 +3352,43 @@
     $('#refreshLeaderboard')?.addEventListener('click',loadLeaderboard);
     void loadLeaderboard();
     const PROGRESS_KEY='lastLightProgressV1';
+    const PROFILE_KEY_STORAGE='lastLightRecoveryKeyV1';
+    const recoveryInput=$('#profileRecoveryKey'),syncStatus=$('#profileSyncStatus');
+    const validRecoveryKey=key=>typeof key==='string'&&/^[a-f0-9]{64}$/.test(key);
+    const generateRecoveryKey=()=>{
+      const bytes=new Uint8Array(32);
+      crypto.getRandomValues(bytes);
+      return [...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');
+    };
+    let recoveryKey=(()=>{try{
+      const saved=localStorage.getItem(PROFILE_KEY_STORAGE);
+      if(validRecoveryKey(saved))return saved;
+      const fresh=generateRecoveryKey();
+      localStorage.setItem(PROFILE_KEY_STORAGE,fresh);return fresh;
+    }catch{return generateRecoveryKey();}})();
+    recoveryInput.value=recoveryKey;
+    const syncProfile=()=>{
+      if(roomSocket?.readyState===WebSocket.OPEN)
+        sendRoom({type:'profile-key',key:recoveryKey});
+    };
+    $('#copyProfileKey').addEventListener('click',async()=>{
+      try{
+        await navigator.clipboard.writeText(recoveryKey);
+        syncStatus.textContent='Recovery key copied. Keep it secret!';
+      }catch{syncStatus.textContent='Unable to copy automatically. Select and copy your key.';}
+    });
+    $('#restoreProfileKey').addEventListener('click',()=>{
+      const key=recoveryInput.value.trim().toLowerCase();
+      if(!validRecoveryKey(key)){
+        syncStatus.textContent='Enter a valid 64-character recovery key.';return;
+      }
+      if(key===recoveryKey){syncProfile();return;}
+      recoveryKey=key;
+      try{localStorage.setItem(PROFILE_KEY_STORAGE,key);
+          localStorage.removeItem(PROGRESS_KEY);}catch{}
+      renderProgress();syncStatus.textContent='Restoring profile from server…';
+      syncProfile();
+    });
     const ACHIEVEMENTS={
       ward:'Ward Escape',engine:'Copper Survivor',signal:'Last Light',
       solo:'Lone Survivor',team:'Together Through Darkness',
@@ -3516,6 +3553,7 @@
       if(socket!==roomSocket)return;
       reconnectAttempts=0;
       sendRoom({type:'list'});sendRoom({type:'ping',at:performance.now()});
+      syncProfile();
       const saved=readSession();
       if(saved){
         status.textContent='Restoring your last room and character…';
@@ -3559,6 +3597,24 @@
       }
       if(m.type==='floor-progress')recordFloorProgress(m);
       if(m.type==='match-result'&&m.result)recordProgress(m.result);
+      if(m.type==='profile-data'){
+        syncStatus.textContent=m.available?'Profile synchronized with PostgreSQL.':
+          'Cloud records unavailable — progress stays on this browser.';
+        if(m.available&&m.progress){
+          const p=m.progress,local=readProgress();
+          const next={
+            runs:Math.max(Number(local.runs)||0,Number(p.runs)||0),
+            bestFloors:Math.max(Number(local.bestFloors)||0,Number(p.bestFloors)||0),
+            bestTime:p.bestTime==null?local.bestTime:
+              local.bestTime==null?Number(p.bestTime):
+              Math.min(Number(local.bestTime),Number(p.bestTime)),
+            badges:[...new Set([...(local.badges||[]),...(Array.isArray(p.badges)?p.badges:[])])]
+          };
+          try{localStorage.setItem(PROGRESS_KEY,JSON.stringify(next));}catch{}
+          renderProgress();
+        }
+      }
+      if(m.type==='profile-error')syncStatus.textContent=String(m.message||'Profile unavailable.');
       if(m.type==='rooms'&&Array.isArray(m.rooms))drawRooms(m.rooms);
       if(m.type==='joined'){
         chat.clear();roomPlayerId=m.id;roomRole=m.host?'host':'guest';roomCount=1;
