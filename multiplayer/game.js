@@ -1525,17 +1525,24 @@
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
   function checkGhostContact(){
-    if(state!=='playing'||player.hp<=0||player.disconnected||player.infestedOn||player.invincible>0||player.dashTime>0)return;
-    // Hollows follow tile-centre paths; allow contact at their visible edge,
-    // including when the player is stationary off-centre inside the same tile.
-    // Require a clear path to avoid hitting through a wall.
-    if(player.ghostTrapped>0)return;
+    if(state!=='playing'||player.hp<=0||player.disconnected||player.infestedOn||player.ghostTrapped>0)return;
+    // A phasing Ghost can freeze even an invincible or dashing survivor.
+    // Only the brief post-rescue grace prevents immediately being retrapped.
     const ghost=hollows.find(h=>h.variant==='ghost'&&dist(player,h)<.80);
     if(ghost&&(player.ghostGrace||0)<=0){
       player.ghostTrapped=30;player.dashTime=0;player.trail=[];
+      // Forget any cached pursuit of this player immediately. Frozen players
+      // are also excluded from future target acquisition below.
+      for(const h of hollows){
+        if(h.chasedPlayer!==player)continue;
+        h.chasedPlayer=null;h.mode='patrol';h.target=null;
+        h.path=[];h.pathIndex=0;h.repath=0;h.chaseUntil=0;
+      }
       notify('GHOST CURSE — FROZEN FOR 30 SECONDS! TEAMMATE MUST USE (E)!',4);
       updateUI();return;
     }
+    // Ordinary Hollows still respect invincibility and active dashes.
+    if(player.invincible>0||player.dashTime>0)return;
     if(hollows.some(h=>h.variant!=='ghost'&&!(h.stunned>0)&&dist(player,h)<.80&&clearLine(player,h)))damage();
   }
   function updateIllusions(dt){
@@ -1583,7 +1590,7 @@
       const phantom=illusions.filter(i=>dist(h,i)<=8)
         .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
       // Ignore downed or invisible survivors as regular chase targets.
-      const nearest=allPlayers().filter(p=>p.hp>0&&!p.infestedOn&&!(p.invisibleTime>0))
+      const nearest=allPlayers().filter(p=>p.hp>0&&!p.infestedOn&&!(p.invisibleTime>0)&&!(p.ghostTrapped>0))
         .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
       if(!phantom&&h.mode==='illusion'){
         h.mode='search';h.target=null;h.path=[];h.pathIndex=0;
@@ -2024,15 +2031,16 @@
   // Mint, amber, blue, pink and gold are distinguishable on both stage themes.
   const PLAYER_COLORS=['#76f2d1','#ffb36e','#91b7ff','#f49edb','#f5d778'];
   const colorForPlayer=slot=>PLAYER_COLORS[Math.max(0,Math.min(4,(slot||1)-1))];
+  // During a 30-second Ghost curse the survivor steadily fades away.
+  // Keep a faint silhouette until the timer expires so teammates can find them.
+  function ghostFadeOpacity(p){
+    return p.ghostTrapped>0?Math.max(.08,Math.min(1,p.ghostTrapped/30)):1;
+  }
   function drawPlayer(){
     if(roomRole==='spectator')return;
     if(player.hp<=0){
       drawSoul(player);
       return;
-    }
-    if(player.ghostTrapped>0){
-      ctx.save();ctx.strokeStyle='#d6eaff';ctx.lineWidth=3;
-      ctx.beginPath();ctx.arc(player.x*TILE,player.y*TILE,20+Math.sin(clock*6)*2,0,Math.PI*2);ctx.stroke();ctx.restore();
     }
     if(player.infestedOn){
       ctx.save();ctx.strokeStyle='#a1f1be';ctx.lineWidth=2;
@@ -2040,11 +2048,11 @@
       ctx.restore();return;
     }
     for(const p of player.trail){ctx.fillStyle=`rgba(110,255,218,${p.life*.55})`;ctx.beginPath();ctx.arc(p.x*TILE,p.y*TILE,8,0,Math.PI*2);ctx.fill();}
-    const x=player.x*TILE,y=player.y*TILE,flicker=player.invincible>0&&Math.sin(clock*31)>0;
+    const x=player.x*TILE,y=player.y*TILE,flicker=!(player.ghostTrapped>0)&&player.invincible>0&&Math.sin(clock*31)>0;
     const color=colorForPlayer(roomPlayerId);
     if(flicker)return;
     ctx.save();
-    if(player.invisibleTime>0)ctx.globalAlpha=.28;
+    ctx.globalAlpha=Math.min(player.invisibleTime>0?.28:1,ghostFadeOpacity(player));
     if(player.phaseGuardTime>0){
       ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
       ctx.beginPath();ctx.arc(x,y,18+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
@@ -2089,7 +2097,7 @@
       if(teammate.infestedOn)continue;
       const x=teammate.x*TILE,y=teammate.y*TILE,color=colorForPlayer(teammate.slot);
       ctx.save();
-      if(teammate.invisibleTime>0)ctx.globalAlpha=.28;
+      ctx.globalAlpha=Math.min(teammate.invisibleTime>0?.28:1,ghostFadeOpacity(teammate));
       if(teammate.phaseGuardTime>0){
         ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
         ctx.beginPath();ctx.arc(x,y,17+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
@@ -2119,7 +2127,7 @@
       ctx.shadowBlur=5;
       ctx.shadowOffsetY=1;
       ctx.fillStyle=colorForPlayer(person.slot);
-      if(person.invisibleTime>0)ctx.globalAlpha=.40;
+      ctx.globalAlpha=Math.min(person.invisibleTime>0?.40:1,ghostFadeOpacity(person));
       ctx.fillText(name,x,y);
       ctx.restore();
     }
