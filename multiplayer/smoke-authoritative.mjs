@@ -424,6 +424,17 @@ function makeInfesterSupportRoom(role){
   assert.equal(counts.invisible,5);
   assert.equal(counts.ghost,6);
   assert(!state.hollows.some(h=>h.variant==='hunter'||h.variant==='dasher'));
+  const invisibleIndex=state.hollows.findIndex(h=>h.variant==='invisible');
+  const initialCycle=state.hollows[invisibleIndex].invisibilityCycle;
+  assert(Number.isFinite(initialCycle)&&initialCycle>=0&&initialCycle<6,
+    'Multiplayer snapshots must include the Invisible Hollow visibility cycle');
+  for(let i=0;i<110;i++)room.tick(.033);
+  const laterCycle=room.snapshot(false).hollows[invisibleIndex].invisibilityCycle;
+  assert(Number.isFinite(laterCycle)&&laterCycle>=0&&laterCycle<6,
+    'Visibility timer remains available in later multiplayer snapshots');
+  const cycleElapsed=(laterCycle-initialCycle+6)%6;
+  assert(Math.abs(cycleElapsed-3.63)<.05,
+    'Invisible Hollow changes its visibility phase on the authoritative server');
   const ghostIndex=state.hollows.findIndex(h=>h.variant==='ghost');
   assert(ghostIndex>=0,'Stage III spawns ghosts');
   // Engine snapshots copy enemy objects, so read the position anew after ticking.
