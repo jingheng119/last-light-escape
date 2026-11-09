@@ -155,7 +155,7 @@
       gameStatus.style.color=status.style.color;
     }
   }
-  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.phaseEchoCharge=0;guestPlayer.phaseEchoTime=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.abilityUseSerial=0;guestPlayer.phaseGuardTime=0;guestPlayer.invisibleTime=0;guestPlayer.ghostTrapped=0;guestPlayer.reviveProgress=0;guestPlayer.anchor=null;guestPlayer.bondedOn=null;guestPlayer.trail=[];}
+  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.phaseEchoCharge=0;guestPlayer.phaseEchoTime=0;guestPlayer.phaseEchoGranted=false;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.abilityUseSerial=0;guestPlayer.phaseGuardTime=0;guestPlayer.invisibleTime=0;guestPlayer.ghostTrapped=0;guestPlayer.reviveProgress=0;guestPlayer.anchor=null;guestPlayer.bondedOn=null;guestPlayer.trail=[];}
   let extraContextGuest=null;
   function allPlayers(){
     // A player action temporarily swaps the global 'player' reference.
@@ -517,7 +517,7 @@
       const echoSpot=selectSpot(reserved,13,distances,false);reserved.push(echoSpot);
       echoAlly={...TILE_CENTER(echoSpot.x,echoSpot.y),variant:'echo',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
-    player={slot:1,bondedOn:null,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,phaseEchoCharge:0,phaseEchoTime:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,abilityCharges:SKILL_MAX_CHARGES[classChoice],anchor:null};
+    player={slot:1,bondedOn:null,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,phaseEchoCharge:0,phaseEchoTime:0,phaseEchoGranted:false,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,abilityCharges:SKILL_MAX_CHARGES[classChoice],anchor:null};
     if(roomRole==='host'&&guestPlayer){newGuest();guestPlayer.hp=guestCarriedHealth;}
     for(let i=0;i<3;i++){
       if(extraActive[i]){
@@ -1109,7 +1109,9 @@
     }
     if(echoAlly&&!echoAlly.rescued&&dist(player,echoAlly)<1.5){
       echoAlly.rescued=true;echoAlly.repath=0;
-      for(const teammate of allPlayers())if(teammate.hp>0)teammate.phaseEchoCharge=1;
+      for(const teammate of allPlayers())if(teammate.hp>0){
+        teammate.phaseEchoCharge=1;teammate.phaseEchoGranted=true;
+      }
       notify('ECHO RESCUED — EVERY SURVIVOR GAINS ONE PHASE ECHO!',3);
       beep(1160,.26);updateUI();return;
     }
