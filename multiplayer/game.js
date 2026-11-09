@@ -185,7 +185,7 @@
   // Only movement is predicted locally. Combat, pickups, health, objectives
   // and all victory conditions continue to come from the host's snapshots.
   function predictGuestMovement(dt){
-    if(roomRole==='none'||state!=='playing'||!player||player.hp<=0||player.infestedOn||!grid)return;
+    if(roomRole==='none'||state!=='playing'||!player||player.hp<=0||player.infestedOn||player.ghostTrapped>0||!grid)return;
     let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     const magnitude=Math.hypot(vx,vy);
@@ -513,11 +513,17 @@
     hollows=[];
     for(let i=0;i<cfg.enemies;i++) {
       const p=selectSpot(reserved,cfg.stage>=2?8:5,distances,false);reserved.push(p);
-      const variant=cfg.stage>=2?(i===0?'hunter':i<=4?'dasher':'standard'):(cfg.enemyVariant||'standard');
+      // Stage III: approximately 10% standard, 40% invisible, 50% ghost.
+      const standardCount=Math.max(1,Math.round(cfg.enemies*.10));
+      const invisibleCount=Math.round(cfg.enemies*.40);
+      const variant=cfg.stage===3?(i<standardCount?'standard':i<standardCount+invisibleCount?'invisible':'ghost'):
+        cfg.stage===2?(i===0?'hunter':i<=4?'dasher':'standard'):(cfg.enemyVariant||'standard');
       hollows.push({x:p.x+.5,y:p.y+.5,variant,home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18)*(variant==='hunter'?1.27:1),
         path:[],pathIndex:0,repath:0,mode:'patrol',chaseUntil:0,target:null,angle:rand()*6.28,
         wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100,stunned:0,
-        dashCooldown:variant==='dasher'?2+rand()*1.5:0,dashTime:0,dashDir:{x:0,y:0}});
+        dashCooldown:variant==='dasher'?2+rand()*1.5:0,dashTime:0,dashDir:{x:0,y:0},
+        invisibilityCycle:variant==='invisible'?rand()*6:0,
+        ghostAngle:variant==='ghost'?rand()*Math.PI*2:0});
     }
     decoys=[];illusions=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
@@ -878,8 +884,8 @@
     notify(fullStage?'DEV · Stage jump':'DEV · Floor skipped');
   }
   function pause(){if(roomRole!=='none'){if(roomRole==='host')sendRoom({type:'pause'});return;}if(state==='playing'){state='paused';setOverlay('BREATHING ROOM','The ward is silent. Your position is safe until you resume.','RESUME GAME');}else if(state==='paused'){unlockGameAudio();state='playing';hideOverlay();}}
-  function triggerDecoy(){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn))return;if(guestAction('decoy'))return;
-    if(state!=='playing'||player.hp<=0||player.infestedOn||player.decoys<=0||player.decoyCooldown>0)return;
+  function triggerDecoy(){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn||player?.ghostTrapped>0))return;if(guestAction('decoy'))return;
+    if(state!=='playing'||player.hp<=0||player.infestedOn||player.ghostTrapped>0||player.decoys<=0||player.decoyCooldown>0)return;
     player.decoys--;const p={x:player.x+player.facing.x*3.3,y:player.y+player.facing.y*3.3};
     const nearest=cells.filter(c=>dist({x:c.x+.5,y:c.y+.5},p)<4).sort((a,b)=>dist({x:a.x+.5,y:a.y+.5},p)-dist({x:b.x+.5,y:b.y+.5},p))[0];
     if(!nearest){player.decoys++;return;}
@@ -889,7 +895,7 @@
     notify('Sound decoy deployed — they heard it!');beep(850,.22,'square',.016);
     updateUI();
   }
-  function dash(directionOverride=null,touch=false){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn))return;if(guestAction('dash',touch))return;if(state!=='playing'||player.hp<=0||player.infestedOn||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
+  function dash(directionOverride=null,touch=false){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn))return;if(guestAction('dash',touch))return;if(state!=='playing'||player.hp<=0||player.infestedOn||player.ghostTrapped>0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
     // Keep the mobile collision radius for the whole dash, even if the
     // joystick's next input packet arrives after the DASH action.
     player.dashTouch=touch===true;
@@ -903,7 +909,7 @@
       noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
     beep(220,.17,'sawtooth',.019);updateUI();
   }
-  function interact(){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn))return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0||player.infestedOn)return;
+  function interact(){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn||player?.ghostTrapped>0))return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0||player.infestedOn||player.ghostTrapped>0)return;
     if(!survivor.rescued&&dist(player,survivor)<1.5){survivor.rescued=true;survivor.repath=0;notify('SURVIVOR RESCUED — guide them to the elevator!');beep(730,.22);updateUI();return;}
     if(technician&&!technician.rescued&&dist(player,technician)<1.5){
       technician.rescued=true;technician.repath=0;
@@ -913,6 +919,16 @@
       player.decoyCooldown*=TECHNICIAN_COOLDOWN_FACTOR;
       notify('TECHNICIAN RESCUED — ALL COOLDOWNS 30% FASTER!',2.3);
       beep(970,.24);updateUI();return;
+    }
+    // Teammates free Ghost-trapped survivors with USE / E at close range.
+    const trapped=allPlayers().filter(p=>p!==player&&p.hp>0&&p.ghostTrapped>0&&
+      !p.disconnected&&dist(p,player)<=1.5)
+      .sort((a,b)=>dist(a,player)-dist(b,player))[0];
+    if(trapped){
+      trapped.ghostTrapped=0;trapped.ghostGrace=3;
+      trapped.invincible=Math.max(trapped.invincible,2);
+      notify('GHOST CURSE LIFTED — TEAMMATE RESCUED!',3);
+      beep(1040,.25);updateUI();return;
     }
     if(dist(player,relay)<1.55){if(!relay.active){relay.active=true;notify('Relay activated! Emergency elevator online if all cores are found.');beep(740,.21);beep(920,.23);}else notify('Relay already active.');updateUI();return;}
     if(dist(player,exit)<1.45){
@@ -1075,7 +1091,7 @@
     }else commitRewindTarget(chosenRewindTarget());
   }
   function activateAbility(rewindTarget=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability',false,rewindTarget))return;
-    if(state!=='playing'||player.hp<=0||
+    if(state!=='playing'||player.hp<=0||player.ghostTrapped>0||
        (player.infestedOn&&classChoice!=='infester')||
        (!canUseSkill()&&!(classChoice==='anchor'&&player.anchor)&&!(classChoice==='infester'&&player.infestedOn)))return;
     if(classChoice==='infester'){
@@ -1444,6 +1460,17 @@
   }
   function updatePlayer(dt){
     if(player.hp<=0||player.disconnected)return;
+    player.ghostGrace=Math.max(0,(player.ghostGrace||0)-dt);
+    if(player.ghostTrapped>0){
+      player.ghostTrapped=Math.max(0,player.ghostTrapped-dt);
+      player.dashTime=0;player.trail=[];
+      if(player.ghostTrapped===0){
+        player.ghostGrace=3;player.invincible=0;
+        damage();
+      }
+      recordRewindPosition(player);
+      return;
+    }
     player.invincible=Math.max(0,player.invincible-dt);player.dashCooldown=Math.max(0,player.dashCooldown-dt);
     // Recharge one charge at a time, preserving elapsed progress if a large
     // simulation step finishes a charge mid-frame.
@@ -1502,7 +1529,14 @@
     // Hollows follow tile-centre paths; allow contact at their visible edge,
     // including when the player is stationary off-centre inside the same tile.
     // Require a clear path to avoid hitting through a wall.
-    if(hollows.some(h=>!(h.stunned>0)&&dist(player,h)<.80&&clearLine(player,h)))damage();
+    if(player.ghostTrapped>0)return;
+    const ghost=hollows.find(h=>h.variant==='ghost'&&dist(player,h)<.80);
+    if(ghost&&(player.ghostGrace||0)<=0){
+      player.ghostTrapped=30;player.dashTime=0;player.trail=[];
+      notify('GHOST CURSE — FROZEN FOR 30 SECONDS! TEAMMATE MUST USE (E)!',4);
+      updateUI();return;
+    }
+    if(hollows.some(h=>h.variant!=='ghost'&&!(h.stunned>0)&&dist(player,h)<.80&&clearLine(player,h)))damage();
   }
   function updateIllusions(dt){
     for(const illusion of illusions){
@@ -1554,6 +1588,16 @@
       if(!phantom&&h.mode==='illusion'){
         h.mode='search';h.target=null;h.path=[];h.pathIndex=0;
         h.chaseUntil=clock;h.repath=0;
+      }
+      if(h.variant==='invisible')h.invisibilityCycle=(h.invisibilityCycle+dt)%6;
+      if(h.variant==='ghost'){
+        // Slow looping wall-phasing patrol, independent of players.
+        h.ghostAngle=(h.ghostAngle+dt*.32)%(Math.PI*2);
+        h.x=Math.max(.5,Math.min(COLS-.5,h.home.x+.5+Math.cos(h.ghostAngle)*3.3));
+        h.y=Math.max(.5,Math.min(ROWS-.5,h.home.y+.5+Math.sin(h.ghostAngle)*2.3));
+        h.angle=h.ghostAngle+Math.PI/2;
+        h.mode='patrol';h.target=null;h.path=[];h.wobble+=dt*2;
+        continue;
       }
       if(h.stunned>0){h.stunned=Math.max(0,h.stunned-dt);h.dashTime=0;h.wobble+=dt*5;continue;}
       // Five Stage II Dashers lunge along their movement/chase direction.
