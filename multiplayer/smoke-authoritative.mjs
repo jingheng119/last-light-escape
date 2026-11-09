@@ -434,17 +434,21 @@ function makeInfesterSupportRoom(role){
   const ghost=room.snapshot(true).hollows[ghostIndex];
   const startX=ghost.x,startY=ghost.y;
   const victim=state.players[0],rescuer=state.players[1];
-  victim.invincible=0;
+  victim.invincible=100; // Ghost contact must bypass the player's invincible state.
   victim.x=ghost.x;victim.y=ghost.y;
   rescuer.x=1.5;rescuer.y=1.5;rescuer.invincible=100;
   room.tick(.033);
   assert.equal(victim.ghostTrapped,30,'Ghost touch freezes a survivor for 30 seconds');
   assert.equal(victim.hp,3,'Ghost contact does not immediately take a heart');
+  assert(victim.invincible>0,'Ghost curse is effective even with active invincibility');
   room.input(1,{right:true},{x:0,y:0});
   const beforeX=victim.x,beforeY=victim.y;
   room.tick(.033);
   assert.equal(victim.x,beforeX,'Trapped survivor cannot move horizontally');
   assert.equal(victim.y,beforeY,'Trapped survivor cannot move vertically');
+  assert(victim.ghostTrapped<30,'Ghost curse progresses toward expiry');
+  assert(!room.snapshot(true).hollows.some(h=>h.mode==='chase'&&h.chasedPlayer?.slot===1),
+    'Other Hollows cannot keep targeting a Ghost-trapped player');
   const movedGhost=room.snapshot(true).hollows[ghostIndex];
   assert(movedGhost.x!==startX||movedGhost.y!==startY,'Ghost patrol keeps moving instead of chasing');
   rescuer.x=victim.x;rescuer.y=victim.y;
