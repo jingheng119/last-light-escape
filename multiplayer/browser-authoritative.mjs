@@ -31,12 +31,17 @@ try{
   assert.equal(await handbook.locator('.tower-floor').count(),3);
   assert.equal(await handbook.locator('.tower-face').count(),18,'All three rectangular blocks need six 3D faces');
   const beforeRotation=await handbook.locator('#towerModel').evaluate(el=>getComputedStyle(el).transform);
-  await handbook.locator('.tower-rotate[data-rotate="45"]').click();
+  assert.equal(await handbook.locator('.tower-rotate').count(),0,'Tower has no visible rotation buttons');
+  assert.equal((await handbook.locator('.tower-scene').innerText()).trim(),'','Tower has no visible labels');
+  const dragBox=await handbook.locator('#towerModelSpace').boundingBox();
+  assert(dragBox,'Tower is on screen');
+  const px=dragBox.x+20,py=dragBox.y+90;
+  await handbook.mouse.move(px,py);
+  await handbook.mouse.down();
+  await handbook.mouse.move(px+70,py+5,{steps:6});
+  await handbook.mouse.up();
   const afterRotation=await handbook.locator('#towerModel').evaluate(el=>getComputedStyle(el).transform);
-  assert.notEqual(afterRotation,beforeRotation,'Rotate controls must change the 3D tower angle');
-  await handbook.locator('.tower-rotate[data-reset="true"]').click();
-  const resetRotation=await handbook.locator('#towerModel').evaluate(el=>getComputedStyle(el).transform);
-  assert.equal(resetRotation,beforeRotation,'Reset must restore the original 3D tower angle');
+  assert.notEqual(afterRotation,beforeRotation,'Dragging must rotate the holographic tower');
   assert.equal(await handbook.locator('.stage-detail:visible').count(),1);
   assert((await handbook.locator('.stage-detail:visible').textContent()).includes('The Hollow Ward'));
   for(const [stage,name,dimension] of [['3','The Lost Signal','51 × 41'],['2','The Copper Engine','41 × 31'],['1','The Hollow Ward','31 × 21']]){
