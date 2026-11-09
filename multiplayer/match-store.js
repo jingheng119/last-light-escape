@@ -17,6 +17,18 @@ export function achievementsForResult(result){
     badges.push({id:'alive',title:'Everyone Made It',description:'Finish with every teammate alive'});
   return badges;
 }
+export function buildFloorProgress(room){
+  const snapshot=room.engine.snapshot(false);
+  if(snapshot.state!=='leveldone')return null;
+  const floorsCleared=snapshot.levelIndex+1;
+  if(!Number.isInteger(floorsCleared)||floorsCleared<1||floorsCleared>=27)return null;
+  const eligible=!room.unranked;
+  const achievements=eligible&&floorsCleared===9?
+    [{id:'ward',title:'Ward Escape',description:'Clear Stage 1'}]:
+    eligible&&floorsCleared===18?
+    [{id:'engine',title:'Copper Survivor',description:'Clear Stage 2'}]:[];
+  return {type:'floor-progress',floorsCleared,eligible,achievements};
+}
 export function buildMatchResult(room){
   const snapshot=room.engine.snapshot(false);
   if(!MATCH_OUTCOMES.has(snapshot.state))return null;
