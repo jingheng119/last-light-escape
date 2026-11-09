@@ -2283,12 +2283,46 @@
   function ghostFadeOpacity(p){
     return p.ghostTrapped>0?Math.max(.08,Math.min(1,p.ghostTrapped/30)):1;
   }
+  // Phase Echo uses a distinct luminous ghost sprite rather than a faded
+  // survivor. Draw it after darkness so walls cannot visually hide the spirit.
+  function drawPhaseEchoSprite(p){
+    if(!p||p.hp<=0||!(p.phaseEchoTime>0)||p.bondedOn)return;
+    const x=p.x*TILE,y=p.y*TILE+Math.sin(clock*8+(p.slot||1)) * 2.2;
+    const pulse=.8+.2*Math.sin(clock*10);
+    ctx.save();
+    ctx.globalAlpha=.92;
+    ctx.shadowColor='#78dfff';ctx.shadowBlur=19*pulse;
+    halo(x,y,47,'#67cfff60');
+    ctx.fillStyle='#b7f6ff';
+    ctx.beginPath();
+    ctx.moveTo(x-10,y+3);
+    ctx.bezierCurveTo(x-13,y-8,x-10,y-16,x,y-17);
+    ctx.bezierCurveTo(x+10,y-16,x+13,y-8,x+10,y+3);
+    ctx.lineTo(x+10,y+12);
+    ctx.quadraticCurveTo(x+5,y+7,x+2,y+14);
+    ctx.quadraticCurveTo(x-2,y+9,x-5,y+14);
+    ctx.quadraticCurveTo(x-9,y+8,x-10,y+12);
+    ctx.closePath();ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='#163f60';
+    ctx.beginPath();ctx.ellipse(x-4,y-4,1.8,3,0,0,Math.PI*2);
+    ctx.ellipse(x+4,y-4,1.8,3,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#e3fcff';ctx.lineWidth=1.8;
+    ctx.beginPath();ctx.arc(x,y,20+Math.sin(clock*7)*1.5,0,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
+  function drawPhaseEchoPlayers(){
+    if(roomRole!=='spectator')drawPhaseEchoSprite(player);
+    for(const teammate of remotePlayers)drawPhaseEchoSprite(teammate);
+  }
   function drawPlayer(){
     if(roomRole==='spectator')return;
     if(player.hp<=0){
       drawSoul(player);
       return;
     }
+    // Phase Echo is rendered separately above the maze's darkness layer.
+    if(player.phaseEchoTime>0)return;
     if(player.bondedOn){
       ctx.save();ctx.strokeStyle='#a1f1be';ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(player.x*TILE,player.y*TILE,17+Math.sin(clock*5)*2,0,Math.PI*2);ctx.stroke();
@@ -2342,7 +2376,7 @@
       const teammate=remotePlayers[i];
       if(!teammate)continue;
       if(teammate.hp<=0){drawSoul(teammate);continue;}
-      if(teammate.bondedOn)continue;
+      if(teammate.bondedOn||teammate.phaseEchoTime>0)continue;
       const x=teammate.x*TILE,y=teammate.y*TILE,color=colorForPlayer(teammate.slot);
       ctx.save();
       ctx.globalAlpha=teammate.phaseEchoTime>0?.36:Math.min(teammate.invisibleTime>0?.28:1,ghostFadeOpacity(teammate));
@@ -2672,7 +2706,7 @@
     const y1=Math.min(ROWS,Math.ceil((camera.y+H/CAMERA_ZOOM)/TILE)+1);
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
-    drawItems();drawAnchors();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();drawChatBubbles();
+    drawItems();drawAnchors();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawPhaseEchoPlayers();drawSkillWaves();drawAtmosphere();drawNameplates();drawChatBubbles();
     if(bondTargeting&&classChoice==='symbiote'){
       const selected=chosenBondTarget(),cx=player.x*TILE,cy=player.y*TILE;
       ctx.save();ctx.strokeStyle='rgba(152,245,183,.83)';ctx.lineWidth=2;
