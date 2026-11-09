@@ -910,16 +910,6 @@
     beep(220,.17,'sawtooth',.019);updateUI();
   }
   function interact(){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn||player?.ghostTrapped>0))return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0||player.infestedOn||player.ghostTrapped>0)return;
-    if(!survivor.rescued&&dist(player,survivor)<1.5){survivor.rescued=true;survivor.repath=0;notify('SURVIVOR RESCUED — guide them to the elevator!');beep(730,.22);updateUI();return;}
-    if(technician&&!technician.rescued&&dist(player,technician)<1.5){
-      technician.rescued=true;technician.repath=0;
-      // Existing timers shrink immediately; future uses get 30% shorter cooldowns.
-      player.dashCooldown*=TECHNICIAN_COOLDOWN_FACTOR;
-      player.abilityCooldown*=TECHNICIAN_COOLDOWN_FACTOR;
-      player.decoyCooldown*=TECHNICIAN_COOLDOWN_FACTOR;
-      notify('TECHNICIAN RESCUED — ALL COOLDOWNS 30% FASTER!',2.3);
-      beep(970,.24);updateUI();return;
-    }
     // Teammates free Ghost-trapped survivors with USE / E at close range.
     const trapped=allPlayers().filter(p=>p!==player&&p.hp>0&&p.ghostTrapped>0&&
       !p.disconnected&&dist(p,player)<=1.5)
@@ -929,6 +919,16 @@
       trapped.invincible=Math.max(trapped.invincible,2);
       notify('GHOST CURSE LIFTED — TEAMMATE RESCUED!',3);
       beep(1040,.25);updateUI();return;
+    }
+    if(!survivor.rescued&&dist(player,survivor)<1.5){survivor.rescued=true;survivor.repath=0;notify('SURVIVOR RESCUED — guide them to the elevator!');beep(730,.22);updateUI();return;}
+    if(technician&&!technician.rescued&&dist(player,technician)<1.5){
+      technician.rescued=true;technician.repath=0;
+      // Existing timers shrink immediately; future uses get 30% shorter cooldowns.
+      player.dashCooldown*=TECHNICIAN_COOLDOWN_FACTOR;
+      player.abilityCooldown*=TECHNICIAN_COOLDOWN_FACTOR;
+      player.decoyCooldown*=TECHNICIAN_COOLDOWN_FACTOR;
+      notify('TECHNICIAN RESCUED — ALL COOLDOWNS 30% FASTER!',2.3);
+      beep(970,.24);updateUI();return;
     }
     if(dist(player,relay)<1.55){if(!relay.active){relay.active=true;notify('Relay activated! Emergency elevator online if all cores are found.');beep(740,.21);beep(920,.23);}else notify('Relay already active.');updateUI();return;}
     if(dist(player,exit)<1.45){
