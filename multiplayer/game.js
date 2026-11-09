@@ -149,6 +149,11 @@
       ' · PING '+label+' · '+stream+gaps+
       (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
+    const gameStatus=$('#gameNetworkStatus');
+    if(gameStatus){
+      gameStatus.textContent='PING '+label+' · '+stream+(reportedSnapshotGap>180?' · GAP '+Math.round(reportedSnapshotGap)+'ms':'');
+      gameStatus.style.color=status.style.color;
+    }
   }
   function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.abilityUseSerial=0;guestPlayer.phaseGuardTime=0;guestPlayer.invisibleTime=0;guestPlayer.ghostTrapped=0;guestPlayer.reviveProgress=0;guestPlayer.anchor=null;guestPlayer.bondedOn=null;guestPlayer.trail=[];}
   let extraContextGuest=null;
