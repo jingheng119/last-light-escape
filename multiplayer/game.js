@@ -144,7 +144,7 @@
       (remotePingMs!==null&&remotePingMs>250?' · HIGH LATENCY':'');
     status.style.color=remotePingMs===null?'#b1d4d0':healthy?'#8ee8d0':'#ffd19b';
   }
-  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.anchor=null;guestPlayer.infestedOn=null;guestPlayer.trail=[];}
+  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.anchor=null;guestPlayer.bondedOn=null;guestPlayer.trail=[];}
   let extraContextGuest=null;
   function allPlayers(){
     // A player action temporarily swaps the global 'player' reference.
@@ -185,7 +185,7 @@
   // Only movement is predicted locally. Combat, pickups, health, objectives
   // and all victory conditions continue to come from the host's snapshots.
   function predictGuestMovement(dt){
-    if(roomRole==='none'||state!=='playing'||!player||player.hp<=0||player.infestedOn||player.ghostTrapped>0||!grid)return;
+    if(roomRole==='none'||state!=='playing'||!player||player.hp<=0||player.bondedOn||player.ghostTrapped>0||!grid)return;
     let vx=(moveHeld.right?1:0)-(moveHeld.left?1:0)+joystickMove.x;
     let vy=(moveHeld.down?1:0)-(moveHeld.up?1:0)+joystickMove.y;
     const magnitude=Math.hypot(vx,vy);
@@ -202,8 +202,8 @@
       if(hitWall)player.dashTime=0;
     }else if(vx||vy){
       const touchSteering=Math.hypot(joystickMove.x,joystickMove.y)>.08;
-      moveEntity(player,vx*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.infestedOn===player.slot)?INFEST_WALK_MULTIPLIER:1)*dt,
-        vy*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.infestedOn===player.slot)?INFEST_WALK_MULTIPLIER:1)*dt,touchSteering?.18:.21,.30);
+      moveEntity(player,vx*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.bondedOn===player.slot)?BOND_WALK_MULTIPLIER:1)*dt,
+        vy*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.bondedOn===player.slot)?BOND_WALK_MULTIPLIER:1)*dt,touchSteering?.18:.21,.30);
     }
   }
   function guestAction(name,touch=false,target=null){
@@ -229,8 +229,8 @@
 
   // Temporary developer shortcut. Skipped runs never enter the best-time record.
   let rewindTargeting=false,rewindTargetIndex=0;
-  let anchorTargeting=false,anchorTargetIndex=0,anchorMarkPendingAt=0,infestTargeting=false,infestTargetIndex=0;
-  const ANCHOR_RADIUS=5.5,INFEST_RADIUS=5.5,INFEST_WALK_MULTIPLIER=1.3;
+  let anchorTargeting=false,anchorTargetIndex=0,anchorMarkPendingAt=0,bondTargeting=false,bondTargetIndex=0;
+  const ANCHOR_RADIUS=5.5,BOND_RADIUS=5.5,BOND_WALK_MULTIPLIER=1.3;
   let developerSkipped=false;
   let classChoice = 'scout';
   let elapsed = 0, overallElapsed = 0, clock = 0, toastUntil = 0, hitFlash = 0, alertLevel = 0;
@@ -266,8 +266,8 @@
   }
   const SCOUT_STUN_RADIUS = 5.5;
   const MEDIC_HEAL_RADIUS = 5.5;
-  const SKILL_COOLDOWN = {scout:13,medic:26,invisibler:14,teleporter:16,illusioner:27,rewinder:13,anchor:10,infester:13};
-  const SKILL_MAX_CHARGES = {scout:1,medic:2,invisibler:1,teleporter:1,illusioner:2,rewinder:2,anchor:1,infester:1};
+  const SKILL_COOLDOWN = {scout:13,medic:26,invisibler:14,teleporter:16,illusioner:27,rewinder:13,anchor:10,symbiote:13};
+  const SKILL_MAX_CHARGES = {scout:1,medic:2,invisibler:1,teleporter:1,illusioner:2,rewinder:2,anchor:1,symbiote:1};
   const ROLE_DETAILS={
     scout:{label:'SCOUT',skill:'STUN SHOCKWAVE',ready:'PULSE READY'},
     medic:{label:'MEDIC',skill:'HEALING BURST',ready:'HEAL READY'},
@@ -276,7 +276,7 @@
     illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'},
     rewinder:{label:'REWINDER',skill:'TARGET REWIND · 5.5 TILES',ready:'REWIND READY'},
     anchor:{label:'ANCHOR',skill:'TARGET ANCHOR · RETURN',ready:'ANCHOR READY'},
-    infester:{label:'SYMBIOTE',skill:'ATTACH TO TEAMMATE · SPEED BOOST',ready:'BOND READY'}
+    symbiote:{label:'SYMBIOTE',skill:'ATTACH TO TEAMMATE · SPEED BOOST',ready:'BOND READY'}
   };
   const ROLE_DESCRIPTIONS={
     scout: "Release a shockwave that stuns Hollows within 5.5 tiles for 2.5 seconds.",
@@ -286,7 +286,7 @@
     illusioner: "Summon an invincible roaming phantom that distracts Hollows for 5 seconds. Two phantoms can roam at once without replacing each other.",
     rewinder: "Choose yourself, a teammate, or a Hollow within 5.5 tiles; return that target to its position 3 seconds ago. Players gain 2 seconds of protection.",
     anchor: "Choose yourself or a living teammate within 5.5 tiles. Marking yourself leaves a fixed anchor at your location; marking a teammate attaches the anchor to them as they move. Press Skill again to teleport to the anchor with 2 seconds of protection. Hollows cannot be marked.",
-    infester: "Bond with a teammate within 5.5 tiles to boost their walking speed by 30%. Press Skill again to emerge freely, or emerge automatically at the hit location when the teammate loses a heart (including their final heart). Gain 2 seconds of invincibility and start the 13-second cooldown only on emergence."
+    symbiote: "Bond with a teammate within 5.5 tiles to boost their walking speed by 30%. Press Skill again to emerge freely, or emerge automatically at the hit location when the teammate loses a heart (including their final heart). Gain 2 seconds of invincibility and start the 13-second cooldown only on emergence."
 };
   function skillDescription(role){
     const charges=SKILL_MAX_CHARGES[role];
@@ -500,7 +500,7 @@
       const techSpot=selectSpot(reserved,13,distances,false);reserved.push(techSpot);
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
-    player={slot:1,infestedOn:null,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,abilityCharges:SKILL_MAX_CHARGES[classChoice],anchor:null};
+    player={slot:1,bondedOn:null,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,abilityCharges:SKILL_MAX_CHARGES[classChoice],anchor:null};
     if(roomRole==='host'&&guestPlayer){newGuest();guestPlayer.hp=guestCarriedHealth;}
     for(let i=0;i<3;i++){
       if(extraActive[i]){
@@ -1031,8 +1031,8 @@
     notify(fullStage?'DEV · Stage jump':'DEV · Floor skipped');
   }
   function pause(){if(roomRole!=='none'){if(roomRole==='host')sendRoom({type:'pause'});return;}if(state==='playing'){state='paused';setOverlay('BREATHING ROOM','The ward is silent. Your position is safe until you resume.','RESUME GAME');}else if(state==='paused'){unlockGameAudio();state='playing';hideOverlay();}}
-  function triggerDecoy(){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn||player?.ghostTrapped>0))return;if(guestAction('decoy'))return;
-    if(state!=='playing'||player.hp<=0||player.infestedOn||player.ghostTrapped>0||player.decoys<=0||player.decoyCooldown>0)return;
+  function triggerDecoy(){if(roomRole!=='none'&&(player?.hp<=0||player?.bondedOn||player?.ghostTrapped>0))return;if(guestAction('decoy'))return;
+    if(state!=='playing'||player.hp<=0||player.bondedOn||player.ghostTrapped>0||player.decoys<=0||player.decoyCooldown>0)return;
     player.decoys--;const p={x:player.x+player.facing.x*3.3,y:player.y+player.facing.y*3.3};
     const nearest=cells.filter(c=>dist({x:c.x+.5,y:c.y+.5},p)<4).sort((a,b)=>dist({x:a.x+.5,y:a.y+.5},p)-dist({x:b.x+.5,y:b.y+.5},p))[0];
     if(!nearest){player.decoys++;return;}
@@ -1042,7 +1042,7 @@
     notify('Sound decoy deployed — they heard it!');beep(850,.22,'square',.016);
     updateUI();
   }
-  function dash(directionOverride=null,touch=false){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn))return;if(guestAction('dash',touch))return;if(state!=='playing'||player.hp<=0||player.infestedOn||player.ghostTrapped>0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
+  function dash(directionOverride=null,touch=false){if(roomRole!=='none'&&(player?.hp<=0||player?.bondedOn))return;if(guestAction('dash',touch))return;if(state!=='playing'||player.hp<=0||player.bondedOn||player.ghostTrapped>0||player.dashCooldown>0)return;player.dashCooldown=3.5*cooldownFactor();player.dashTime=.24;
     // Keep the mobile collision radius for the whole dash, even if the
     // joystick's next input packet arrives after the DASH action.
     player.dashTouch=touch===true;
@@ -1056,7 +1056,7 @@
       noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
     beep(220,.17,'sawtooth',.019);updateUI();
   }
-  function interact(){if(roomRole!=='none'&&(player?.hp<=0||player?.infestedOn||player?.ghostTrapped>0))return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0||player.infestedOn||player.ghostTrapped>0)return;
+  function interact(){if(roomRole!=='none'&&(player?.hp<=0||player?.bondedOn||player?.ghostTrapped>0))return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0||player.bondedOn||player.ghostTrapped>0)return;
     // Teammates free Ghost-trapped survivors with USE / E at close range.
     const trapped=allPlayers().filter(p=>p!==player&&p.hp>0&&p.ghostTrapped>0&&
       !p.disconnected&&dist(p,player)<=1.5)
@@ -1104,7 +1104,7 @@
   function rewindChoices(){
     if(!player||state!=='playing')return [];
     const self={kind:'player',slot:roomPlayerId||1,entity:player,label:'SELF'};
-    const allies=remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&!p.infestedOn&&dist(p,player)<=REWIND_RADIUS)
+    const allies=remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&!p.bondedOn&&dist(p,player)<=REWIND_RADIUS)
       .map(p=>({kind:'player',slot:p.slot,entity:p,label:'ALLY '+p.slot}));
     const enemies=hollows.map((h,index)=>({kind:'hollow',index,entity:h,label:'HOLLOW'}))
       .filter(t=>dist(t.entity,player)<=REWIND_RADIUS);
@@ -1128,7 +1128,7 @@
   function anchorChoices(){
     if(!player||state!=='playing')return [];
     const self={kind:'player',slot:roomPlayerId||1,entity:player};
-    const allies=remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&!p.infestedOn&&dist(p,player)<=ANCHOR_RADIUS)
+    const allies=remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&!p.bondedOn&&dist(p,player)<=ANCHOR_RADIUS)
       .map(p=>({kind:'player',slot:p.slot,entity:p}));
     allies.sort((a,b)=>dist(a.entity,player)-dist(b.entity,player)||a.slot-b.slot);
     return [self,...allies];
@@ -1148,21 +1148,21 @@
     else anchorTargeting=false;
     activateAbility({kind:'player',slot:target.slot});
   }
-  function infestChoices(){
+  function bondChoices(){
     if(!player||state!=='playing')return [];
-    return remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&!p.infestedOn&&dist(p,player)<=INFEST_RADIUS)
+    return remotePlayers.filter(p=>p.hp>0&&!p.disconnected&&!p.bondedOn&&dist(p,player)<=BOND_RADIUS)
       .map(p=>({slot:p.slot,entity:p}))
       .sort((a,b)=>dist(a.entity,player)-dist(b.entity,player)||a.slot-b.slot);
   }
-  function chosenInfestTarget(){
-    const choices=infestChoices();
+  function chosenBondTarget(){
+    const choices=bondChoices();
     if(!choices.length)return null;
-    infestTargetIndex=((infestTargetIndex%choices.length)+choices.length)%choices.length;
-    return choices[infestTargetIndex];
+    bondTargetIndex=((bondTargetIndex%choices.length)+choices.length)%choices.length;
+    return choices[bondTargetIndex];
   }
-  function commitInfestTarget(target){
+  function commitBondTarget(target){
     if(!target)return;
-    infestTargeting=false;
+    bondTargeting=false;
     activateAbility({kind:'player',slot:target.slot});
   }
   function cancelRewindTarget(){rewindTargeting=false;}
@@ -1198,19 +1198,19 @@
     shell.classList.toggle('skill-targeting',state==='playing'&&(
       rewindTargeting&&classChoice==='rewinder'||
       anchorTargeting&&classChoice==='anchor'||
-      infestTargeting&&classChoice==='infester'));
+      bondTargeting&&classChoice==='symbiote'));
   }
   function requestAbility(){
-    if(classChoice==='infester'){
+    if(classChoice==='symbiote'){
       if(state!=='playing'||!player||player.hp<=0)return;
       // While attached, the second press always releases the Symbiote.
       // The server decides the emergence location and starts the cooldown.
-      if(player.infestedOn){activateAbility();return;}
+      if(player.bondedOn){activateAbility();return;}
       if(!canUseSkill())return;
-      if(!infestTargeting){infestTargeting=true;infestTargetIndex=0;
+      if(!bondTargeting){bondTargeting=true;bondTargetIndex=0;
         notify('SYMBIOTE — select a living teammate within 5.5 tiles.',3);
         syncTouchTargeting();
-      }else commitInfestTarget(chosenInfestTarget());
+      }else commitBondTarget(chosenBondTarget());
       return;
     }
     if(classChoice==='anchor'){
@@ -1239,24 +1239,24 @@
   }
   function activateAbility(rewindTarget=null){if(roomRole!=='none'&&player?.hp<=0)return;if(guestAction('ability',false,rewindTarget))return;
     if(state!=='playing'||player.hp<=0||player.ghostTrapped>0||
-       (player.infestedOn&&classChoice!=='infester')||
-       (!canUseSkill()&&!(classChoice==='anchor'&&player.anchor)&&!(classChoice==='infester'&&player.infestedOn)))return;
-    if(classChoice==='infester'){
-      if(player.infestedOn){
-        const carrier=allPlayers().find(p=>p.slot===player.infestedOn);
+       (player.bondedOn&&classChoice!=='symbiote')||
+       (!canUseSkill()&&!(classChoice==='anchor'&&player.anchor)&&!(classChoice==='symbiote'&&player.bondedOn)))return;
+    if(classChoice==='symbiote'){
+      if(player.bondedOn){
+        const carrier=allPlayers().find(p=>p.slot===player.bondedOn);
         // Voluntary emergence uses the same release path as a carrier death.
         // Release at the carrier's current position, not the initial attachment.
-        releaseInfester(player,carrier);
+        releaseSymbiote(player,carrier);
         updateUI();
         return;
       }
       const host=rewindTarget?.kind==='player'&&Number.isInteger(rewindTarget.slot)?
         allPlayers().find(p=>p.slot===rewindTarget.slot):null;
-      if(!host||host===player||host.hp<=0||host.disconnected||host.infestedOn||
-         dist(host,player)>INFEST_RADIUS){
+      if(!host||host===player||host.hp<=0||host.disconnected||host.bondedOn||
+         dist(host,player)>BOND_RADIUS){
         notify('SYMBIOTE — select a living teammate in range.');return;
       }
-      player.infestedOn=host.slot;player.x=host.x;player.y=host.y;
+      player.bondedOn=host.slot;player.x=host.x;player.y=host.y;
       player.dashTime=0;player.trail=[];
       // Do not consume a charge here; the cooldown starts on emergence.
       notify('SYMBIOTE — attached! Press Skill to emerge · teammate speed +30%.');
@@ -1266,7 +1266,7 @@
       // randomly selected injured, connected, living teammate in range.
       const target=player.hp<3?player:(()=>{
         const candidates=allPlayers().filter(p=>p!==player&&p.hp>0&&p.hp<3&&
-          !p.infestedOn&&dist(p,player)<=MEDIC_HEAL_RADIUS);
+          !p.bondedOn&&dist(p,player)<=MEDIC_HEAL_RADIUS);
         return candidates.length?candidates[Math.floor(Math.random()*candidates.length)]:null;
       })();
       if(!target){notify('MEDIC — no injured teammate within range.');return;}
@@ -1305,7 +1305,7 @@
         :rewindTarget&&rewindTarget.kind==='player'&&Number.isInteger(rewindTarget.slot)
           ?allPlayers().find(p=>p.slot===rewindTarget.slot):null;
       if(!chosen||chosen.disconnected||chosen.hp===0||
-         chosen.infestedOn||dist(chosen,player)>REWIND_RADIUS){
+         chosen.bondedOn||dist(chosen,player)>REWIND_RADIUS){
         notify('REWINDER — select a valid target within range.');return;
       }
       const isHollow=rewindTarget.kind==='hollow';
@@ -1332,7 +1332,7 @@
         let position=null,targetSlot=null;
         if(rewindTarget?.kind==='player'&&Number.isInteger(rewindTarget.slot)){
           const target=allPlayers().find(p=>p.slot===rewindTarget.slot);
-          if(target&&target.hp>0&&!target.disconnected&&!target.infestedOn){
+          if(target&&target.hp>0&&!target.disconnected&&!target.bondedOn){
             position={x:target.x,y:target.y};
             // Teammate anchor travels with that player. Self stays fixed
             // at the marked position, like a ground anchor.
@@ -1429,8 +1429,8 @@
   const REVIVE_SECONDS=5;
   const REVIVE_RADIUS=1.5; // Measured in maze tiles, not pixels.
   // Both voluntary release and carrier death emerge at the carrier's last
-  // authoritative location. Infestation consumes a charge only on emergence.
-  function infesterEmergencePoint(carrier){
+  // authoritative location. Bondation consumes a charge only on emergence.
+  function symbioteEmergencePoint(carrier){
     // The carrier may stand against a wall with the smaller mobile hitbox.
     // Reusing their exact coordinates can trap the emerged Symbiote at a
     // corner. Use a safe offset near the carrier, or the tile centre.
@@ -1454,40 +1454,40 @@
     });
     return candidates[0]||center;
   }
-  function releaseInfester(passenger,carrier=null){
-    if(!passenger?.infestedOn)return false;
+  function releaseSymbiote(passenger,carrier=null){
+    if(!passenger?.bondedOn)return false;
     if(carrier){
-      const landing=infesterEmergencePoint(carrier);
+      const landing=symbioteEmergencePoint(carrier);
       passenger.x=landing.x;passenger.y=landing.y;
     }
-    passenger.infestedOn=null;
+    passenger.bondedOn=null;
     passenger.dashTime=0;
     passenger.invincible=Math.max(passenger.invincible,2);
-    consumeInfesterCharge(passenger);
+    consumeSymbioteCharge(passenger);
     notify('SYMBIOTE — emerged! Invincible for 2 seconds.',3);
     return true;
   }
-  function consumeInfesterCharge(passenger){
+  function consumeSymbioteCharge(passenger){
     // A release may occur during another player's damage() context. Use the
     // Symbiote's own charge/cooldown, not the damaged player's role.
     if((passenger.abilityCharges??1)<=0)return;
     passenger.abilityCharges--;
     passenger.abilityUseSerial=(passenger.abilityUseSerial||0)+1;
-    passenger.abilityCooldown=SKILL_COOLDOWN.infester*cooldownFactor();
+    passenger.abilityCooldown=SKILL_COOLDOWN.symbiote*cooldownFactor();
   }
-  function releaseInfestersFor(host){
+  function releaseSymbiotesFor(host){
     for(const passenger of allPlayers()){
-      if(passenger.infestedOn===host.slot)releaseInfester(passenger,host);
+      if(passenger.bondedOn===host.slot)releaseSymbiote(passenger,host);
     }
   }
-  function syncInfesters(){
+  function syncSymbiotes(){
     const players=allPlayers();
     for(const passenger of players){
-      if(!passenger.infestedOn||passenger.hp<=0)continue;
-      const carrier=players.find(p=>p.slot===passenger.infestedOn);
+      if(!passenger.bondedOn||passenger.hp<=0)continue;
+      const carrier=players.find(p=>p.slot===passenger.bondedOn);
       if(!carrier||carrier.hp<=0||carrier.disconnected){
-        if(carrier)releaseInfestersFor(carrier);
-        else releaseInfester(passenger);
+        if(carrier)releaseSymbiotesFor(carrier);
+        else releaseSymbiote(passenger);
       }else{
         passenger.x=carrier.x;passenger.y=carrier.y;passenger.dashTime=0;
       }
@@ -1498,7 +1498,7 @@
     const alive=allPlayers().filter(p=>p.hp>0);
     for(const soul of allPlayers()){
       if(soul.hp>0)continue;
-      const nearby=alive.some(rescuer=>!rescuer.infestedOn&&dist(soul,rescuer)<=REVIVE_RADIUS&&clearLine(soul,rescuer));
+      const nearby=alive.some(rescuer=>!rescuer.bondedOn&&dist(soul,rescuer)<=REVIVE_RADIUS&&clearLine(soul,rescuer));
       if(!nearby){soul.reviveProgress=0;continue;}
       soul.reviveProgress=Math.min(REVIVE_SECONDS,(soul.reviveProgress||0)+dt);
       if(soul.reviveProgress>=REVIVE_SECONDS){
@@ -1562,7 +1562,7 @@
       dist(b,origin)-dist(a,origin));
     return candidates[0]||{x:origin.x,y:origin.y};
   }
-  function damage(){if(player.hp<=0||player.disconnected||player.infestedOn||player.invincible>0||player.dashTime>0||state!=='playing')return;
+  function damage(){if(player.hp<=0||player.disconnected||player.bondedOn||player.invincible>0||player.dashTime>0||state!=='playing')return;
     if(player.phaseGuardTime>0){
       player.phaseGuardTime=0;
       const from={x:player.x,y:player.y};
@@ -1581,7 +1581,7 @@
     }
     // Losing even one heart sends the carrier to spawn. Release the attached
     // Symbiote at the impact position before that happens, including final death.
-    releaseInfestersFor(player);
+    releaseSymbiotesFor(player);
     player.hp--;
     player.invincible=1.8;hitFlash=.45;beep(100,.3,'sawtooth',.048);notify('A Hollow touched you! Keep moving.',1.5);
     // On the final hit, keep the soul at the exact place the player fell.
@@ -1635,7 +1635,7 @@
     player.invisibleTime=Math.max(0,(player.invisibleTime||0)-dt);
     player.phaseGuardTime=Math.max(0,(player.phaseGuardTime||0)-dt);
     player.decoyCooldown=Math.max(0,player.decoyCooldown-dt);
-    if(player.infestedOn){
+    if(player.bondedOn){
       player.dashTime=0;player.trail=[];
       recordRewindPosition(player);
       return;
@@ -1663,15 +1663,15 @@
       // A slightly smaller mobile hitbox eases narrow passages. The verified
       // v3.11 keyboard/desktop wall-slide parameters are preserved.
       const touchSteering=Math.hypot(joystickMove.x,joystickMove.y)>.08;
-      moveEntity(player,vx*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.infestedOn===player.slot)?INFEST_WALK_MULTIPLIER:1)*dt,
-        vy*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.infestedOn===player.slot)?INFEST_WALK_MULTIPLIER:1)*dt,touchSteering?.18:.21,.30);
+      moveEntity(player,vx*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.bondedOn===player.slot)?BOND_WALK_MULTIPLIER:1)*dt,
+        vy*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.bondedOn===player.slot)?BOND_WALK_MULTIPLIER:1)*dt,touchSteering?.18:.21,.30);
     }
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
     recordRewindPosition(player);
     for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
   function checkGhostContact(){
-    if(state!=='playing'||player.hp<=0||player.disconnected||player.infestedOn||player.ghostTrapped>0)return;
+    if(state!=='playing'||player.hp<=0||player.disconnected||player.bondedOn||player.ghostTrapped>0)return;
     // A phasing Ghost can freeze even an invincible or dashing survivor.
     // There is no Ghost retrapping grace after teammate rescue.
     const ghost=hollows.find(h=>h.variant==='ghost'&&dist(player,h)<.80);
@@ -1736,7 +1736,7 @@
       const phantom=illusions.filter(i=>dist(h,i)<=8)
         .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
       // Ignore downed or invisible survivors as regular chase targets.
-      const nearest=allPlayers().filter(p=>p.hp>0&&!p.infestedOn&&!(p.invisibleTime>0)&&!(p.ghostTrapped>0))
+      const nearest=allPlayers().filter(p=>p.hp>0&&!p.bondedOn&&!(p.invisibleTime>0)&&!(p.ghostTrapped>0))
         .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
       if(!phantom&&h.mode==='illusion'){
         h.mode='search';h.target=null;h.path=[];h.pathIndex=0;
@@ -1925,8 +1925,8 @@
     $('.side-objectives').classList.toggle('all-objectives-complete',objectivesComplete);
     const available=skillCharges();
     const maximum=maxSkillCharges();
-    ui.abilityStatus.textContent=player.ghostTrapped>0?'GHOST CURSE · '+Math.ceil(player.ghostTrapped)+'s LEFT':player.infestedOn?'BONDED TO TEAMMATE '+player.infestedOn+' · F TO EMERGE':
-      infestTargeting&&classChoice==='infester'?'SELECT TEAMMATE · TAB / F':
+    ui.abilityStatus.textContent=player.ghostTrapped>0?'GHOST CURSE · '+Math.ceil(player.ghostTrapped)+'s LEFT':player.bondedOn?'BONDED TO TEAMMATE '+player.bondedOn+' · F TO EMERGE':
+      bondTargeting&&classChoice==='symbiote'?'SELECT TEAMMATE · TAB / F':
       rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':
       anchorTargeting&&classChoice==='anchor'?'MARK ANCHOR · TAB / F':
       player.phaseGuardTime>0?'PHASE GUARD · '+player.phaseGuardTime.toFixed(1)+'s':
@@ -1949,8 +1949,8 @@
     skillButton.classList.toggle('two-charges',maximum===2);
     ui.skillCD.textContent='';
     skillButton.querySelector('.action-name').textContent='SKILL';
-    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':anchorTargeting?'Confirm anchor mark':infestTargeting?'Confirm infestation target':
-      classChoice==='infester'&&player.infestedOn?'Emerge from teammate':
+    skillButton.setAttribute('aria-label',rewindTargeting?'Confirm rewind target':anchorTargeting?'Confirm anchor mark':bondTargeting?'Confirm bondation target':
+      classChoice==='symbiote'&&player.bondedOn?'Emerge from teammate':
       available===0&&!(classChoice==='anchor'&&player.anchor)?
       'Skill recharging':classChoice==='anchor'&&player.anchor?'Return to anchor':'Use skill');
     const dashCharge=Math.max(0,Math.min(1,1-player.dashCooldown/(3.5*cooldownFactor())));
@@ -1974,7 +1974,7 @@
     updatePlayer(dt);
     if(guestPlayer)asGuest(()=>updatePlayer(dt));
     for(let slot=3;slot<=5;slot++)withExtra(slot,()=>updatePlayer(dt));
-    syncInfesters();
+    syncSymbiotes();
     if(state!=='playing')return;
     updateSurvivor(dt);updateIllusions(dt);updateHollows(dt);
     // Record Hollow histories on the authoritative simulation each frame.
@@ -2202,7 +2202,7 @@
       drawSoul(player);
       return;
     }
-    if(player.infestedOn){
+    if(player.bondedOn){
       ctx.save();ctx.strokeStyle='#a1f1be';ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(player.x*TILE,player.y*TILE,17+Math.sin(clock*5)*2,0,Math.PI*2);ctx.stroke();
       ctx.restore();return;
@@ -2217,7 +2217,7 @@
       ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
       ctx.beginPath();ctx.arc(x,y,18+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
     }
-    if(remotePlayers.some(p=>p.infestedOn===player.slot)){
+    if(remotePlayers.some(p=>p.bondedOn===player.slot)){
       ctx.strokeStyle='#a2f4bd';ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(x,y,19+Math.sin(clock*5)*2,0,Math.PI*2);ctx.stroke();
     }
@@ -2254,7 +2254,7 @@
       const teammate=remotePlayers[i];
       if(!teammate)continue;
       if(teammate.hp<=0){drawSoul(teammate);continue;}
-      if(teammate.infestedOn)continue;
+      if(teammate.bondedOn)continue;
       const x=teammate.x*TILE,y=teammate.y*TILE,color=colorForPlayer(teammate.slot);
       ctx.save();
       ctx.globalAlpha=Math.min(teammate.invisibleTime>0?.28:1,ghostFadeOpacity(teammate));
@@ -2262,7 +2262,7 @@
         ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
         ctx.beginPath();ctx.arc(x,y,17+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
       }
-      if(remotePlayers.some(p=>p.infestedOn===teammate.slot)||player.infestedOn===teammate.slot){
+      if(remotePlayers.some(p=>p.bondedOn===teammate.slot)||player.bondedOn===teammate.slot){
         ctx.strokeStyle='#a2f4bd';ctx.lineWidth=2;
         ctx.beginPath();ctx.arc(x,y,19+Math.sin(clock*5)*2,0,Math.PI*2);ctx.stroke();
       }
@@ -2276,7 +2276,7 @@
     // No (YOU) suffix: the local player is already centered by the camera.
     if(roomRole==='none')return;
     for(const person of [...(roomRole==='spectator'?[]:[{...player,slot:roomPlayerId}]),...remotePlayers]){
-      if(!person||!person.slot||person.infestedOn)continue;
+      if(!person||!person.slot||person.bondedOn)continue;
       const identity=roomIdentity.get(person.slot);
       const name=(identity?.name||'Survivor '+person.slot).slice(0,20);
       const x=person.x*TILE,y=person.y*TILE-29;
@@ -2584,11 +2584,11 @@
     for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)
       (grid[y][x]===1?drawWall:drawFloor)(x,y);
     drawItems();drawAnchors();drawHollows();drawIllusions();drawPlayer();drawOtherPlayer();drawDarkness();drawSkillWaves();drawAtmosphere();drawNameplates();drawChatBubbles();
-    if(infestTargeting&&classChoice==='infester'){
-      const selected=chosenInfestTarget(),cx=player.x*TILE,cy=player.y*TILE;
+    if(bondTargeting&&classChoice==='symbiote'){
+      const selected=chosenBondTarget(),cx=player.x*TILE,cy=player.y*TILE;
       ctx.save();ctx.strokeStyle='rgba(152,245,183,.83)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.arc(cx,cy,INFEST_RADIUS*TILE,0,Math.PI*2);ctx.stroke();
-      for(const choice of infestChoices()){
+      ctx.beginPath();ctx.arc(cx,cy,BOND_RADIUS*TILE,0,Math.PI*2);ctx.stroke();
+      for(const choice of bondChoices()){
         const on=selected?.slot===choice.slot;
         ctx.strokeStyle=on?'#fff0a2':'#a0efb1';ctx.lineWidth=on?4:2;
         ctx.beginPath();ctx.arc(choice.entity.x*TILE,choice.entity.y*TILE,on?18:14,0,Math.PI*2);ctx.stroke();
@@ -2698,7 +2698,7 @@
     if(activePage!=='play')return;
     if(e.target instanceof HTMLElement&&e.target.closest('input, textarea, select, [contenteditable="true"]'))return;
     if(!soundEnabled)unlockGameAudio();
-    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k)||((rewindTargeting||anchorTargeting||infestTargeting)&&k==='tab'))e.preventDefault();
+    const k=e.key.toLowerCase();if(keyMap[k]||[' ','e','q','f','p','escape','enter','r','m'].includes(k)||((rewindTargeting||anchorTargeting||bondTargeting)&&k==='tab'))e.preventDefault();
     if((player?.hp<=0||roomRole==='spectator')&&state==='playing'&&k.startsWith('arrow')){
       // Arrow keys switch teammate cameras instead of controlling a dead soul.
       if(!e.repeat)cycleSpectator(k==='arrowleft'||k==='arrowup'?-1:1);
@@ -2708,9 +2708,9 @@
     if(e.repeat)return;
     if(rewindTargeting&&k==='escape'){cancelRewindTarget();return;}
     if(anchorTargeting&&k==='escape'){anchorTargeting=false;return;}
-    if(infestTargeting&&k==='escape'){infestTargeting=false;return;}
-    if(infestTargeting&&k==='tab'){infestTargetIndex++;return;}
-    if(infestTargeting&&k==='enter'){commitInfestTarget(chosenInfestTarget());return;}
+    if(bondTargeting&&k==='escape'){bondTargeting=false;return;}
+    if(bondTargeting&&k==='tab'){bondTargetIndex++;return;}
+    if(bondTargeting&&k==='enter'){commitBondTarget(chosenBondTarget());return;}
     if(anchorTargeting&&k==='tab'){anchorTargetIndex++;return;}
     if(anchorTargeting&&k==='enter'){markAnchorTarget(chosenAnchorTarget());return;}
     if(rewindTargeting&&k==='tab'){rewindTargetIndex++;return;}
@@ -2826,7 +2826,7 @@
   // Rewinder can target players/Hollows. Anchor can target only self/teammates.
   // Tap outside either ring to cancel; account for object-fit:contain letterboxing.
   canvas.addEventListener('pointerdown',event=>{
-    if(state!=='playing'||!(rewindTargeting&&classChoice==='rewinder')&&!(anchorTargeting&&classChoice==='anchor')&&!(infestTargeting&&classChoice==='infester'))return;
+    if(state!=='playing'||!(rewindTargeting&&classChoice==='rewinder')&&!(anchorTargeting&&classChoice==='anchor')&&!(bondTargeting&&classChoice==='symbiote'))return;
     event.preventDefault();
     const rect=canvas.getBoundingClientRect();
     const scale=Math.min(rect.width/W,rect.height/H);
@@ -2835,12 +2835,12 @@
     const py=(event.clientY-rect.top-(rect.height-H*scale)/2)/scale;
     const wx=(px/CAMERA_ZOOM+camera.x)/TILE;
     const wy=(py/CAMERA_ZOOM+camera.y)/TILE;
-    if(infestTargeting&&classChoice==='infester'){
-      if(Math.hypot(wx-player.x,wy-player.y)>INFEST_RADIUS){infestTargeting=false;return;}
-      const nearest=infestChoices().slice().sort((a,b)=>
+    if(bondTargeting&&classChoice==='symbiote'){
+      if(Math.hypot(wx-player.x,wy-player.y)>BOND_RADIUS){bondTargeting=false;return;}
+      const nearest=bondChoices().slice().sort((a,b)=>
         Math.hypot(a.entity.x-wx,a.entity.y-wy)-Math.hypot(b.entity.x-wx,b.entity.y-wy))[0];
       if(nearest&&Math.hypot(nearest.entity.x-wx,nearest.entity.y-wy)<.65)
-        commitInfestTarget(nearest);
+        commitBondTarget(nearest);
       return;
     }
     if(anchorTargeting&&classChoice==='anchor'){
@@ -2986,7 +2986,7 @@
     // Every browser has its own assigned slot (1–5) in the SAME server room.
     const occupants=Array.isArray(d.players)?d.players:[d.player,d.guestPlayer];
     const authoritative=roomRole==='spectator'
-      ?{...player,slot:0,hp:0,invincible:0,disconnected:true,infestedOn:null}
+      ?{...player,slot:0,hp:0,invincible:0,disconnected:true,bondedOn:null}
       :occupants[roomPlayerId-1];
     if(!authoritative)return;
     if(guestPreviousHP!==null&&authoritative.hp<guestPreviousHP){
@@ -3555,7 +3555,7 @@
         ['scout','scoutCount'],['medic','medicCount'],
         ['invisibler','invisiblerCount'],['teleporter','teleporterCount'],
         ['illusioner','illusionerCount'],['rewinder','rewinderCount'],
-        ['anchor','anchorCount'],['infester','infesterCount']
+        ['anchor','anchorCount'],['symbiote','symbioteCount']
       ]){
         const count=players.filter(person=>person.role===role).length;
         const label=$('#'+countId);
