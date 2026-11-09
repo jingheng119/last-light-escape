@@ -3377,7 +3377,7 @@
     };
     const recordProgress=result=>{
       if(!result||!Number.isFinite(result.floorsCleared))return;
-      if(result.competitive===false&&!(result.achievements||[]).length)return;
+      if(result.eligible!==true)return;
       const current=readProgress(),won=result.outcome==='victory'&&result.floorsCleared===27;
       const seconds=Number(result.elapsedSeconds);
       const bestTime=won&&Number.isFinite(seconds)&&seconds>0?
