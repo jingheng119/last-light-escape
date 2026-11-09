@@ -131,7 +131,7 @@ function persistCompletedMatch(room){
       send(ws,{type:'match-result',result:{
         floorsCleared:result.floorsCleared,outcome:result.outcome,
         elapsedSeconds:result.elapsedSeconds,
-        competitive:result.competitive,
+        competitive:result.competitive,eligible:!room.unranked,
         achievements:result.achievements,slot
       }});
   }
