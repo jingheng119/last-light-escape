@@ -23,6 +23,24 @@ try{
   }
   assert(ready,'Server not live: '+serverLogs);
   browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+  // The handbook's isometric tower must switch stage details without a reload.
+  const handbook=await browser.newPage();
+  handbook.on('pageerror',error=>problems.push('Handbook: '+error.message));
+  await handbook.goto('http://127.0.0.1:'+port+'/how-to-play.html#progression');
+  assert(await handbook.locator('#panel-progression').isVisible());
+  assert.equal(await handbook.locator('.tower-floor').count(),3);
+  assert.equal(await handbook.locator('.stage-detail:visible').count(),1);
+  assert((await handbook.locator('.stage-detail:visible').textContent()).includes('The Hollow Ward'));
+  for(const [stage,name,dimension] of [['3','The Lost Signal','51 × 41'],['2','The Copper Engine','41 × 31'],['1','The Hollow Ward','31 × 21']]){
+    await handbook.locator('.tower-floor[data-stage="'+stage+'"]').click();
+    assert.equal(await handbook.locator('.tower-floor[aria-pressed="true"]').count(),1);
+    const detail=handbook.locator('.stage-detail:visible');
+    assert.equal(await detail.count(),1,'Only one stage description is open');
+    const description=await detail.textContent();
+    assert(description.includes(name)&&description.includes(dimension),
+      'Selected tower floor must show the matching stage');
+  }
+  await handbook.close();
   const first=await browser.newPage(),second=await browser.newPage();
   const players=[first,second];
   for(const [p,label] of [[first,'P1'],[second,'P2']]){
