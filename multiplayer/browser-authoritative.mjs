@@ -33,6 +33,23 @@ try{
     assert(await p.locator('#playPage').isHidden(),'Lobby must not show game canvas');
     assert(await p.locator('#lobbyPage').isVisible(),'Dedicated lobby page should be visible');
   }
+  // Achievements gallery must include every earned and locked badge.
+  assert.equal(await first.locator('#myAchievements .achievement-tile').count(),6);
+  assert.equal(await first.locator('#myAchievements .achievement-tile.is-locked').count(),6);
+  assert.equal((await first.locator('#achievementCount').textContent()).trim(),'0 / 6 unlocked');
+  assert.equal(await first.locator('#achievementNotifications').getAttribute('role'),'status');
+  // Recovered/local badges render as earned WITHOUT replaying unlock alerts.
+  await second.evaluate(()=>localStorage.setItem('lastLightProgressV1',
+    JSON.stringify({runs:1,bestFloors:9,bestTime:null,badges:['ward']})));
+  await second.reload();
+  await second.waitForFunction(()=>document.querySelector('#roomStatus')?.textContent?.includes('Connected'),
+    null,{timeout:10000});
+  assert.equal(await second.locator('#myAchievements .achievement-tile.is-unlocked').count(),1);
+  assert.equal((await second.locator('#achievementCount').textContent()).trim(),'1 / 6 unlocked');
+  assert((await second.locator('#myAchievements .achievement-tile.is-unlocked').textContent()).includes('Ward Escape'));
+  assert.equal(await second.locator('#achievementNotifications').locator('.achievement-unlock-card').count(),0,
+    'Restoring existing badges must not show a new unlock notification');
+  await second.evaluate(()=>localStorage.removeItem('lastLightProgressV1'));
   await first.locator('#playerNickname').fill('Captain Light');
   await first.locator('#lobbyClass').selectOption('medic');
   await first.locator('#createRoom').click();
