@@ -3352,6 +3352,9 @@
     $('#refreshLeaderboard')?.addEventListener('click',loadLeaderboard);
     void loadLeaderboard();
     const PROGRESS_KEY='lastLightProgressV1';
+    // A legacy record predates PostgreSQL profile synchronization. Back up
+    // this browser's original history once, without treating it as verified.
+    let pendingLegacyImport=null,legacyImportAttempted=false;
     const PROFILE_KEY_STORAGE='lastLightRecoveryKeyV1';
     const recoveryInput=$('#profileRecoveryKey'),syncStatus=$('#profileSyncStatus');
     const validRecoveryKey=key=>typeof key==='string'&&/^[a-f0-9]{64}$/.test(key);
@@ -3388,6 +3391,7 @@
       }
       if(key===recoveryKey){syncProfile();return;}
       recoveryKey=key;
+      pendingLegacyImport=null;legacyImportAttempted=true;
       try{localStorage.setItem(PROFILE_KEY_STORAGE,key);
           localStorage.removeItem(PROGRESS_KEY);}catch{}
       renderProgress();syncStatus.textContent='Restoring profile from server…';
@@ -3464,6 +3468,12 @@
         newBadges.map(id=>ACHIEVEMENTS[id]).join(', ');
       void loadLeaderboard();
     };
+    const existingLocal=readProgress();
+    if((Number(existingLocal.runs)||0)>0||
+       (Number(existingLocal.bestFloors)||0)>0||
+       existingLocal.bestTime!=null||
+       (Array.isArray(existingLocal.badges)&&existingLocal.badges.length))
+      pendingLegacyImport=existingLocal;
     renderProgress();
     const renderRoster=players=>{
       savedPlayers=players;
@@ -3602,17 +3612,29 @@
       if(m.type==='floor-progress')recordFloorProgress(m);
       if(m.type==='match-result'&&m.result)recordProgress(m.result);
       if(m.type==='profile-data'){
-        syncStatus.textContent=m.available?'Profile synchronized with PostgreSQL.':
-          'Cloud records unavailable — progress stays on this browser.';
-        if(m.available&&m.progress){
-          const p=m.progress,local=readProgress();
+        const cloud=m.progress||{runs:0,bestFloors:0,bestTime:null,badges:[]};
+        if(m.available&&!legacyImportAttempted&&pendingLegacyImport&&!m.legacyProgress){
+          legacyImportAttempted=true;
+          syncStatus.textContent='Backing up earlier browser progress…';
+          sendRoom({type:'profile-import-legacy',progress:pendingLegacyImport});
+        }else{
+          syncStatus.textContent=!m.available?
+            'Cloud records unavailable — progress stays on this browser.':
+            m.legacyProgress?
+            'Profile synchronized. Earlier browser history restored (unverified).':
+            'Profile synchronized with PostgreSQL.';
+        }
+        if(m.available){
+          const local=readProgress(),legacy=m.legacyProgress||{};
+          const sources=[local,cloud,legacy];
+          const times=sources.map(p=>p.bestTime)
+            .filter(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v))&&Number(v)>0)
+            .map(Number);
           const next={
-            runs:Math.max(Number(local.runs)||0,Number(p.runs)||0),
-            bestFloors:Math.max(Number(local.bestFloors)||0,Number(p.bestFloors)||0),
-            bestTime:p.bestTime==null?local.bestTime:
-              local.bestTime==null?Number(p.bestTime):
-              Math.min(Number(local.bestTime),Number(p.bestTime)),
-            badges:[...new Set([...(local.badges||[]),...(Array.isArray(p.badges)?p.badges:[])])]
+            runs:Math.max(0,...sources.map(p=>Number(p.runs)||0)),
+            bestFloors:Math.max(0,...sources.map(p=>Number(p.bestFloors)||0)),
+            bestTime:times.length?Math.min(...times):null,
+            badges:[...new Set(sources.flatMap(p=>Array.isArray(p.badges)?p.badges:[]))]
           };
           try{localStorage.setItem(PROGRESS_KEY,JSON.stringify(next));}catch{}
           renderProgress();
