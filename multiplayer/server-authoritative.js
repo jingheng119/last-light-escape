@@ -121,10 +121,22 @@ function notifyRoom(room){
   broadcastLobby();
 }
 function persistCompletedMatch(room){
-  if(!matchStore.enabled||room.matchRecorded||room.matchRecording||
-    Date.now()<(room.matchRetryAt||0))return;
   const result=buildMatchResult(room);
   if(!result)return;
+  // Player progression stays available even without DATABASE_URL. Each
+  // browser stores only its own run result; public rankings use PostgreSQL.
+  if(!room.matchAnnounced){
+    room.matchAnnounced=true;
+    for(const [slot,ws] of room.clients)
+      send(ws,{type:'match-result',result:{
+        floorsCleared:result.floorsCleared,outcome:result.outcome,
+        elapsedSeconds:result.elapsedSeconds,
+        competitive:result.competitive,
+        achievements:result.achievements,slot
+      }});
+  }
+  if(!matchStore.enabled||room.matchRecorded||room.matchRecording||
+    Date.now()<(room.matchRetryAt||0))return;
   room.matchRecording=true;
   void matchStore.save(result).then(saved=>{
     if(saved)room.matchRecorded=true;
@@ -135,7 +147,7 @@ function createRoom(name){
   const room={code:makeCode(),name:safeRoomName(name),engine:createRoomEngine(),
     clients:new Map(),members:new Map(),spectators:new Set(),started:false,hostId:1,ticks:0,
     chatHistory:[],chatSerial:0,chatCountdown:null,
-    matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0,unranked:false};
+    matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0,matchAnnounced:false,unranked:false};
   rooms.set(room.code,room);
   let last=performance.now();
   room.timer=setInterval(()=>{
@@ -353,7 +365,7 @@ wss.on('connection',(ws,req)=>{
           room.started=true;
           room.chatCountdown=null;
           syncCountdownChat(room);
-          room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;room.unranked=false;
+          room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;room.matchAnnounced=false;room.unranked=false;
         }
         publish(room,true);broadcastLobby();
       }
