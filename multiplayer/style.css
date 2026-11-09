@@ -2778,3 +2778,12 @@ body.show-play .game-shell .room-chat .chat-form button{
 .earned-achievements{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
 .earned-achievements:empty{display:none}
 .earned-achievement{border:1px solid #99805a;border-radius:99px;background:#352c24;color:#f4d69b;font-size:.78rem;padding:5px 10px}
+
+/* Accountless recovery-key backed survivor profile. */
+.profile-recovery{margin-top:15px;padding:13px 14px;background:#13282d;border:1px solid #42656a;border-radius:9px;color:#d7eae5}
+.profile-recovery strong{font-size:.82rem;letter-spacing:.06em;color:#c7e5d9}
+.profile-recovery p{margin:6px 0 10px;font-size:.79rem;color:#a8c3c3;line-height:1.5}
+.profile-recovery-controls{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.profile-recovery-controls input{box-sizing:border-box;flex:1 1 220px;min-width:0;padding:8px 10px;border:1px solid #517278;border-radius:7px;background:#06191d;color:#e9f9f4}
+.profile-recovery-controls button{padding:8px 11px;border-radius:7px;border:1px solid #607b7d;background:#214249;color:#e6f9f3;cursor:pointer}
+#profileSyncStatus{margin:8px 0 0;font-size:.78rem;color:#a2c7bf}
