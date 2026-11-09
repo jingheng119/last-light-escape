@@ -1750,6 +1750,12 @@
     // There is no Ghost retrapping grace after teammate rescue.
     const ghost=hollows.find(h=>h.variant==='ghost'&&dist(player,h)<.80);
     if(ghost){
+      // The rescued Echo blocks the next hostile contact, including a Ghost's
+      // otherwise unavoidable 30-second curse. Never trap a phasing player.
+      if(player.phaseEchoCharge>0){
+        damage();
+        return;
+      }
       player.ghostTrapped=30;player.dashTime=0;player.trail=[];
       // Forget any cached pursuit of this player immediately. Frozen players
       // are also excluded from future target acquisition below.
