@@ -527,7 +527,7 @@ assert(state.guestPlayer.dashCooldown>0);
 game.skip(true);
 state=game.snapshot(true);
 assert.equal(state.levelIndex,9);
-assert.equal(state.grid.length,41);
+assert.equal(state.grid.length,31,'Stage II map is 31 tiles tall');
 assert.equal(state.hollows.length,8,'Stage II floor one spawns eight Hollows');
 assert.equal(state.grid[0].length,41,'Stage II map is 41 tiles wide');
 game.skip(true);
