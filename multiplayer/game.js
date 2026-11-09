@@ -2000,6 +2000,16 @@
       ctx.fillStyle='#a9f9ff';ctx.fillRect(-4,-4,8,8);ctx.restore();
     }
   }
+  // Fade the blue Hollow at the boundaries of its 3s hidden / 3s
+  // visible cycle. The server remains authoritative for the phase timer.
+  function invisibleHollowAlpha(h){
+    if(h.variant!=='invisible')return 1;
+    const cycle=((h.invisibilityCycle||0)%6+6)%6,fade=.35;
+    if(cycle<3)return 0;
+    if(cycle<3+fade)return (cycle-3)/fade;
+    if(cycle<6-fade)return 1;
+    return (6-cycle)/fade;
+  }
   function drawHollows(){for(let i=0;i<hollows.length;i++){const h=hollows[i];
     if(h.variant==='ghost'){
       const x=h.x*TILE,y=h.y*TILE;
@@ -2011,11 +2021,15 @@
       ctx.fillStyle='#465160';ctx.fillRect(-6,-3,3,4);ctx.fillRect(3,-3,3,4);
       ctx.restore();continue;
     }
-    if(h.variant==='invisible'&&h.invisibilityCycle<3)continue;
+    const alpha=invisibleHollowAlpha(h);
+    if(alpha<=0)continue;
     let x=h.x*TILE,y=h.y*TILE,red=h.mode==='chase'&&!(h.stunned>0);
     const hunter=h.variant==='hunter',dasher=h.variant==='dasher',invisible=h.variant==='invisible';
     const glow=h.stunned>0?'#6dbeff3f':invisible?'#163c8b60':hunter?'#fa4c8c48':dasher?'#edaa3540':red?'#ff465b35':'#fa8f6a16';
-    halo(x,y,hunter?70:dasher?52:red?62:38,glow);ctx.save();ctx.translate(x,y);
+    ctx.save();
+    ctx.globalAlpha*=alpha;
+    halo(x,y,hunter?70:dasher?52:red?62:38,glow);
+    ctx.translate(x,y);
     ctx.fillStyle=h.stunned>0?'#79c2e7':invisible?'#173b88':hunter?'#ee5e9d':dasher?'#ffc064':red?'#ff5767':'#b87c83';
     ctx.beginPath();ctx.ellipse(0,1+Math.sin(h.wobble)*1.5,hunter?12:10,hunter?14:12,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=invisible?'#0a1b47':hunter?'#602245':dasher?'#633b1b':'#4c202d';
