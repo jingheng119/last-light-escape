@@ -341,7 +341,7 @@ wss.on('connection',(ws,req)=>{
       return ws.close(1008,'Origin invalid');
   }catch{return ws.close(1008,'Origin invalid');}
   lobbyClients.add(ws);send(ws,{type:'rooms',rooms:listRooms()});
-  let lastInputAt=0;
+  let lastInputAt=0,lastInputSignature=null;
   ws.on('message',raw=>{
     if(raw.length>16000)return;
     let m;try{m=JSON.parse(raw.toString());}catch{return;}
@@ -395,9 +395,14 @@ wss.on('connection',(ws,req)=>{
     if(m.type==='chat')return receiveChat(room,ws,m);
     if(m.type==='input'){
       const now=Date.now();
-      if(now-lastInputAt<20)return;
+      const keys=safeKeys(m.keys),stick=safeStick(m.joystick);
+      const signature=JSON.stringify([keys.up,keys.down,keys.left,keys.right,stick.x,stick.y]);
+      // Do not drop a quick key release or joystick direction change.
+      // Only suppress identical packets within the existing 20 ms window.
+      if(signature===lastInputSignature&&now-lastInputAt<20)return;
       lastInputAt=now;
-      room.engine.input(id,safeKeys(m.keys),safeStick(m.joystick));
+      lastInputSignature=signature;
+      room.engine.input(id,keys,stick);
     }else if(m.type==='action'&&['dash','interact','decoy','ability'].includes(m.name))
       room.engine.action(id,m.name,safeDirection(m.direction),m.name==='dash'&&m.touch===true,
          m.name==='ability'&&m.target&&typeof m.target==='object'&&(
