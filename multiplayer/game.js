@@ -898,7 +898,11 @@
     wardVoice(52,t+eighth*3.05,eighth*.23,.005,'pulse',0);
   }
   function updateMusic(){
-    if(!soundEnabled||state!=='playing'||!player){
+    // Once a run starts, keep the stage soundtrack playing through pauses,
+    // the elevator/floor-complete screen and the next-floor countdown.
+    // Only exit/menu, game over, or audio being disabled should stop it.
+    const musicActive=['playing','paused','leveldone','countdown'].includes(state);
+    if(!soundEnabled||!musicActive||!player){
       stopMusic();return;
     }
     try{
