@@ -184,7 +184,7 @@ function makeTeleporterRoom(){
     for(let x=0;x<state.grid[y].length;x++)
       state.grid[y][x]=x>=1&&x<=8&&y===3?0:1;
   p.x=2.5;p.y=3.5;p.facing={x:1,y:0};
-  state.hollows.forEach(h=>{h.x=20;h.y=15;h.stunned=100;});
+  for(let i=0;i<state.hollows.length;i++)room.testPlaceHollow(i,20,15,100);
   room.action(1,'ability');
   assert.equal(p.phaseGuardTime,5,'Phase Guard must last five seconds');
   assert(p.abilityCooldown>15&&p.abilityCooldown<=16,'Phase Guard begins 16s cooldown');
@@ -206,7 +206,7 @@ function makeTeleporterRoom(){
   // Teleport must cross it rather than stopping before it.
   state.grid[3][3]=1;
   p.x=2.5;p.y=3.5;p.facing={x:1,y:0};
-  state.hollows.forEach(h=>{h.x=20;h.y=15;h.stunned=100;});
+  for(let i=0;i<state.hollows.length;i++)room.testPlaceHollow(i,20,15,100);
   room.action(1,'ability');const hp=p.hp;
   room.testHit(1);
   assert.equal(p.hp,hp,'Wall-blocked shield still prevents damage');
@@ -223,7 +223,7 @@ function makeTeleporterRoom(){
     for(let x=0;x<state.grid[y].length;x++)
       state.grid[y][x]=x===2&&y===3?0:x===5&&y===4?0:1;
   p.x=2.5;p.y=3.5;p.facing={x:1,y:0};
-  state.hollows.forEach(h=>{h.x=20;h.y=15;h.stunned=100;});
+  for(let i=0;i<state.hollows.length;i++)room.testPlaceHollow(i,20,15,100);
   room.action(1,'ability');
   const hp=p.hp;
   room.testHit(1);
@@ -239,7 +239,7 @@ function makeTeleporterRoom(){
     for(let x=0;x<state.grid[y].length;x++)
       state.grid[y][x]=x===2&&y===3?0:x===5&&y===3?0:1;
   p.x=2.5;p.y=3.5;p.facing={x:1,y:0};
-  state.hollows.forEach(h=>{h.x=20;h.y=15;h.stunned=100;});
+  for(let i=0;i<state.hollows.length;i++)room.testPlaceHollow(i,20,15,100);
   room.action(1,'ability');room.testHit(1);
   assert.equal(p.x,5.5,'Teleport can cross a sealed wall to reach a clear destination');
   assert.equal(p.y,3.5,'Phase teleport keeps the intended heading');
