@@ -38,7 +38,7 @@ try{
       return size;
     }catch(error){return {ok:false,error:String(error)};}
   });
-  assert(artwork.ok&&artwork.width===1200&&artwork.height===210,
+  assert(artwork.ok&&artwork.width===960&&artwork.height===169,
     'All three stage banner images must decode correctly: '+JSON.stringify(artwork));
   assert((await handbook.locator('#stage-detail-1 .stage-scene').evaluate(el=>getComputedStyle(el).backgroundImage))
     .includes('stage-artwork.webp'),'Stage detail backgrounds must use supplied artwork');
