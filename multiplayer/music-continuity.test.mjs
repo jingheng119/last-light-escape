@@ -18,7 +18,9 @@ const ctx={
     destination:{},
     createGain(){return {gain:{value:0,cancelScheduledValues(){},setTargetAtTime(value){this.value=value;}},connect(){}};}
   },
-  stopMusic(){this.musicBus=null;this.musicNextAt=0;this.musicMuted=false;},
+  // updateMusic calls stopMusic() as an unbound function; this is undefined
+  // inside ES module mocks, so update the explicit VM context instead.
+  stopMusic(){ctx.musicBus=null;ctx.musicNextAt=0;ctx.musicMuted=false;},
   scheduleWardBar(){},scheduleCopperBar(){},scheduleSignalBar(){},
   musicTone(){},window:{},
 };
