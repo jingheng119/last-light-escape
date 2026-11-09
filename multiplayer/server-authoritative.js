@@ -104,9 +104,15 @@ function broadcastLobby(){
   for(const client of lobbyClients)send(client,msg);
 }
 function publish(room,full=false){
-  const snapshot=room.engine.snapshot(full);
-  for(const ws of room.clients.values())send(ws,{type:'snapshot',snapshot});
-  for(const ws of room.spectators)send(ws,{type:'snapshot',snapshot});
+  // A single authoritative snapshot is identical for every room participant.
+  // Serialize once instead of repeating expensive JSON work up to 29 times
+  // for five players and 24 spectators. Skip a congested socket rather than
+  // queue old positions that would turn into visible movement lag.
+  const packet=JSON.stringify({type:'snapshot',snapshot:room.engine.snapshot(full)});
+  for(const ws of [...room.clients.values(),...room.spectators]){
+    if(ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<96000)
+      ws.send(packet);
+  }
 }
 function notifyRoom(room){
   const roles=room.engine.snapshot(false).playerRoles;
