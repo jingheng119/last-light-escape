@@ -2751,3 +2751,25 @@ body.show-play .game-shell .room-chat .chat-form button{
   padding:2px 6px;
   line-height:1.15;
 }
+
+/* Public beta progression cards and fastest full-run leaderboard. */
+.progression-panel{margin-top:20px;padding:20px;border:1px solid #426068;border-radius:13px;background:rgba(8,22,28,.85);color:#cfe8e8}
+.progression-heading{display:flex;align-items:start;justify-content:space-between;gap:14px}
+.progression-heading h2{margin:5px 0 7px;font-size:1.35rem;color:#eef8f4}
+.progression-heading p{margin:0;color:#a5c5c5;line-height:1.5}
+.progression-heading button{flex-shrink:0;border:1px solid #608284;background:#173439;color:#daf8ee;border-radius:8px;padding:9px 12px;cursor:pointer}
+.progression-stages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
+.progression-stages>div{display:flex;flex-direction:column;gap:8px;border:1px solid #3b5960;border-radius:9px;padding:13px;background:#14262c}
+.progression-stages strong{font-size:.8rem;color:#f0d0a4;letter-spacing:.04em}
+.progression-stages span,.progression-hint{font-size:.79rem;color:#a2bdc4;line-height:1.5}
+.progression-hint{margin:12px 0 18px}
+.leaderboard-title{font-size:.8rem;letter-spacing:.09em;color:#d5ebe4;font-weight:700;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;border-bottom:1px solid #3b5960;padding-bottom:10px}
+.leaderboard-title span{font-weight:400;color:#99b3b8}
+.leaderboard-entries{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.leaderboard-entry{display:grid;grid-template-columns:42px minmax(0,1fr) 84px;align-items:center;gap:12px;padding:10px 7px;border-bottom:1px solid #29444a}
+.leaderboard-entry>strong{color:#d4b88d}
+.leaderboard-entry>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.leaderboard-entry>div strong{color:#f2f7f4;overflow-wrap:anywhere}
+.leaderboard-entry>div span{font-size:.78rem;color:#9fb9bd;overflow-wrap:anywhere}
+.leaderboard-entry>b{text-align:right;font-variant-numeric:tabular-nums;color:#b5e5d9}
+@media(max-width:650px){.progression-heading{flex-direction:column}.progression-stages{grid-template-columns:1fr}.progression-panel{padding:14px}}
