@@ -3433,10 +3433,38 @@
       syncProfile();
     });
     const ACHIEVEMENTS={
-      ward:'Ward Escape',engine:'Copper Survivor',signal:'Last Light',
-      solo:'Lone Survivor',team:'Together Through Darkness',
-      alive:'Everyone Made It'
+      ward:{name:'Ward Escape',icon:'✦',description:'Clear Stage 1 · Floor 9'},
+      engine:{name:'Copper Survivor',icon:'⚙',description:'Clear Stage 2 · Floor 9'},
+      signal:{name:'Last Light',icon:'★',description:'Complete all 27 floors'},
+      solo:{name:'Lone Survivor',icon:'♟',description:'Complete the full game alone'},
+      team:{name:'Together Through Darkness',icon:'✧',description:'Complete the full game with a team'},
+      alive:{name:'Everyone Made It',icon:'♥',description:'Finish with every teammate alive'}
     };
+    const unlockQueue=[];
+    let unlockTimer=null;
+    function showNextAchievement(){
+      const host=$('#achievementNotifications');
+      if(!host)return;
+      if(!unlockQueue.length){host.replaceChildren();unlockTimer=null;return;}
+      const id=unlockQueue.shift(),info=ACHIEVEMENTS[id];
+      if(!info){showNextAchievement();return;}
+      host.replaceChildren();
+      const card=document.createElement('div');card.className='achievement-unlock-card';
+      const icon=document.createElement('span');icon.className='achievement-unlock-icon';
+      icon.textContent=info.icon;icon.setAttribute('aria-hidden','true');
+      const description=document.createElement('div');
+      const label=document.createElement('span');label.textContent='ACHIEVEMENT UNLOCKED';
+      const heading=document.createElement('strong');heading.textContent=info.name;
+      const detail=document.createElement('small');detail.textContent=info.description;
+      description.append(label,heading,detail);card.append(icon,description);
+      host.appendChild(card);
+      unlockTimer=setTimeout(showNextAchievement,3900);
+    }
+    function announceAchievements(ids){
+      const valid=[...new Set(ids)].filter(id=>Object.hasOwn(ACHIEVEMENTS,id));
+      unlockQueue.push(...valid);
+      if(!unlockTimer&&valid.length)showNextAchievement();
+    }
     const readProgress=()=>{
       try{
         const saved=JSON.parse(localStorage.getItem(PROGRESS_KEY)||'null');
@@ -3452,16 +3480,27 @@
       $('#myProgress').textContent=count?
         'YOUR RECORD · '+count+' completed attempts · '+best+' / 27 floors cleared'+detail:
         'YOUR RECORD · No completed runs on this browser yet.';
-      const badges=$('#myAchievements');
-      badges.replaceChildren();
-      const earned=Array.isArray(progress.badges)?progress.badges:[];
-      for(const id of earned){
-        if(!ACHIEVEMENTS[id])continue;
-        const badge=document.createElement('span');
-        badge.className='earned-achievement';
-        badge.textContent='★ '+ACHIEVEMENTS[id];
-        badges.appendChild(badge);
+      const gallery=$('#myAchievements');
+      gallery.replaceChildren();
+      const earned=new Set(Array.isArray(progress.badges)?progress.badges:[]);
+      let unlocked=0;
+      for(const [id,info] of Object.entries(ACHIEVEMENTS)){
+        const isUnlocked=earned.has(id);
+        if(isUnlocked)unlocked++;
+        const tile=document.createElement('article');
+        tile.className='achievement-tile '+(isUnlocked?'is-unlocked':'is-locked');
+        const glyph=document.createElement('span');glyph.className='achievement-glyph';
+        glyph.textContent=isUnlocked?info.icon:'🔒';
+        glyph.setAttribute('aria-hidden','true');
+        const body=document.createElement('div');
+        const name=document.createElement('strong');name.textContent=info.name;
+        const detail=document.createElement('span');detail.textContent=info.description;
+        const state=document.createElement('small');state.textContent=isUnlocked?'UNLOCKED':'LOCKED';
+        body.append(name,detail,state);tile.append(glyph,body);
+        tile.setAttribute('aria-label',info.name+', '+(isUnlocked?'unlocked':'locked')+'. '+info.description);
+        gallery.appendChild(tile);
       }
+      $('#achievementCount').textContent=unlocked+' / '+Object.keys(ACHIEVEMENTS).length+' unlocked';
     };
     const recordFloorProgress=result=>{
       if(!result||result.eligible!==true||
@@ -3479,8 +3518,7 @@
       try{localStorage.setItem(PROGRESS_KEY,JSON.stringify(next));}catch{}
       renderProgress();
       const unlocked=badgeIds.filter(id=>!(current.badges||[]).includes(id));
-      if(unlocked.length)status.textContent='Achievement unlocked: '+
-        unlocked.map(id=>ACHIEVEMENTS[id]).join(', ');
+      if(unlocked.length)announceAchievements(unlocked);
     };
     const recordProgress=result=>{
       if(!result||!Number.isFinite(result.floorsCleared))return;
@@ -3499,8 +3537,7 @@
       try{localStorage.setItem(PROGRESS_KEY,JSON.stringify(next));}catch{}
       renderProgress();
       const newBadges=badgeIds.filter(id=>!(current.badges||[]).includes(id));
-      if(newBadges.length)status.textContent='Achievement unlocked: '+
-        newBadges.map(id=>ACHIEVEMENTS[id]).join(', ');
+      if(newBadges.length)announceAchievements(newBadges);
       void loadLeaderboard();
     };
     const existingLocal=readProgress();
