@@ -454,7 +454,10 @@ function makeInfesterSupportRoom(role){
   rescuer.x=victim.x;rescuer.y=victim.y;
   room.action(2,'interact');
   assert.equal(victim.ghostTrapped,0,'Another player rescues frozen survivor using USE/E');
-  assert(victim.ghostGrace>0,'Rescue grants brief protection against instant retrapping');
+  assert(victim.invincible>0,'Ordinary Hollow damage protection remains after rescue');
+  room.tick(.033);
+  assert(victim.ghostTrapped>0,
+    'Ghost can immediately freeze the rescued survivor again despite ordinary invincibility');
 }
 // A diagonal mobile dash must slide along an impassable wall instead of
 // reversing direction or stopping on contact. Straight-on dashes still stop.
