@@ -3378,8 +3378,8 @@
       }catch{syncStatus.textContent='Unable to copy automatically. Select and copy your key.';}
     });
     $('#restoreProfileKey').addEventListener('click',()=>{
-      if(roomRole!=='none'&&['playing','countdown','leveldone'].includes(state)){
-        syncStatus.textContent='Leave or finish the current match before changing profiles.';
+      if(roomRole!=='none'){
+        syncStatus.textContent='Leave the current room before changing profiles.';
         recoveryInput.value=recoveryKey;return;
       }
       const key=recoveryInput.value.trim().toLowerCase();
