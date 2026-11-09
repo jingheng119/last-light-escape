@@ -1687,7 +1687,7 @@
       player.phaseEchoTime=Math.max(0,player.phaseEchoTime-dt);
       if(player.phaseEchoTime===0){
         finishPhaseEcho(player);
-        player.invincible=Math.max(player.invincible,.6);
+        player.invincible=0;
         notify('PHASE ECHO ENDED — HUMAN FORM RESTORED',2);
       }
     }
