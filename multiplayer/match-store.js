@@ -1,7 +1,7 @@
 // Optional PostgreSQL-backed public trial records. No account is required.
 // Rankings are team runs, not verified identities. Developer skips are unranked.
 export const MATCH_OUTCOMES=new Set(['victory','dead']);
-const VALID_ROLES=new Set(['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor','infester']);
+const VALID_ROLES=new Set(['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor','symbiote']);
 export function achievementsForResult(result){
   if(!result?.competitive)return [];
   const badges=[];
