@@ -101,6 +101,40 @@ try{
   assert.equal(starting.snapshot.player.dashCooldown,0);
   await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='playing',9000);
 
+  // Five-player network performance smoke test. Measure *delivered* frames
+  // on each connected client, not just server simulation tick counts.
+  // Wide thresholds detect severe stalls without making CI machine speed
+  // into a competitive gameplay benchmark.
+  const activePlayers=[one,two,...extraPlayers];
+  const beforeCounts=activePlayers.map(ws=>(wsMessages.get(ws)||[])
+    .filter(m=>m.type==='snapshot'&&m.snapshot.state==='playing').length);
+  const snapshotStarted=Date.now();
+  await sleep(1800);
+  const elapsedNetworkMs=Date.now()-snapshotStarted;
+  const frameSamples=activePlayers.map((ws,i)=>{
+    const frames=(wsMessages.get(ws)||[])
+      .filter(m=>m.type==='snapshot'&&m.snapshot.state==='playing')
+      .slice(beforeCounts[i]);
+    return {
+      count:frames.length,
+      largestBytes:Math.max(0,...frames.map(frame=>
+        Buffer.byteLength(JSON.stringify(frame),'utf8')))
+    };
+  });
+  for(const [i,sample] of frameSamples.entries()){
+    assert(sample.count>=5,
+      'Player '+(i+1)+' must receive at least five authoritative frames in '+elapsedNetworkMs+' ms');
+    assert(sample.largestBytes<300000,
+      'Player '+(i+1)+' snapshot exceeds 300 KB and risks congesting mobile connections');
+  }
+  // WebSocket RTT uses the same ping/pong path displayed in the game HUD.
+  const pingMarker=Date.now();
+  one.send(JSON.stringify({type:'ping',at:pingMarker}));
+  await waitFor(one,m=>m.type==='pong'&&m.at===pingMarker,2000);
+  console.log('PERF: five-player snapshot samples '+JSON.stringify({
+    elapsedMs:elapsedNetworkMs,players:frameSamples
+  }));
+
   // Classes are locked after starting; names may still be changed.
   two.send(JSON.stringify({type:'role',role:'medic'}));
   await sleep(150);
