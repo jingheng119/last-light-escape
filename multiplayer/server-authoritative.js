@@ -167,6 +167,8 @@ function persistCompletedMatch(room){
           finished:true,winTime:result.competitive?result.elapsedSeconds:null});
     }
   }
+  // Developer shortcuts are testing only: never persist them to Neon.
+  if(room.unranked||result.isDeveloperRun)return;
   if(!matchStore.enabled||room.matchRecorded||room.matchRecording||
     Date.now()<(room.matchRetryAt||0))return;
   room.matchRecording=true;
