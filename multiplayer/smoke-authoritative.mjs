@@ -426,6 +426,7 @@ function makeInfesterSupportRoom(role){
   assert(!state.hollows.some(h=>h.variant==='hunter'||h.variant==='dasher'));
   const ghost=state.hollows.find(h=>h.variant==='ghost');
   assert(ghost,'Stage III spawns ghosts');
+  room.tick(.033); // Establish the Ghost's orbital patrol position.
   const startX=ghost.x,startY=ghost.y;
   // All other enemies are harmless during this focused Ghost rescue test.
   for(const h of state.hollows){
