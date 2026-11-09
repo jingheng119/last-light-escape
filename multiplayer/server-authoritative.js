@@ -120,6 +120,21 @@ function notifyRoom(room){
   for(const ws of room.spectators)send(ws,update);
   broadcastLobby();
 }
+function publishFloorProgress(room){
+  const snapshot=room.engine.snapshot(false);
+  if(!room.started||snapshot.state!=='leveldone')return;
+  const floorsCleared=snapshot.levelIndex+1;
+  if(floorsCleared<=room.progressLastFloor)return;
+  room.progressLastFloor=floorsCleared;
+  // All floor clears count toward personal progress, but developer skips
+  // never unlock badges or improve a personal record.
+  const achievements=!room.unranked&&floorsCleared===9?
+    [{id:'ward',title:'Ward Escape',description:'Clear Stage 1'}]:
+    !room.unranked&&floorsCleared===18?
+    [{id:'engine',title:'Copper Survivor',description:'Clear Stage 2'}]:[];
+  for(const ws of room.clients.values())send(ws,{type:'floor-progress',
+    floorsCleared,eligible:!room.unranked,achievements});
+}
 function persistCompletedMatch(room){
   const result=buildMatchResult(room);
   if(!result)return;
@@ -147,7 +162,7 @@ function createRoom(name){
   const room={code:makeCode(),name:safeRoomName(name),engine:createRoomEngine(),
     clients:new Map(),members:new Map(),spectators:new Set(),started:false,hostId:1,ticks:0,
     chatHistory:[],chatSerial:0,chatCountdown:null,
-    matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0,matchAnnounced:false,unranked:false};
+    matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0,matchAnnounced:false,progressLastFloor:0,unranked:false};
   rooms.set(room.code,room);
   let last=performance.now();
   room.timer=setInterval(()=>{
@@ -157,6 +172,7 @@ function createRoom(name){
       if(!room.clients.size)return;
       room.engine.tick(dt);
       syncCountdownChat(room);
+      publishFloorProgress(room);
       persistCompletedMatch(room);
       if(++room.ticks%2===0)publish(room,room.ticks%150===0);
     }catch(error){
@@ -365,7 +381,7 @@ wss.on('connection',(ws,req)=>{
           room.started=true;
           room.chatCountdown=null;
           syncCountdownChat(room);
-          room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;room.matchAnnounced=false;room.unranked=false;
+          room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;room.matchAnnounced=false;room.progressLastFloor=0;room.unranked=false;
         }
         publish(room,true);broadcastLobby();
       }
