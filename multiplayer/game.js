@@ -9,7 +9,7 @@
   const TILE=32;
   let W=992,H=672;
   let COLS=31,ROWS=21;
-  const STAGE_ONE_FLOORS=9,STAGE_TWO_SIZE={cols:41,rows:31};
+  const STAGE_ONE_FLOORS=9,STAGE_TWO_SIZE={cols:41,rows:31},STAGE_THREE_SIZE={cols:51,rows:41};
   const CONFIGS = [
     { name: 'THE FIRST DESCENT', seed: 1709, cores: 2, enemies: 3, loops: 0.16, speed: 1.12, note: 'Hollows can see along corridors. Break line of sight to escape a pursuit.' },
     { name: 'THE DARK CIRCUIT', seed: 2911, cores: 3, enemies: 4, loops: 0.19, speed: 1.23, note: 'Tap Q to throw a sound decoy. Nearby Hollows will investigate the noise.' },
@@ -30,6 +30,17 @@
     { name:'THE COPPER ENGINE',seed:21401,cores:6,enemies:11,loops:0.25,speed:1.61,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 07 / 09.' },
     { name:'THE COPPER ENGINE',seed:23549,cores:6,enemies:11,loops:0.29,speed:1.63,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 08 / 09.' },
     { name:'THE COPPER ENGINE',seed:25717,cores:7,enemies:12,loops:0.28,speed:1.65,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 09 / 09.' },
+    // Stage III — nine larger Lost Signal sectors.
+    // Reuse existing enemy variants pending Stage III-specific designs.
+    { name:'THE FROZEN SIGNAL',seed:27011,cores:6,enemies:12,loops:0.240,speed:1.65,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 01 / 09.' },
+    { name:'THE MIRROR CORRIDORS',seed:28522,cores:6,enemies:12,loops:0.246,speed:1.67,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 02 / 09.' },
+    { name:'THE SILENT TRANSMISSION',seed:30033,cores:6,enemies:13,loops:0.252,speed:1.69,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 03 / 09.' },
+    { name:'THE ECHO CHAMBER',seed:31544,cores:6,enemies:13,loops:0.258,speed:1.71,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 04 / 09.' },
+    { name:'THE ABANDONED ARRAY',seed:33055,cores:7,enemies:14,loops:0.264,speed:1.73,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 05 / 09.' },
+    { name:'THE FRACTURED CORE',seed:34566,cores:7,enemies:14,loops:0.270,speed:1.75,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 06 / 09.' },
+    { name:'THE LOST FREQUENCY',seed:36077,cores:7,enemies:15,loops:0.276,speed:1.77,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 07 / 09.' },
+    { name:'THE PALE HORIZON',seed:37588,cores:7,enemies:15,loops:0.282,speed:1.79,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 08 / 09.' },
+    { name:'THE LAST SIGNAL',seed:39099,cores:8,enemies:16,loops:0.288,speed:1.81,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 09 / 09.' },
   ];
   const $ = s => document.querySelector(s);
   const canvas = $('#game'), ctx = canvas.getContext('2d');
@@ -472,20 +483,20 @@
     const extraActive=extraPlayers.map(Boolean);
     levelIndex=index;const cfg=CONFIGS[index];
     spectatorSlot=null;spectatorStickLatch=false;
-    COLS=cfg.stage===2?STAGE_TWO_SIZE.cols:31;
-    ROWS=cfg.stage===2?STAGE_TWO_SIZE.rows:21;
+    COLS=cfg.stage===3?STAGE_THREE_SIZE.cols:cfg.stage===2?STAGE_TWO_SIZE.cols:31;
+    ROWS=cfg.stage===3?STAGE_THREE_SIZE.rows:cfg.stage===2?STAGE_TWO_SIZE.rows:21;
     buildMaze(cfg.seed+runSeed,cfg.loops);
     const start={x:1,y:1}, distances=distanceMap(start), reserved=[start];
-    exit=selectSpot(reserved,cfg.stage===2?35:18,distances);reserved.push(exit);
+    exit=selectSpot(reserved,cfg.stage>=2?35:18,distances);reserved.push(exit);
     cores=[];
-    for(let i=0;i<cfg.cores;i++) {const p=selectSpot(reserved,cfg.stage===2?13:8,distances,i===0);reserved.push(p);cores.push({...TILE_CENTER(p.x,p.y),collected:false});}
-    const switchSpot=selectSpot(reserved,cfg.stage===2?13:7,distances,false);reserved.push(switchSpot);
+    for(let i=0;i<cfg.cores;i++) {const p=selectSpot(reserved,cfg.stage>=2?13:8,distances,i===0);reserved.push(p);cores.push({...TILE_CENTER(p.x,p.y),collected:false});}
+    const switchSpot=selectSpot(reserved,cfg.stage>=2?13:7,distances,false);reserved.push(switchSpot);
     relay={...TILE_CENTER(switchSpot.x,switchSpot.y),active:false};
     exit={...TILE_CENTER(exit.x,exit.y)};
-    const survivorSpot=selectSpot(reserved,cfg.stage===2?13:7,distances,false);reserved.push(survivorSpot);
+    const survivorSpot=selectSpot(reserved,cfg.stage>=2?13:7,distances,false);reserved.push(survivorSpot);
     survivor={...TILE_CENTER(survivorSpot.x,survivorSpot.y),variant:cfg.allyVariant||'survivor',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     technician=null;
-    if(cfg.stage===2){
+    if(cfg.stage>=2){
       const techSpot=selectSpot(reserved,13,distances,false);reserved.push(techSpot);
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
@@ -501,8 +512,8 @@
     }
     hollows=[];
     for(let i=0;i<cfg.enemies;i++) {
-      const p=selectSpot(reserved,cfg.stage===2?8:5,distances,false);reserved.push(p);
-      const variant=cfg.stage===2?(i===0?'hunter':i<=4?'dasher':'standard'):(cfg.enemyVariant||'standard');
+      const p=selectSpot(reserved,cfg.stage>=2?8:5,distances,false);reserved.push(p);
+      const variant=cfg.stage>=2?(i===0?'hunter':i<=4?'dasher':'standard'):(cfg.enemyVariant||'standard');
       hollows.push({x:p.x+.5,y:p.y+.5,variant,home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18)*(variant==='hunter'?1.27:1),
         path:[],pathIndex:0,repath:0,mode:'patrol',chaseUntil:0,target:null,angle:rand()*6.28,
         wobble:rand()*10,patrolWait:rand()*1.6,searchPoints:0,heardAt:-100,stunned:0,
@@ -511,15 +522,16 @@
     decoys=[];illusions=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
-    ui.level.textContent=`BROWSER GAME V4.19 · STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
+    ui.level.textContent=`BROWSER GAME V4.19 · STAGE ${String(cfg.stage||1).padStart(2,'0')} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
     ui.stageCard.textContent=ui.level.textContent;
     $('#desktopStageInfo').textContent=ui.level.textContent;
     ui.mobileStage.children[0].textContent='BROWSER GAME V4.19';
-    ui.mobileStage.children[1].textContent=`STAGE ${cfg.stage===2?'02':'01'} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
-    ui.allyLabel.textContent=cfg.stage===2?'ALLIES':'SURVIVOR';
-    ui.rescueObjective.textContent=cfg.stage===2?'✚ Rescue both allies':'✚ Rescue the survivor';
+    ui.mobileStage.children[1].textContent=`STAGE ${String(cfg.stage||1).padStart(2,'0')} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
+    ui.allyLabel.textContent=cfg.stage>=2?'ALLIES':'SURVIVOR';
+    ui.rescueObjective.textContent=cfg.stage>=2?'✚ Rescue both allies':'✚ Rescue the survivor';
     const gameShell=$('.game-shell');
     gameShell.classList.toggle('stage-two',cfg.stage===2);
+    gameShell.classList.toggle('stage-three',cfg.stage===3);
     gameShell.style.setProperty('--stage-accent',cfg.theme?.glow||'#7ae3c5');
     updateUI();
   }
@@ -740,7 +752,7 @@
     try{
       audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();
       if(audioCtx.state==='suspended')return;
-      const stage=CONFIGS[levelIndex].stage===2?2:1;
+      const stage=CONFIGS[levelIndex].stage>=2?2:1;
       if(!musicBus||musicStage!==stage){
         stopMusic();
         musicBus=audioCtx.createGain();
@@ -853,9 +865,9 @@
   function developerSkip(fullStage=false){if(roomRole==='host'){sendRoom({type:'skip',fullStage});return;}if(roomRole!=='host')return;
     if(state!=='playing'&&state!=='paused'&&state!=='leveldone')return;
     developerSkipped=true;
-    // M advances one floor; Shift+M jumps from Stage I to Stage II,
-    // or to Stage II's final floor for endgame testing.
-    const target=fullStage?(levelIndex<STAGE_ONE_FLOORS?STAGE_ONE_FLOORS:CONFIGS.length-1):levelIndex+1;
+    // M advances one floor; Shift+M jumps to the next stage,
+    // or the final floor from Stage III for endgame testing.
+    const target=fullStage?(levelIndex<STAGE_ONE_FLOORS?STAGE_ONE_FLOORS:levelIndex<STAGE_ONE_FLOORS*2?STAGE_ONE_FLOORS*2:CONFIGS.length-1):levelIndex+1;
     if(target>=CONFIGS.length){
       state='victory';
       setOverlay('DEVELOPER TEST COMPLETE','You reached the end using the test shortcut. This run will not record a best time.','PLAY AGAIN','TEST MODE · PROGRESSION CHECK');
@@ -1246,6 +1258,8 @@
     else {state='leveldone';
       if(levelIndex===STAGE_ONE_FLOORS-1){
         setOverlay('STAGE ONE COMPLETE',`You survived all nine floors of the Hollow Ward. Your ${player.hp} remaining ${player.hp===1?'heart carries':'hearts carry'} into a much larger outer complex.`,'ENTER STAGE TWO','NINE EXPANDED FLOORS AWAIT');
+      }else if(levelIndex===STAGE_ONE_FLOORS*2-1){
+        setOverlay('STAGE TWO COMPLETE','You escaped all nine sectors of The Copper Engine. Your remaining hearts carry into the Lost Signal.','ENTER STAGE THREE','NINE NEW FLOORS AWAIT');
       }else setOverlay('FLOOR CLEARED',`You restored the relay, collected every core, and escaped ${CONFIGS[levelIndex].name.toLowerCase()} in ${formatTime(elapsed)}.`,'DESCEND DEEPER','THE NEXT FLOOR IS MORE DANGEROUS');
     }
   }
@@ -1862,7 +1876,7 @@
     ctx.stroke();
   }
   function drawFloor(x,y){
-    if(CONFIGS[levelIndex].stage===2){drawOuterFloor(x,y);return;}
+    if(CONFIGS[levelIndex].stage>=2){drawOuterFloor(x,y);return;}
     const px=x*TILE,py=y*TILE;
     const isRoom=roomTiles.has(keyOf(x,y));
     // Walkable areas are clearly brighter than solid walls.
@@ -1877,7 +1891,7 @@
     }
   }
   function drawWall(x,y){
-    if(CONFIGS[levelIndex].stage===2){drawOuterWall(x,y);return;}
+    if(CONFIGS[levelIndex].stage>=2){drawOuterWall(x,y);return;}
     const px=x*TILE,py=y*TILE;
     ctx.fillStyle='#142831';ctx.fillRect(px,py,TILE,TILE);
     ctx.save();ctx.beginPath();ctx.rect(px,py,TILE,TILE);ctx.clip();
@@ -2326,7 +2340,7 @@
     ctx.restore();
   }
   function draw(){
-    ctx.clearRect(0,0,W,H);ctx.fillStyle=CONFIGS[levelIndex]?.stage===2?'#101928':'#07171d';ctx.fillRect(0,0,W,H);
+    ctx.clearRect(0,0,W,H);ctx.fillStyle=CONFIGS[levelIndex]?.stage===3?'#09131d':CONFIGS[levelIndex]?.stage===2?'#101928':'#07171d';ctx.fillRect(0,0,W,H);
     if(!grid)return;
     // Render the world through a smoothly moving, clamped follow camera.
     // Controls, collisions and lighting remain in world coordinates.
@@ -2817,7 +2831,7 @@
       let button='WAIT FOR HOST';
       if(host){
         if(state==='leveldone')
-          button=levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO':'ENTER NEXT FLOOR';
+          button=levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO':levelIndex===STAGE_ONE_FLOORS*2-1?'ENTER STAGE THREE':'ENTER NEXT FLOOR';
         else if(state==='paused')button='RESUME GAME';
         else if(state==='dead'||state==='victory')button='PLAY AGAIN';
       }
@@ -3236,7 +3250,7 @@
           ui.button.firstChild.textContent=roomRole==='host'?'START GAME ':'WAIT FOR HOST ';
         }else if(roomRole!=='spectator'&&state==='leveldone'){
           ui.button.firstChild.textContent=roomRole==='host'?
-            (levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO ':'ENTER NEXT FLOOR '):
+            (levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO ':levelIndex===STAGE_ONE_FLOORS*2-1?'ENTER STAGE THREE ':'ENTER NEXT FLOOR '):
             'WAIT FOR HOST ';
         }
       }else if(m.type==='left'){
