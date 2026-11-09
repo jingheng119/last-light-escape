@@ -351,7 +351,7 @@ function readyMedicRoom(){
 }
 
 // Symbiote remains untargetable to support skills only while attached.
-// Existing Anchor marks may still return to an Symbiote after attachment.
+// Existing Anchor marks may still return to a Symbiote after attachment.
 function makeSymbioteSupportRoom(role){
   const room=createRoomEngine();
   room.join(2);room.join(3);
@@ -394,7 +394,7 @@ function makeSymbioteSupportRoom(role){
   room.action(2,'ability');
   room.action(1,'ability',null,false,{kind:'player',slot:2});
   assert.equal(players[0].abilityCharges,1,
-    'Rewinder can target an Symbiote after emergence');
+    'Rewinder can target a Symbiote after emergence');
 }
 {
   const {room,players}=makeSymbioteSupportRoom('medic');
