@@ -40,7 +40,7 @@ const bridge=`
         extraPlayers[id-3].slot=id;
         extraPlayers[id-3].abilityCharges=SKILL_MAX_CHARGES[extraControls[id-3].role];
         extraPlayers[id-3].x=1.5;extraPlayers[id-3].y=1.5;
-        extraPlayers[id-3].hp=3;extraPlayers[id-3].infestedOn=null;extraPlayers[id-3].dashTime=0;
+        extraPlayers[id-3].hp=3;extraPlayers[id-3].bondedOn=null;extraPlayers[id-3].dashTime=0;
         extraPlayers[id-3].dashCooldown=0;extraPlayers[id-3].trail=[];
       }
       roomCount=allPlayers().length;
@@ -83,7 +83,7 @@ const bridge=`
       return true;
     },
     role(id,value){
-      const role=['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor','infester'].includes(value)?value:'scout';
+      const role=['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor','symbiote'].includes(value)?value:'scout';
       if(id===1)classChoice=role;
       else if(id===2)guestClassChoice=role;
       else if(id>=3&&id<=5)extraControls[id-3].role=role;
