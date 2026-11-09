@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createRoomEngine } from './headless-engine.js';
 import { makeMatchStore, buildMatchResult, buildFloorProgress } from './match-store.js';
+import { makeProfileStore,validProfileKey } from './profile-store.js';
 
 const PORT=Number(process.env.PORT||3001);
 const HOST=process.env.HOST||'0.0.0.0';
@@ -15,6 +16,7 @@ const CHAT_BURST_WINDOW_MS=10000,CHAT_BURST_LIMIT=6;
 const QUICK_MESSAGES=new Set(['Help!','Follow!','Relay on!','Hollow!','Healing!','Elevator!']);
 const rooms=new Map(),lobbyClients=new Set();
 const matchStore=makeMatchStore();
+const profileStore=makeProfileStore();
 const MIME={'/':'text/html; charset=utf-8','/play':'text/html; charset=utf-8','/play/':'text/html; charset=utf-8','/game.js':'text/javascript; charset=utf-8',
   '/style.css':'text/css; charset=utf-8','/favicon.svg':'image/svg+xml'};
 const FILE={'/':'index.html','/play':'index.html','/play/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg'};
@@ -131,7 +133,12 @@ function publishFloorProgress(room){
   const progress=buildFloorProgress(room);
   if(!progress||progress.floorsCleared<=room.progressLastFloor)return;
   room.progressLastFloor=progress.floorsCleared;
-  for(const ws of room.clients.values())send(ws,progress);
+  for(const ws of room.clients.values()){
+    send(ws,progress);
+    if(progress.eligible&&ws.profileKey)
+      void profileStore.award(ws.profileKey,{eventId:room.matchId+':'+ws.playerId+':floor:'+progress.floorsCleared,
+        floorsCleared:progress.floorsCleared,achievements:progress.achievements});
+  }
 }
 function persistCompletedMatch(room){
   const result=buildMatchResult(room);
@@ -140,13 +147,18 @@ function persistCompletedMatch(room){
   // browser stores only its own run result; public rankings use PostgreSQL.
   if(!room.matchAnnounced){
     room.matchAnnounced=true;
-    for(const [slot,ws] of room.clients)
+    for(const [slot,ws] of room.clients){
       send(ws,{type:'match-result',result:{
         floorsCleared:result.floorsCleared,outcome:result.outcome,
         elapsedSeconds:result.elapsedSeconds,
         competitive:result.competitive,eligible:!room.unranked,
         achievements:result.achievements,slot
       }});
+      if(!room.unranked&&ws.profileKey)
+        void profileStore.award(ws.profileKey,{eventId:room.matchId+':'+slot+':final',
+          floorsCleared:result.floorsCleared,achievements:result.achievements,
+          finished:true,winTime:result.competitive?result.elapsedSeconds:null});
+    }
   }
   if(!matchStore.enabled||room.matchRecorded||room.matchRecording||
     Date.now()<(room.matchRetryAt||0))return;
@@ -332,6 +344,14 @@ wss.on('connection',(ws,req)=>{
     if(m.type==='ping'&&Number.isFinite(m.at))
       return send(ws,{type:'pong',at:m.at});
     if(m.type==='list')return send(ws,{type:'rooms',rooms:listRooms()});
+    if(m.type==='profile-key'){
+      if(!validProfileKey(m.key))return send(ws,{type:'profile-error',message:'Invalid recovery key.'});
+      ws.profileKey=m.key;
+      // Never send the secret back in a server response or room broadcast.
+      void profileStore.read(m.key).then(data=>send(ws,{
+        type:'profile-data',available:data.available,progress:data.progress}));
+      return;
+    }
     if(m.type==='resume')return resume(ws,m.code,m.token);
     if(m.type==='create'){
       if(ws.room)return send(ws,{type:'error',message:'Leave your current room first'});
