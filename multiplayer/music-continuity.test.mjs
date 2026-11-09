@@ -12,13 +12,13 @@ const ctx={
   soundEnabled:true,state:'playing',player:{},levelIndex:0,
   CONFIGS:[{stage:1},{stage:1},{stage:2},{stage:3}],
   MUSIC_SCALE:{1:{beat:.88},2:{beat:.70},3:{beat:.70}},
-  musicBus:null,musicStage:0,musicStep:0,musicNextAt:0,alertLevel:0,
+  musicBus:null,musicStage:0,musicStep:0,musicNextAt:0,musicMuted:false,alertLevel:0,
   audioCtx:{
     currentTime:0,state:'running',
     destination:{},
-    createGain(){return {gain:{value:0},connect(){}};}
+    createGain(){return {gain:{value:0,cancelScheduledValues(){},setTargetAtTime(value){this.value=value;}},connect(){}};}
   },
-  stopMusic(){this.musicBus=null;this.musicNextAt=0;},
+  stopMusic(){this.musicBus=null;this.musicNextAt=0;this.musicMuted=false;},
   scheduleWardBar(){},scheduleCopperBar(){},scheduleSignalBar(){},
   musicTone(){},window:{},
 };
@@ -32,8 +32,12 @@ for(const next of ['leveldone','paused','countdown','playing']){
   ctx.audioCtx.currentTime+=.55;
   ctx.advanceMusic();
   assert.strictEqual(ctx.musicBus,bus,'Music bus must remain the same during '+next);
+  assert.equal(ctx.musicMuted,next==='countdown',
+    'Only the countdown should mute the existing soundtrack');
+  assert.equal(ctx.musicBus.gain.value,next==='countdown'?0:1,
+    'Countdown must be silent; other game states remain audible');
 }
-assert(ctx.musicStep>initialStep,'Score timeline advances across floor and pause states');
+assert(ctx.musicStep>initialStep,'Score timeline advances through silent countdown and pauses');
 ctx.levelIndex=1;ctx.audioCtx.currentTime+=.5;ctx.advanceMusic();
 assert.strictEqual(ctx.musicBus,bus,'Next floor of same stage must not restart music');
 ctx.levelIndex=2;ctx.audioCtx.currentTime+=.5;ctx.advanceMusic();
@@ -41,4 +45,4 @@ assert.notStrictEqual(ctx.musicBus,bus,'New stage must switch to its own theme')
 assert.equal(ctx.musicStage,2);
 ctx.state='dead';ctx.advanceMusic();
 assert.equal(ctx.musicBus,null,'Death stops background music');
-console.log('PASS: stage soundtrack continues through pauses and floor changes and switches only at new stage.');
+console.log('PASS: music continues across floors and pauses, stays silent during countdown, and changes at new stage.');
