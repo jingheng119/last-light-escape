@@ -355,7 +355,7 @@ function makeInfesterSupportRoom(role){
   room.start();
   for(let i=0;i<155;i++)room.tick(.033);
   const players=room.snapshot(false).players;
-  for(const p of players){p.x=1.5;p.y=1.5;p.invincible=100;}
+  for(const p of players.filter(Boolean)){p.x=1.5;p.y=1.5;p.invincible=100;}
   return {room,players};
 }
 {
