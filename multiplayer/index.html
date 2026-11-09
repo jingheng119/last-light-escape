@@ -118,7 +118,11 @@
           <div><strong>STAGE III · LAST LIGHT</strong><span>Clear all 27 floors to earn Last Light</span></div>
         </div>
         <p class="progression-hint">Additional achievements: Lone Survivor (solo victory), Together Through Darkness (team victory), Everyone Made It (all players survive).</p>
-        <div class="leaderboard-title">FASTEST COMPLETE RUNS <span>Top 20 · 27 floors · real runs only</span></div>
+        <div class="leaderboard-title">FASTEST COMPLETE RUNS <span>Top 20 per category · 27 floors · verified runs only</span></div>
+        <div class="leaderboard-tabs" role="group" aria-label="Leaderboard category">
+          <button type="button" id="leaderboardSolo" class="active" aria-pressed="true">Solo · 1 player</button>
+          <button type="button" id="leaderboardTeam" aria-pressed="false">Team · 2–5 players</button>
+        </div>
         <div id="leaderboardEntries" class="leaderboard-entries" aria-live="polite">
           <p class="room-empty">Loading rankings…</p>
         </div>
