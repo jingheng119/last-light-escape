@@ -12,6 +12,7 @@
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <div id="achievementNotifications" class="achievement-notifications" role="status" aria-live="polite" aria-atomic="true"></div>
   <main class="shell">
     <header class="topbar">
       <div class="brand"><div class="brand-mark" aria-hidden="true"><span></span></div><div><strong>LAST LIGHT</strong><small>THE HOLLOW WARD</small></div></div>
@@ -111,13 +112,8 @@
           <p id="profileSyncStatus" role="status">Browser-only progress; connecting to cloud profile…</p>
         </div>
         <div id="myProgress" class="my-progression" aria-live="polite">YOUR RECORD · No completed runs on this browser yet.</div>
-        <div id="myAchievements" class="earned-achievements" aria-label="Your unlocked achievements"></div>
-        <div class="progression-stages" aria-label="Progression milestones">
-          <div><strong>STAGE I · WARD ESCAPE</strong><span>Clear Floor 9 to earn Ward Escape</span></div>
-          <div><strong>STAGE II · COPPER SURVIVOR</strong><span>Clear Floor 18 to earn Copper Survivor</span></div>
-          <div><strong>STAGE III · LAST LIGHT</strong><span>Clear all 27 floors to earn Last Light</span></div>
-        </div>
-        <p class="progression-hint">Additional achievements: Lone Survivor (solo victory), Together Through Darkness (team victory), Everyone Made It (all players survive).</p>
+        <div class="achievement-heading"><strong>YOUR ACHIEVEMENTS</strong><span id="achievementCount">0 / 6 unlocked</span></div>
+        <div id="myAchievements" class="achievement-gallery" aria-label="Locked and unlocked achievements"></div>
         <div class="leaderboard-title">FASTEST COMPLETE RUNS <span>Top 20 per category · 27 floors · verified runs only</span></div>
         <div class="leaderboard-tabs" role="group" aria-label="Leaderboard category">
           <button type="button" id="leaderboardSolo" class="active" aria-pressed="true">Solo · 1 player</button>
