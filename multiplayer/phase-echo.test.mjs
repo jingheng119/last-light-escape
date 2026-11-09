@@ -15,7 +15,7 @@ assert.equal(stage3.levelIndex,18,'Stage 3 begins on overall floor 19');
 assert.equal(stage3.echoAlly.rescued,false,'Echo starts trapped');
 const team=stage3.players;
 assert.equal(team.length,5);
-for(let i=0;i<team.length;i++){team[i].hp=i===0?1:2;team[i].invincible=0;}
+for(let i=0;i<team.length;i++){team[i].hp=i===0?1:2;team[i].invincible=i===0?0:100;}
 assert.equal(room.testRescueEcho(),true,'Stage 3 Echo ally can be rescued');
 assert.equal(room.snapshot(false).echoAlly.rescued,true);
 for(const p of team){
@@ -28,6 +28,7 @@ assert.equal(team[0].phaseEchoCharge,0,'Charge consumed immediately');
 assert.equal(team[0].phaseEchoTime,5,'Ghost transformation lasts five seconds');
 room.testHit(1);
 assert.equal(team[0].hp,1,'Repeated hits during phasing have no effect');
+team[3].invincible=0;
 room.testHit(4);
 assert.equal(team[3].hp,2,'Fourth player receives own defensive trigger');
 assert.equal(team[3].phaseEchoCharge,0);
