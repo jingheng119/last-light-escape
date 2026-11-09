@@ -64,6 +64,67 @@ progressRoom.engine.snapshot=()=>({state:'playing',levelIndex:8});
 assert.equal(buildFloorProgress(progressRoom),null);
 progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:26});
 assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a victory, not leveldone');
+// Release regression: solo and five-player records must remain distinct,
+// and only genuine 27-floor victories may earn the final achievement.
+{
+  const roster=new Map([[1,{name:'Solo Pilot'}]]);
+  const soloRoom={
+    matchId:'solo-record',name:'Solo Run',unranked:false,
+    members:roster,matchParticipants:new Map(roster),
+    engine:{snapshot:()=>({
+      state:'victory',levelIndex:26,overallElapsed:432.75,
+      playerRoles:['symbiote'],players:[{hp:1}]
+    })}
+  };
+  const soloResult=buildMatchResult(soloRoom);
+  assert.equal(soloResult.competitive,true);
+  assert.equal(soloResult.players.length,1);
+  assert.equal(soloResult.players[0].role,'symbiote');
+  assert.deepEqual(soloResult.achievements.map(a=>a.id),
+    ['ward','engine','signal','solo','alive']);
+  assert(!soloResult.achievements.some(a=>a.id==='team'),
+    'Solo victory must never receive the team achievement');
+
+  const teamRoster=new Map(Array.from({length:5},(_,i)=>
+    [i+1,{name:'Teammate '+(i+1)}]));
+  const fiveRoom={
+    matchId:'five-record',name:'Five Player Run',unranked:false,
+    members:teamRoster,matchParticipants:new Map(teamRoster),
+    engine:{snapshot:()=>({
+      state:'victory',levelIndex:26,overallElapsed:815,
+      playerRoles:['scout','medic','invisibler','anchor','symbiote'],
+      players:[{hp:3},{hp:2},{hp:1},{hp:0},{hp:2}]
+    })}
+  };
+  const fiveResult=buildMatchResult(fiveRoom);
+  assert.equal(fiveResult.competitive,true);
+  assert.equal(fiveResult.players.length,5);
+  assert.deepEqual(fiveResult.players.map(p=>p.role),
+    ['scout','medic','invisibler','anchor','symbiote']);
+  assert.deepEqual(fiveResult.players.map(p=>p.hearts),[3,2,1,0,2]);
+  assert.deepEqual(fiveResult.achievements.map(a=>a.id),
+    ['ward','engine','signal','team'],
+    'Everyone Made It requires all five teammates alive');
+
+  // Ranking eligibility is determined by the server's level and skip
+  // marker, not by a client's claimed completion time or name.
+  fiveRoom.unranked=true;
+  const unrankedFive=buildMatchResult(fiveRoom);
+  assert.equal(unrankedFive.competitive,false);
+  assert.deepEqual(unrankedFive.achievements,[]);
+  fiveRoom.unranked=false;
+  fiveRoom.engine.snapshot=()=>({
+    state:'dead',levelIndex:26,overallElapsed:815,
+    playerRoles:['scout','medic','invisibler','anchor','symbiote'],
+    players:[{hp:0},{hp:0},{hp:0},{hp:0},{hp:0}]
+  });
+  const failedFinalFloor=buildMatchResult(fiveRoom);
+  assert.equal(failedFinalFloor.competitive,false,
+    'Reaching the last floor without winning must not count as a victory');
+  assert(!failedFinalFloor.achievements.some(a=>['signal','team','alive'].includes(a.id)),
+    'A loss cannot earn victory-only achievements');
+}
+
 const queries=[];
 let ended=false;
 const fakePool=class {
