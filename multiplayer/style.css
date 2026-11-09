@@ -749,6 +749,34 @@
 }
 
 
+/* Stage III · The Lost Signal — cool, desaturated circuitry. */
+.game-shell.stage-three{
+  border-color:var(--stage-accent,#6ca9bd);
+  background:#0b141f;
+}
+.game-shell.stage-three .statusbar{
+  background:#111d2a;
+  border-bottom-color:var(--stage-accent,#6ca9bd);
+}
+.game-shell.stage-three .status-label{
+  color:#a1b7c6;
+}
+.game-shell.stage-three .footerbar{
+  background:#101b27;
+  border-top-color:#36586b;
+}
+.game-shell.stage-three .overlay-panel{
+  border-color:var(--stage-accent,#6ca9bd);
+  background:linear-gradient(160deg,#192b38fa,#0c1520f9);
+}
+.game-shell.stage-three .overlay-kicker,
+.game-shell.stage-three .role-choice-label{
+  color:var(--stage-accent,#6ca9bd);
+}
+.game-shell.stage-three .role-locked{
+  border-color:var(--stage-accent,#6ca9bd);
+}
+
 /* v4.11 — compact stage status in the former Mission card position. */
 .stage-info-card{
   display:flex;align-items:center;justify-content:center;
