@@ -424,14 +424,15 @@ function makeInfesterSupportRoom(role){
   assert.equal(counts.invisible,5);
   assert.equal(counts.ghost,6);
   assert(!state.hollows.some(h=>h.variant==='hunter'||h.variant==='dasher'));
-  const ghost=state.hollows.find(h=>h.variant==='ghost');
-  assert(ghost,'Stage III spawns ghosts');
-  room.tick(.033); // Establish the Ghost's orbital patrol position.
-  const startX=ghost.x,startY=ghost.y;
-  // All other enemies are harmless during this focused Ghost rescue test.
-  for(const h of state.hollows){
-    if(h!==ghost){h.x=48.5;h.y=38.5;h.stunned=999;}
+  const ghostIndex=state.hollows.findIndex(h=>h.variant==='ghost');
+  assert(ghostIndex>=0,'Stage III spawns ghosts');
+  // Engine snapshots copy enemy objects, so read the position anew after ticking.
+  for(let i=0;i<state.hollows.length;i++){
+    if(i!==ghostIndex)room.testPlaceHollow(i,48.5,38.5,999);
   }
+  room.tick(.033);
+  const ghost=room.snapshot(true).hollows[ghostIndex];
+  const startX=ghost.x,startY=ghost.y;
   const victim=state.players[0],rescuer=state.players[1];
   victim.invincible=0;
   victim.x=ghost.x;victim.y=ghost.y;
@@ -444,7 +445,8 @@ function makeInfesterSupportRoom(role){
   room.tick(.033);
   assert.equal(victim.x,beforeX,'Trapped survivor cannot move horizontally');
   assert.equal(victim.y,beforeY,'Trapped survivor cannot move vertically');
-  assert(ghost.x!==startX||ghost.y!==startY,'Ghost patrol keeps moving instead of chasing');
+  const movedGhost=room.snapshot(true).hollows[ghostIndex];
+  assert(movedGhost.x!==startX||movedGhost.y!==startY,'Ghost patrol keeps moving instead of chasing');
   rescuer.x=victim.x;rescuer.y=victim.y;
   room.action(2,'interact');
   assert.equal(victim.ghostTrapped,0,'Another player rescues frozen survivor using USE/E');
