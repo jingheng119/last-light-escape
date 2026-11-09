@@ -28,6 +28,20 @@ try{
   handbook.on('pageerror',error=>problems.push('Handbook: '+error.message));
   await handbook.goto('http://127.0.0.1:'+port+'/how-to-play.html#progression');
   assert(await handbook.locator('#panel-progression').isVisible());
+  const artwork=await handbook.evaluate(async()=>{
+    const response=await fetch('/assets/stage-artwork.webp');
+    if(!response.ok)return {ok:false,status:response.status};
+    try{
+      const bitmap=await createImageBitmap(await response.blob());
+      const size={ok:true,width:bitmap.width,height:bitmap.height};
+      bitmap.close();
+      return size;
+    }catch(error){return {ok:false,error:String(error)};}
+  });
+  assert(artwork.ok&&artwork.width===1200&&artwork.height===210,
+    'All three stage banner images must decode correctly: '+JSON.stringify(artwork));
+  assert((await handbook.locator('#stage-detail-1 .stage-scene').evaluate(el=>getComputedStyle(el).backgroundImage))
+    .includes('stage-artwork.webp'),'Stage detail backgrounds must use supplied artwork');
   assert.equal(await handbook.locator('.tower-floor').count(),3);
   assert.equal(await handbook.locator('.tower-face').count(),18,'All three rectangular blocks need six 3D faces');
   const beforeRotation=await handbook.locator('#towerModel').evaluate(el=>getComputedStyle(el).transform);
