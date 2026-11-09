@@ -167,7 +167,8 @@ const bridge=`
         classChoice,guestClassChoice,
         hollows:hollows.map(h=>({
           x:h.x,y:h.y,angle:h.angle,variant:h.variant,
-          mode:h.mode,stunned:h.stunned,wobble:h.wobble,dashTime:h.dashTime
+          mode:h.mode,stunned:h.stunned,wobble:h.wobble,dashTime:h.dashTime,
+          invisibilityCycle:h.invisibilityCycle
         })),
         overlay:{title:ui.title.textContent,text:ui.text.textContent}
       };
