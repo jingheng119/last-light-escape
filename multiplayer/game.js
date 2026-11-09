@@ -3378,6 +3378,10 @@
       }catch{syncStatus.textContent='Unable to copy automatically. Select and copy your key.';}
     });
     $('#restoreProfileKey').addEventListener('click',()=>{
+      if(roomRole!=='none'&&['playing','countdown','leveldone'].includes(state)){
+        syncStatus.textContent='Leave or finish the current match before changing profiles.';
+        recoveryInput.value=recoveryKey;return;
+      }
       const key=recoveryInput.value.trim().toLowerCase();
       if(!validRecoveryKey(key)){
         syncStatus.textContent='Enter a valid 64-character recovery key.';return;
