@@ -49,6 +49,7 @@ export function buildMatchResult(room){
       (snapshot.state==='victory'?1:0),
     elapsedSeconds:Math.max(0,Number(snapshot.overallElapsed)||0),
     competitive:!room.unranked&&snapshot.state==='victory'&&snapshot.levelIndex===26,
+    isDeveloperRun:Boolean(room.unranked),
     players
   };
   // Progress badges are recorded even on incomplete legitimate runs.
@@ -84,6 +85,9 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
           ADD COLUMN IF NOT EXISTS competitive BOOLEAN NOT NULL DEFAULT FALSE`);
         await created.query(`ALTER TABLE last_light_matches
           ADD COLUMN IF NOT EXISTS achievements JSONB NOT NULL DEFAULT '[]'::jsonb`);
+        // Past records cannot be classified retroactively from competitive alone.
+        await created.query(`ALTER TABLE last_light_matches
+          ADD COLUMN IF NOT EXISTS is_developer_run BOOLEAN NOT NULL DEFAULT FALSE`);
         pool=created;
         return pool;
       }catch(error){await created.end();throw error;}
@@ -99,12 +103,12 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
         const db=await ensure();
         await db.query(
           `INSERT INTO last_light_matches
-           (match_id,room_name,outcome,floors_cleared,elapsed_seconds,players,competitive,achievements)
-           VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8::jsonb)
+           (match_id,room_name,outcome,floors_cleared,elapsed_seconds,players,competitive,achievements,is_developer_run)
+           VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8::jsonb,$9)
            ON CONFLICT (match_id) DO NOTHING`,
           [result.matchId,result.roomName,result.outcome,result.floorsCleared,
             result.elapsedSeconds,JSON.stringify(result.players),result.competitive,
-            JSON.stringify(result.achievements||[])]
+            JSON.stringify(result.achievements||[]),result.isDeveloperRun===true]
         );
         return true;
       }catch(error){
@@ -123,7 +127,8 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
         const {rows}=await db.query(`SELECT room_name,elapsed_seconds,players,
              floors_cleared,achievements,completed_at
           FROM last_light_matches
-          WHERE competitive=TRUE AND outcome='victory' AND floors_cleared=27
+          WHERE competitive=TRUE AND is_developer_run=FALSE
+            AND outcome='victory' AND floors_cleared=27
             AND jsonb_typeof(players)='array'
             AND jsonb_array_length(players) ${condition}
           ORDER BY elapsed_seconds ASC,completed_at ASC LIMIT 20`);
