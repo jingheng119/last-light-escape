@@ -619,6 +619,9 @@ state.players[4].x=1.5;state.players[4].y=1.5;
 state.relay.active=true;state.cores.forEach(c=>{c.collected=true;});
 state.survivor.rescued=true;state.survivor.x=exitSpot.x;state.survivor.y=exitSpot.y;
 state.technician.rescued=true;state.technician.x=exitSpot.x;state.technician.y=exitSpot.y;
+// Stage III has a third mandatory ally; a full-team escape needs the Echo too.
+assert(state.echoAlly,'Stage III Echo ally exists');
+state.echoAlly.rescued=true;state.echoAlly.x=exitSpot.x;state.echoAlly.y=exitSpot.y;
 game.tick(.033);
 assert.equal(game.snapshot(false).state,'playing','Fifth player must be at elevator');
 state.players[4].x=exitSpot.x;state.players[4].y=exitSpot.y;
