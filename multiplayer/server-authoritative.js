@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { WebSocketServer, WebSocket } from 'ws';
 import { createRoomEngine } from './headless-engine.js';
-import { makeMatchStore, buildMatchResult } from './match-store.js';
+import { makeMatchStore, buildMatchResult, buildFloorProgress } from './match-store.js';
 
 const PORT=Number(process.env.PORT||3001);
 const HOST=process.env.HOST||'0.0.0.0';
@@ -121,19 +121,11 @@ function notifyRoom(room){
   broadcastLobby();
 }
 function publishFloorProgress(room){
-  const snapshot=room.engine.snapshot(false);
-  if(!room.started||snapshot.state!=='leveldone')return;
-  const floorsCleared=snapshot.levelIndex+1;
-  if(floorsCleared<=room.progressLastFloor)return;
-  room.progressLastFloor=floorsCleared;
-  // All floor clears count toward personal progress, but developer skips
-  // never unlock badges or improve a personal record.
-  const achievements=!room.unranked&&floorsCleared===9?
-    [{id:'ward',title:'Ward Escape',description:'Clear Stage 1'}]:
-    !room.unranked&&floorsCleared===18?
-    [{id:'engine',title:'Copper Survivor',description:'Clear Stage 2'}]:[];
-  for(const ws of room.clients.values())send(ws,{type:'floor-progress',
-    floorsCleared,eligible:!room.unranked,achievements});
+  if(!room.started)return;
+  const progress=buildFloorProgress(room);
+  if(!progress||progress.floorsCleared<=room.progressLastFloor)return;
+  room.progressLastFloor=progress.floorsCleared;
+  for(const ws of room.clients.values())send(ws,progress);
 }
 function persistCompletedMatch(room){
   const result=buildMatchResult(room);
