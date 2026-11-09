@@ -52,6 +52,39 @@ try{
   assert.equal(hostRoster.players[0].name,'Captain Aurora');
   assert.equal(hostRoster.players[0].role,'scout');
   assert.equal(hostRoster.players[0].host,true);
+  // Players must join before the first game start. Late arrivals can only
+  // spectate; reconnect tokens are the way to reclaim a player slot.
+  two.send(JSON.stringify({type:'join',code:joined.code,nickname:'Second Survivor'}));
+  const joinedTwo=await waitFor(two,m=>m.type==='joined');
+  assert.equal(joinedTwo.id,2);
+  two.send(JSON.stringify({type:'profile',nickname:'<Medic> Teammate'}));
+  const edited=await waitFor(one,m=>m.type==='roster'&&
+    m.players?.find(p=>p.id===2)?.name==='Medic Teammate');
+  assert.equal(edited.players.find(p=>p.id===2).name,'Medic Teammate');
+
+  const catalog=await open();
+  catalog.send(JSON.stringify({type:'list'}));
+  const listing=await waitFor(catalog,m=>m.type==='rooms'&&m.rooms.some(x=>x.code===joined.code));
+  assert.equal(listing.rooms.find(x=>x.code===joined.code).capacity,5);
+  assert.equal(listing.rooms.find(x=>x.code===joined.code).spectatorOnly,false);
+  let fifthPlayer=null,fifthToken=null;
+  const extraPlayers=[];
+  for(let id=3;id<=5;id++){
+    const newcomer=await open();
+    extraPlayers.push(newcomer);
+    newcomer.send(JSON.stringify({type:'join',code:joined.code}));
+    const received=await waitFor(newcomer,m=>m.type==='joined');
+    assert.equal(received.id,id);
+    if(id===5){fifthPlayer=newcomer;fifthToken=received.reconnectToken;}
+    const current=await waitFor(newcomer,m=>m.type==='snapshot'&&
+      m.snapshot.players?.filter(Boolean).length===id);
+    assert.equal(current.snapshot.players.filter(Boolean).length,id);
+  }
+  // The waiting lobby is genuinely capped at five player slots.
+  const overflowBeforeStart=await open();
+  overflowBeforeStart.send(JSON.stringify({type:'join',code:joined.code}));
+  await waitFor(overflowBeforeStart,m=>m.type==='error'&&m.message==='Room is full');
+
   one.send(JSON.stringify({type:'start'}));
   const countdown=await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='countdown');
   assert.equal(Math.ceil(countdown.snapshot.countdownRemaining),5);
@@ -61,45 +94,26 @@ try{
   assert.equal(starting.snapshot.player.dashCooldown,0);
   await waitFor(one,m=>m.type==='snapshot'&&m.snapshot.state==='playing',9000);
 
-  two.send(JSON.stringify({type:'join',code:joined.code,nickname:'Second Survivor'}));
-  const joinedTwo=await waitFor(two,m=>m.type==='joined');
-  assert.equal(joinedTwo.id,2);
-  two.send(JSON.stringify({type:'profile',nickname:'<Medic> Teammate'}));
-  const edited=await waitFor(one,m=>m.type==='roster'&&
-    m.players?.find(p=>p.id===2)?.name==='Medic Teammate');
-  assert.equal(edited.players.find(p=>p.id===2).name,'Medic Teammate');
-  // Class is frozen during a live game. New names can still be updated.
+  // Classes are locked after starting; names may still be changed.
   two.send(JSON.stringify({type:'role',role:'medic'}));
   await sleep(150);
-  const current=wsMessages.get(one).filter(m=>m.type==='roster').at(-1);
-  assert.equal(current.players.find(p=>p.id===2).role,'scout');
+  const currentRoster=wsMessages.get(one).filter(m=>m.type==='roster').at(-1);
+  assert.equal(currentRoster.players.find(p=>p.id===2).role,'scout');
   const snap=await waitFor(two,m=>m.type==='snapshot'&&
     m.snapshot.state==='playing'&&m.snapshot.guestPlayer);
   assert.equal(snap.snapshot.player.hp,3);
   assert.equal(snap.snapshot.guestPlayer.hp,3);
-
   two.send(JSON.stringify({type:'input',keys:{right:true}}));
   two.send(JSON.stringify({type:'action',name:'dash',direction:{x:1,y:0}}));
   await waitFor(two,m=>m.type==='snapshot'&&m.snapshot.guestPlayer?.dashCooldown>0);
-
-  // Live lobby must list the room, then accept exactly five players.
-  const catalog=await open();
-  catalog.send(JSON.stringify({type:'list'}));
-  const listing=await waitFor(catalog,m=>m.type==='rooms'&&m.rooms.some(x=>x.code===joined.code));
-  assert(listing.rooms.find(x=>x.code===joined.code).capacity===5);
-  let fifthPlayer=null,fifthToken=null;
   for(let id=3;id<=5;id++){
-    const newcomer=await open();
-    newcomer.send(JSON.stringify({type:'join',code:joined.code}));
-    const received=await waitFor(newcomer,m=>m.type==='joined');
-    assert.equal(received.id,id);
-    if(id===5){fifthPlayer=newcomer;fifthToken=received.reconnectToken;}
-    const snap=await waitFor(newcomer,m=>m.type==='snapshot'&&
-      m.snapshot.players?.filter(Boolean).length===id);
-    assert.equal(snap.snapshot.players.filter(Boolean).length,id);
-    newcomer.send(JSON.stringify({type:'action',name:'dash',direction:{x:1,y:0}}));
-    await waitFor(newcomer,m=>m.type==='snapshot'&&m.snapshot.players?.[id-1]?.dashCooldown>0);
+    extraPlayers[id-3].send(JSON.stringify({type:'action',name:'dash',direction:{x:1,y:0}}));
+    await waitFor(extraPlayers[id-3],m=>m.type==='snapshot'&&m.snapshot.players?.[id-1]?.dashCooldown>0);
   }
+  // New joins after start are spectators, not additional players.
+  const lateArrival=await open();
+  lateArrival.send(JSON.stringify({type:'join',code:joined.code}));
+  await waitFor(lateArrival,m=>m.type==='spectator-joined');
   // A full room keeps a brief private reservation for the fifth player.
   // Its return must not create another seat or reset dash health/state.
   const fifthBefore=wsMessages.get(fifthPlayer)
@@ -114,9 +128,6 @@ try{
   assert.equal(fifthAfter.snapshot.players[4].hp,fifthBefore.players[4].hp);
   assert.equal(fifthAfter.snapshot.players[4].x,fifthBefore.players[4].x);
   assert.equal(fifthAfter.snapshot.playerRoles[4],fifthBefore.playerRoles[4]);
-  const overflow=await open();
-  overflow.send(JSON.stringify({type:'join',code:joined.code}));
-  await waitFor(overflow,m=>m.type==='error'&&m.message==='Room is full');
   const beforeDisconnect=wsMessages.get(two).filter(m=>m.type==='snapshot').at(-1).snapshot;
   const originalHost=beforeDisconnect.players[0];
   const hostRole=beforeDisconnect.playerRoles[0];
