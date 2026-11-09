@@ -350,8 +350,24 @@ wss.on('connection',(ws,req)=>{
         return send(ws,{type:'profile-error',message:'Change recovery keys between matches, not during a run.'});
       ws.profileKey=m.key;
       // Never send the secret back in a server response or room broadcast.
-      void profileStore.read(m.key).then(data=>send(ws,{
-        type:'profile-data',available:data.available,progress:data.progress}));
+      void profileStore.read(m.key).then(data=>{
+        if(ws.profileKey===m.key)send(ws,{
+          type:'profile-data',available:data.available,progress:data.progress,
+          legacyProgress:data.legacyProgress||null});
+      });
+      return;
+    }
+    if(m.type==='profile-import-legacy'){
+      // The payload is player-controlled, so never convert imported history
+      // into competitive ranking, verified attempts or earned server badges.
+      if(!ws.profileKey)return send(ws,{type:'profile-error',message:'Connect a survivor profile first.'});
+      void profileStore.importLegacy(ws.profileKey,m.progress).then(async saved=>{
+        const key=ws.profileKey;
+        const data=await profileStore.read(key);
+        if(key===ws.profileKey)send(ws,{type:'profile-data',
+          available:data.available,progress:data.progress,
+          legacyProgress:data.legacyProgress||null,imported:saved});
+      });
       return;
     }
     if(m.type==='resume')return resume(ws,m.code,m.token);
