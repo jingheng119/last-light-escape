@@ -3670,6 +3670,9 @@
     socket.addEventListener('close',()=>{
       if(socket!==roomSocket)return;
       status.textContent='Connection interrupted. Reconnecting automatically…';
+      remotePingMs=null;snapshotRate=null;lastSnapshotArrival=0;
+      snapshotWindowStart=0;snapshotWindowCount=0;reportedSnapshotGap=0;
+      showNetworkStatus();
       $('#gameRoomCount').textContent='RECONNECTING…';
       const delay=Math.min(8000,600*Math.pow(2,Math.min(4,reconnectAttempts++)));
       reconnectTimer=setTimeout(connectSocket,delay);
