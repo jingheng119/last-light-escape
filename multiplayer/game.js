@@ -3311,17 +3311,36 @@
     const joinRequest=code=>sendRoom({type:'join',code,nickname:nameForServer()});
     // Public ranking data is read-only; build DOM nodes with textContent so
     // player-submitted nicknames can never render as HTML.
+    let leaderboardCategory='solo',leaderboardRequest=0;
+    const LEADERBOARD_BADGES={
+      ward:'Ward Escape',engine:'Copper Survivor',signal:'Last Light',
+      solo:'Lone Survivor',team:'Together Through Darkness',
+      alive:'Everyone Made It'
+    };
+    const setLeaderboardCategory=category=>{
+      if(!['solo','team'].includes(category))return;
+      leaderboardCategory=category;
+      for(const [id,option] of [['leaderboardSolo','solo'],['leaderboardTeam','team']]){
+        const button=$('#'+id);
+        button.classList.toggle('active',category===option);
+        button.setAttribute('aria-pressed',String(category===option));
+      }
+      void loadLeaderboard();
+    };
     const loadLeaderboard=async()=>{
-      const root=$('#leaderboardEntries');
+      const root=$('#leaderboardEntries'),request=++leaderboardRequest;
       if(!root)return;
       try{
-        const response=await fetch('/api/leaderboard',{cache:'no-store'});
+        const response=await fetch('/api/leaderboard?category='+leaderboardCategory,
+          {cache:'no-store'});
         if(!response.ok)throw Error('Records database unavailable');
         const data=await response.json();
+        if(request!==leaderboardRequest)return;
         root.replaceChildren();
         if(!Array.isArray(data.entries)||!data.entries.length){
           const empty=document.createElement('p');empty.className='room-empty';
-          empty.textContent='No verified 27-floor victories yet. Your team could be first!';
+          empty.textContent='No verified '+(leaderboardCategory==='solo'?'solo':'team')+
+            ' 27-floor victories yet. Be the first!';
           root.appendChild(empty);return;
         }
         for(const entry of data.entries){
@@ -3331,10 +3350,23 @@
           const team=document.createElement('div');
           const name=document.createElement('strong');
           name.textContent=String(entry.roomName||'Survivors');
-          const details=document.createElement('span');
           const players=Array.isArray(entry.players)?entry.players:[];
-          details.textContent=players.map(p=>String(p.nickname||'Survivor')).join(' · ');
+          const details=document.createElement('span');
+          details.textContent=players.map(p=>
+            String(p.nickname||'Survivor')+' ('+
+            String(p.role||'scout').replace(/^./,c=>c.toUpperCase())+')'
+          ).join(' · ');
           team.append(name,details);
+          const badgeRow=document.createElement('div');
+          badgeRow.className='leaderboard-achievements';
+          for(const achievement of Array.isArray(entry.achievements)?entry.achievements:[]){
+            const title=LEADERBOARD_BADGES[achievement?.id];
+            if(!title)continue;
+            const badge=document.createElement('span');
+            badge.textContent='★ '+title;
+            badgeRow.appendChild(badge);
+          }
+          if(badgeRow.childElementCount)team.appendChild(badgeRow);
           const time=document.createElement('b');
           const seconds=Math.max(0,Math.floor(Number(entry.seconds)||0));
           time.textContent=String(Math.floor(seconds/3600)).padStart(2,'0')+':'+
@@ -3343,12 +3375,15 @@
           row.append(rank,team,time);root.appendChild(row);
         }
       }catch{
+        if(request!==leaderboardRequest)return;
         root.replaceChildren();
         const error=document.createElement('p');error.className='room-empty';
         error.textContent='Rankings are unavailable until the results database is connected.';
         root.appendChild(error);
       }
     };
+    $('#leaderboardSolo')?.addEventListener('click',()=>setLeaderboardCategory('solo'));
+    $('#leaderboardTeam')?.addEventListener('click',()=>setLeaderboardCategory('team'));
     $('#refreshLeaderboard')?.addEventListener('click',loadLeaderboard);
     void loadLeaderboard();
     const PROGRESS_KEY='lastLightProgressV1';
