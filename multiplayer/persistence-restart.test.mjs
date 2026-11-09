@@ -101,7 +101,7 @@ teamRoom.matchId='persist-five-player-skipped';
 const skippedTeam=buildMatchResult(teamRoom);
 assert.equal(skippedTeam.competitive,false);
 assert.deepEqual(skippedTeam.achievements,[]);
-assert.equal(await firstMatches.save(skippedTeam),true);
+assert.equal(await firstMatches.save(skippedTeam),false,'Developer runs must not be stored');
 await firstMatches.close();await firstProfiles.close();
 
 // Simulated restart: brand-new store objects / connection pools.
@@ -141,7 +141,7 @@ assert.equal(await secondMatches.save(solo),true);
 assert.equal(await secondProfiles.award(key,{
   eventId:'persist-solo:1:final',floorsCleared:27,finished:true,winTime:420
 }),true);
-assert.equal(matches.size,4);
+assert.equal(matches.size,3,'Only genuine results should persist');
 assert.equal((await secondProfiles.read(key)).progress.runs,1);
 await secondMatches.close();await secondProfiles.close();
 assert.equal(opened,closed,'All database pools must close cleanly');
