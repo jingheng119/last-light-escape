@@ -104,8 +104,10 @@ const tower=document.querySelector('#towerModel'),towerSpace=document.querySelec
 let towerYaw=-32,towerPitch=-18,towerDragged=false;
 let dragStart=null;
 function renderTower(){tower.style.transform='rotateX('+towerPitch+'deg) rotateY('+towerYaw+'deg)';}
-towerSpace.addEventListener('pointerdown',e=>{if(e.button!==0)return;dragStart={id:e.pointerId,x:e.clientX,y:e.clientY,yaw:towerYaw,pitch:towerPitch};towerDragged=false;towerSpace.setPointerCapture(e.pointerId);});
-towerSpace.addEventListener('pointermove',e=>{if(!dragStart||e.pointerId!==dragStart.id)return;const dx=e.clientX-dragStart.x,dy=e.clientY-dragStart.y;if(Math.abs(dx)+Math.abs(dy)>6){towerDragged=true;towerSpace.classList.add('is-dragging');}if(towerDragged){towerYaw=dragStart.yaw+dx*.65;towerPitch=Math.max(-38,Math.min(20,dragStart.pitch-dy*.25));renderTower();}});
+towerSpace.addEventListener('pointerdown',e=>{if(e.button!==0)return;dragStart={id:e.pointerId,x:e.clientX,y:e.clientY,yaw:towerYaw,pitch:towerPitch};towerDragged=false;});
+towerSpace.addEventListener('pointermove',e=>{if(!dragStart||e.pointerId!==dragStart.id)return;const dx=e.clientX-dragStart.x,dy=e.clientY-dragStart.y;
+if(!towerDragged&&Math.abs(dx)+Math.abs(dy)>7){towerDragged=true;towerSpace.classList.add('is-dragging');towerSpace.setPointerCapture(e.pointerId);}
+if(towerDragged){towerYaw=dragStart.yaw+dx*.65;towerPitch=Math.max(-38,Math.min(20,dragStart.pitch-dy*.25));renderTower();}});
 function endTowerDrag(e){if(dragStart&&e.pointerId===dragStart.id){dragStart=null;towerSpace.classList.remove('is-dragging');}}
 towerSpace.addEventListener('pointerup',endTowerDrag);towerSpace.addEventListener('pointercancel',endTowerDrag);
 for(const control of document.querySelectorAll('.tower-rotate'))control.addEventListener('click',()=>{if(control.dataset.reset){towerYaw=-32;towerPitch=-18;}else towerYaw+=Number(control.dataset.rotate)||0;renderTower();});
