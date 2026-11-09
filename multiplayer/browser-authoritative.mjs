@@ -58,6 +58,14 @@ try{
   assert.notEqual(afterRotation,beforeRotation,'Dragging must rotate the holographic tower');
   assert.equal(await handbook.locator('.stage-detail:visible').count(),1);
   assert((await handbook.locator('.stage-detail:visible').textContent()).includes('The Hollow Ward'));
+  // Stage art is presented at full original aspect ratio without cover-cropping
+  // and the heading sits below the image rather than obscuring the scene.
+  const scene=handbook.locator('#stage-detail-1 .stage-scene');
+  assert.equal(await scene.evaluate(el=>getComputedStyle(el).backgroundSize),'300% 100%');
+  const artworkBox=await scene.boundingBox();
+  assert(artworkBox&&Math.abs(artworkBox.width/artworkBox.height-(1728/910))<0.04,
+    'Stage artwork should preserve its original landscape aspect ratio');
+  assert((await handbook.locator('#stage-detail-1 .stage-detail-body h3').textContent()).includes('The Hollow Ward'));
   for(const [stage,name,dimension] of [['3','The Lost Signal','51 × 41'],['2','The Copper Engine','41 × 31'],['1','The Hollow Ward','31 × 21']]){
     await handbook.locator('.tower-floor[data-stage="'+stage+'"]').click();
     assert.equal(await handbook.locator('.tower-floor[aria-pressed="true"]').count(),1);
