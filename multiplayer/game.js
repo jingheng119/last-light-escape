@@ -209,7 +209,9 @@
     if(player.dashTime>0){
       const step=Math.min(player.dashTime,dt);
       player.dashTime=Math.max(0,player.dashTime-step);
-      const hitWall=moveEntity(player,player.dashDir.x*9*step,player.dashDir.y*9*step,.21,.32);
+      const hitWall=player.phaseEchoTime>0
+        ?(movePhaseEcho(player,player.dashDir.x*9*step,player.dashDir.y*9*step),false)
+        :moveEntity(player,player.dashDir.x*9*step,player.dashDir.y*9*step,.21,.32);
       if(hitWall)player.dashTime=0;
     }else if(vx||vy){
       const touchSteering=Math.hypot(joystickMove.x,joystickMove.y)>.08;
@@ -1737,8 +1739,11 @@
       // A slightly smaller mobile hitbox eases narrow passages. The verified
       // v3.11 keyboard/desktop wall-slide parameters are preserved.
       const touchSteering=Math.hypot(joystickMove.x,joystickMove.y)>.08;
-      moveEntity(player,vx*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.bondedOn===player.slot)?BOND_WALK_MULTIPLIER:1)*dt,
-        vy*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.bondedOn===player.slot)?BOND_WALK_MULTIPLIER:1)*dt,touchSteering?.18:.21,.30);
+      const moveSpeed=3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.bondedOn===player.slot)?BOND_WALK_MULTIPLIER:1)*dt;
+      if(player.phaseEchoTime>0)
+        movePhaseEcho(player,vx*moveSpeed,vy*moveSpeed);
+      else
+        moveEntity(player,vx*moveSpeed,vy*moveSpeed,touchSteering?.18:.21,.30);
     }
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
     recordRewindPosition(player);
