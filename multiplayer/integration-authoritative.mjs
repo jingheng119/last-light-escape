@@ -116,6 +116,9 @@ try{
   await waitFor(lateArrival,m=>m.type==='spectator-joined');
   // A full room keeps a brief private reservation for the fifth player.
   // Its return must not create another seat or reset dash health/state.
+  // Let the final dash finish before capturing a position to compare
+  // across a WebSocket disconnect and reconnect.
+  await sleep(500);
   const fifthBefore=wsMessages.get(fifthPlayer)
     .filter(m=>m.type==='snapshot'&&m.snapshot.players?.[4]).at(-1).snapshot;
   fifthPlayer.close();
