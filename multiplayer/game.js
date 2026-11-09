@@ -1772,7 +1772,7 @@
     $('.side-objectives').classList.toggle('all-objectives-complete',objectivesComplete);
     const available=skillCharges();
     const maximum=maxSkillCharges();
-    ui.abilityStatus.textContent=player.infestedOn?'INFESTING TEAMMATE '+player.infestedOn+' · F TO EMERGE':
+    ui.abilityStatus.textContent=player.ghostTrapped>0?'GHOST CURSE · '+Math.ceil(player.ghostTrapped)+'s LEFT':player.infestedOn?'INFESTING TEAMMATE '+player.infestedOn+' · F TO EMERGE':
       infestTargeting&&classChoice==='infester'?'SELECT TEAMMATE · TAB / F':
       rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':
       anchorTargeting&&classChoice==='anchor'?'MARK ANCHOR · TAB / F':
@@ -1995,16 +1995,27 @@
     }
   }
   function drawHollows(){for(let i=0;i<hollows.length;i++){const h=hollows[i];
+    if(h.variant==='ghost'){
+      const x=h.x*TILE,y=h.y*TILE;
+      ctx.save();ctx.translate(x,y);ctx.globalAlpha=.73;
+      halo(0,0,50,'#d9ecff48');
+      ctx.fillStyle='#d5dce5';ctx.beginPath();ctx.arc(0,-2,11,Math.PI,0);
+      ctx.lineTo(11,12);ctx.quadraticCurveTo(5,7,0,12);
+      ctx.quadraticCurveTo(-5,7,-11,12);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#465160';ctx.fillRect(-6,-3,3,4);ctx.fillRect(3,-3,3,4);
+      ctx.restore();continue;
+    }
+    if(h.variant==='invisible'&&h.invisibilityCycle<3)continue;
     let x=h.x*TILE,y=h.y*TILE,red=h.mode==='chase'&&!(h.stunned>0);
-    const hunter=h.variant==='hunter',dasher=h.variant==='dasher';
-    const glow=h.stunned>0?'#6dbeff3f':hunter?'#fa4c8c48':dasher?'#edaa3540':red?'#ff465b35':'#fa8f6a16';
+    const hunter=h.variant==='hunter',dasher=h.variant==='dasher',invisible=h.variant==='invisible';
+    const glow=h.stunned>0?'#6dbeff3f':invisible?'#163c8b60':hunter?'#fa4c8c48':dasher?'#edaa3540':red?'#ff465b35':'#fa8f6a16';
     halo(x,y,hunter?70:dasher?52:red?62:38,glow);ctx.save();ctx.translate(x,y);
-    ctx.fillStyle=h.stunned>0?'#79c2e7':hunter?'#ee5e9d':dasher?'#ffc064':red?'#ff5767':'#b87c83';
+    ctx.fillStyle=h.stunned>0?'#79c2e7':invisible?'#173b88':hunter?'#ee5e9d':dasher?'#ffc064':red?'#ff5767':'#b87c83';
     ctx.beginPath();ctx.ellipse(0,1+Math.sin(h.wobble)*1.5,hunter?12:10,hunter?14:12,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=hunter?'#602245':dasher?'#633b1b':'#4c202d';
+    ctx.fillStyle=invisible?'#0a1b47':hunter?'#602245':dasher?'#633b1b':'#4c202d';
     ctx.beginPath();ctx.arc(0,-2,7,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=red||hunter||dasher?'#fff2dd':'#ffc4bd';ctx.fillRect(-5,-4,3,3);ctx.fillRect(3,-4,3,3);
-    ctx.strokeStyle=hunter?'#ff8fc1':dasher?'#ffce70':red?'#f66f78':'#92535b';
+    ctx.strokeStyle=invisible?'#3e66bc':hunter?'#ff8fc1':dasher?'#ffce70':red?'#f66f78':'#92535b';
     ctx.lineWidth=3;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-8,6);ctx.lineTo(-12,11+Math.sin(h.wobble)*3);ctx.moveTo(8,6);ctx.lineTo(12,11-Math.sin(h.wobble)*3);ctx.stroke();
     if(red||hunter){ctx.strokeStyle=hunter?'#ff5caa':dasher?'#efad4c':'#ff546c';ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(0,0,hunter?17:15,0,Math.PI*2);ctx.stroke();}
@@ -2018,6 +2029,10 @@
     if(player.hp<=0){
       drawSoul(player);
       return;
+    }
+    if(player.ghostTrapped>0){
+      ctx.save();ctx.strokeStyle='#d6eaff';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(player.x*TILE,player.y*TILE,20+Math.sin(clock*6)*2,0,Math.PI*2);ctx.stroke();ctx.restore();
     }
     if(player.infestedOn){
       ctx.save();ctx.strokeStyle='#a1f1be';ctx.lineWidth=2;
@@ -2299,10 +2314,13 @@
   function drawInteractPrompts(){ctx.font='bold 11px monospace';ctx.textAlign='center';
     let message='';
     const fallen=remotePlayers.find(p=>p.hp<=0&&dist(player,p)<=REVIVE_RADIUS&&clearLine(player,p));
-    if(player.hp>0&&fallen)
+    const frozen=remotePlayers.find(p=>p.ghostTrapped>0&&p.hp>0&&dist(player,p)<=1.5);
+    if(player.hp>0&&frozen)message='[ E ] RESCUE FROZEN TEAMMATE';
+    if(!message&&player.hp>0&&fallen)
       message='REVIVING TEAMMATE · '+Math.max(0,REVIVE_SECONDS-(fallen.reviveProgress||0)).toFixed(1)+'s';
     if(player.hp<=0&&remotePlayers.some(p=>p.hp>0))
       message='SOUL DOWN · WAIT FOR TEAMMATE';
+    if(!message&&player.ghostTrapped>0)message='GHOST CURSE · '+Math.ceil(player.ghostTrapped)+'s · TEAMMATE USE (E)';
     if(!message){if(!survivor.rescued&&dist(player,survivor)<1.5)message='[ E ] RESCUE SURVIVOR';else if(technician&&!technician.rescued&&dist(player,technician)<1.5)message='[ E ] RESCUE TECHNICIAN';else if(dist(player,relay)<1.55&&!relay.active)message='[ E ] ACTIVATE RELAY';else if(dist(player,exit)<1.5)message=relay.active&&cores.every(c=>c.collected)&&alliesReady()?(playersAtExit()?'[ E ] ESCAPE':'WAIT FOR TEAMMATE'):'ELEVATOR / ALLIES NOT READY';
     }
     if(message){roundedRect(W/2-111,H-54,222,30,7,'#071c23e8');ctx.strokeStyle='#43786e';ctx.strokeRect(W/2-111,H-54,222,30);ctx.fillStyle='#d4fff2';ctx.fillText(message,W/2,H-35);}
