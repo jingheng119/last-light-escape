@@ -29,6 +29,14 @@ try{
   await handbook.goto('http://127.0.0.1:'+port+'/how-to-play.html#progression');
   assert(await handbook.locator('#panel-progression').isVisible());
   assert.equal(await handbook.locator('.tower-floor').count(),3);
+  assert.equal(await handbook.locator('.tower-face').count(),18,'All three rectangular blocks need six 3D faces');
+  const beforeRotation=await handbook.locator('#towerModel').evaluate(el=>getComputedStyle(el).transform);
+  await handbook.locator('.tower-rotate[data-rotate="45"]').click();
+  const afterRotation=await handbook.locator('#towerModel').evaluate(el=>getComputedStyle(el).transform);
+  assert.notEqual(afterRotation,beforeRotation,'Rotate controls must change the 3D tower angle');
+  await handbook.locator('.tower-rotate[data-reset="true"]').click();
+  const resetRotation=await handbook.locator('#towerModel').evaluate(el=>getComputedStyle(el).transform);
+  assert.equal(resetRotation,beforeRotation,'Reset must restore the original 3D tower angle');
   assert.equal(await handbook.locator('.stage-detail:visible').count(),1);
   assert((await handbook.locator('.stage-detail:visible').textContent()).includes('The Hollow Ward'));
   for(const [stage,name,dimension] of [['3','The Lost Signal','51 × 41'],['2','The Copper Engine','41 × 31'],['1','The Hollow Ward','31 × 21']]){
