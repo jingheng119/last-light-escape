@@ -9,6 +9,18 @@ export const profileHash=key=>validProfileKey(key)?
 const allowedBadges=new Set(['ward','engine','signal','solo','team','alive']);
 const normalizeBadges=value=>[...new Set((Array.isArray(value)?value:[])
   .map(b=>typeof b==='string'?b:b?.id).filter(id=>allowedBadges.has(id)))];
+export function normalizeLegacyProgress(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  const runs=Number(value.runs),floors=Number(value.bestFloors),time=value.bestTime;
+  if(!Number.isSafeInteger(runs)||runs<0||runs>1000000||
+     !Number.isSafeInteger(floors)||floors<0||floors>27)return null;
+  const bestTime=time===null?null:Number(time);
+  if(bestTime!==null&&(!Number.isFinite(bestTime)||bestTime<=0||bestTime>31536000))return null;
+  const badges=normalizeBadges(value.badges);
+  if(!runs&&!floors&&bestTime===null&&!badges.length)return null;
+  return {runs,bestFloors:floors,bestTime,badges};
+}
+
 export function makeProfileStore({databaseUrl=process.env.DATABASE_URL,loadDriver=()=>import('pg'),log=console}={}){
   let pool,setupPromise;
   async function db(){
@@ -31,6 +43,8 @@ export function makeProfileStore({databaseUrl=process.env.DATABASE_URL,loadDrive
           profile_hash CHAR(64) NOT NULL REFERENCES last_light_profiles(profile_hash),
           recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )`);
+        await instance.query(`ALTER TABLE last_light_profiles
+          ADD COLUMN IF NOT EXISTS legacy_progress JSONB`);
         pool=instance;return instance;
       }catch(error){await instance.end();throw error;}
     })();
@@ -46,15 +60,33 @@ export function makeProfileStore({databaseUrl=process.env.DATABASE_URL,loadDrive
         const conn=await db();
         await conn.query(`INSERT INTO last_light_profiles(profile_hash)
           VALUES($1) ON CONFLICT DO NOTHING`,[hash]);
-        const {rows}=await conn.query(`SELECT attempts,best_floors,best_time,badges
+        const {rows}=await conn.query(`SELECT attempts,best_floors,best_time,badges,legacy_progress
           FROM last_light_profiles WHERE profile_hash=$1`,[hash]);
         const p=rows[0];
         return {available:true,progress:{
           runs:Number(p.attempts),bestFloors:Number(p.best_floors),
           bestTime:p.best_time===null?null:Number(p.best_time),
           badges:normalizeBadges(p.badges)
-        }};
+        },legacyProgress:normalizeLegacyProgress(p.legacy_progress)};
       }catch(error){log.error('Profile read failed:',error?.message||error);return unavailable;}
+    },
+    // One-time import of old, browser-only history. It is deliberately
+    // separate from verified progress and never used for competitive records.
+    async importLegacy(key,legacy){
+      const hash=profileHash(key),clean=normalizeLegacyProgress(legacy);
+      if(!hash||!databaseUrl||!clean)return false;
+      try{
+        const conn=await db();
+        await conn.query(`INSERT INTO last_light_profiles(profile_hash)
+          VALUES($1) ON CONFLICT DO NOTHING`,[hash]);
+        const result=await conn.query(`UPDATE last_light_profiles
+          SET legacy_progress=$2::jsonb,updated_at=NOW()
+          WHERE profile_hash=$1 AND legacy_progress IS NULL`,
+        [hash,JSON.stringify(clean)]);
+        return result.rowCount===1;
+      }catch(error){
+        log.error('Legacy profile import failed:',error?.message||error);return false;
+      }
     },
     async award(key,{eventId,floorsCleared,achievements=[],finished=false,winTime=null}={}){
       const hash=profileHash(key);
