@@ -2802,3 +2802,40 @@ body.show-play .game-shell .room-chat .chat-form button{
 @media(max-width:520px){.leaderboard-entry{grid-template-columns:26px minmax(0,1fr) 69px;gap:7px}
   .leaderboard-entry>b{font-size:.82rem}
   .leaderboard-tabs button{flex:1;padding:9px 8px}}
+
+/* Six earned/locked achievement cards and in-game unlock notices. */
+.achievement-heading{display:flex;justify-content:space-between;align-items:center;
+  gap:12px;margin:22px 0 10px;color:#dcefea;letter-spacing:.07em;font-size:.83rem}
+.achievement-heading>span{color:#9fc6ba;font-size:.78rem;letter-spacing:0}
+.achievement-gallery{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.achievement-tile{display:flex;align-items:center;gap:12px;min-width:0;min-height:88px;
+  border:1px solid #456367;background:rgba(17,42,46,.85);border-radius:10px;padding:13px}
+.achievement-glyph{flex:none;width:40px;height:40px;border-radius:10px;
+  display:grid;place-items:center;font-size:1.45rem;color:#f6dca1;
+  background:#3a3125;border:1px solid #977a4d}
+.achievement-tile>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.achievement-tile strong{font-size:.86rem;line-height:1.35;color:#f3eee1}
+.achievement-tile div>span{font-size:.76rem;color:#b4c9c9;line-height:1.4}
+.achievement-tile small{font-size:.68rem;letter-spacing:.09em;font-weight:700;color:#e4c787}
+.achievement-tile.is-locked{opacity:.65;background:rgba(9,26,30,.7);border-style:dashed}
+.achievement-tile.is-locked .achievement-glyph{filter:grayscale(1);background:#26353a;color:#b1c7ca;border-color:#45565a}
+.achievement-tile.is-locked small{color:#9caaae}
+.achievement-notifications{position:fixed;right:22px;top:85px;z-index:1500;max-width:min(370px,calc(100vw - 32px));pointer-events:none}
+.achievement-unlock-card{display:flex;align-items:center;gap:14px;padding:17px 20px;
+  border:1px solid #c29a61;border-radius:12px;background:#172b2c;
+  box-shadow:0 12px 35px #0009,0 0 18px #b9944430;
+  animation:achievement-enter .28s ease-out;color:#f6e6ca}
+.achievement-unlock-icon{display:grid;place-items:center;flex:none;
+  width:54px;height:54px;border:1px solid #cda86d;border-radius:11px;
+  background:#493a29;color:#ffdea1;font-size:2rem}
+.achievement-unlock-card>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.achievement-unlock-card>div>span{font-size:.68rem;font-weight:700;letter-spacing:.12em;color:#e6c58d}
+.achievement-unlock-card strong{font-size:1.08rem;line-height:1.28;color:#fff1ce}
+.achievement-unlock-card small{font-size:.78rem;color:#bbd6d2;line-height:1.4}
+@keyframes achievement-enter{from{opacity:0;transform:translateY(-9px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(max-width:950px){.achievement-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.achievement-gallery{grid-template-columns:1fr}
+  .achievement-notifications{top:64px;right:12px;left:12px;max-width:none}
+  .achievement-unlock-card{padding:12px 15px}
+  .achievement-unlock-icon{height:45px;width:45px}}
+@media(prefers-reduced-motion:reduce){.achievement-unlock-card{animation:none}}
