@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {makeMatchStore} from './match-store.js';
+import {makeMatchStore,buildMatchResult} from './match-store.js';
 import {makeProfileStore,profileHash} from './profile-store.js';
 
 // Two separate store lifecycles share the fake database's persistent rows.
@@ -71,6 +71,37 @@ assert.equal(await firstProfiles.award(key,{
   eventId:'persist-solo:1:final',floorsCleared:27,finished:true,winTime:420,
   achievements:[{id:'solo'},{id:'signal'}]
 }),true);
+// Simulate authoritative terminal snapshots for a legitimate five-player
+// Stage 3 victory and an unranked developer-skipped victory. The server's
+// own result builder (not a hand-crafted competitive score) determines
+// ranking eligibility and achievements.
+const teamRoster=new Map(Array.from({length:5},(_,i)=>[i+1,{name:'Beta '+(i+1)}]));
+const teamRoom={
+  matchId:'persist-five-player',name:'Copper Survivors',unranked:false,
+  members:teamRoster,matchParticipants:new Map(teamRoster),
+  engine:{snapshot:()=>({
+    state:'victory',levelIndex:26,overallElapsed:601.25,
+    playerRoles:['scout','medic','anchor','rewinder','symbiote'],
+    players:[{hp:3},{hp:1},{hp:2},{hp:3},{hp:1}]
+  })}
+};
+const winningTeam=buildMatchResult(teamRoom);
+assert.equal(winningTeam.competitive,true);
+assert.equal(winningTeam.players.length,5);
+assert.deepEqual(winningTeam.achievements.map(a=>a.id),
+  ['ward','engine','signal','team','alive']);
+assert.equal(await firstMatches.save(winningTeam),true);
+const secondKey='aa'.repeat(32);
+assert.equal(await firstProfiles.award(secondKey,{
+  eventId:'persist-five-player:5:final',floorsCleared:27,finished:true,
+  winTime:winningTeam.elapsedSeconds,achievements:winningTeam.achievements
+}),true);
+teamRoom.unranked=true;
+teamRoom.matchId='persist-five-player-skipped';
+const skippedTeam=buildMatchResult(teamRoom);
+assert.equal(skippedTeam.competitive,false);
+assert.deepEqual(skippedTeam.achievements,[]);
+assert.equal(await firstMatches.save(skippedTeam),true);
 await firstMatches.close();await firstProfiles.close();
 
 // Simulated restart: brand-new store objects / connection pools.
@@ -81,6 +112,22 @@ assert.equal(leaderboard.entries.length,1,'Unranked run must not appear after re
 assert.equal(leaderboard.entries[0].roomName,'Ward Solo');
 assert.equal(leaderboard.entries[0].seconds,420);
 assert.equal(leaderboard.entries[0].players[0].role,'symbiote');
+const teamRanking=await secondMatches.leaderboard('team');
+assert.equal(teamRanking.available,true);
+assert.equal(teamRanking.entries.length,1,
+  'Only the legitimate five-player victory should appear on the team board');
+assert.equal(teamRanking.entries[0].players.length,5);
+assert.deepEqual(teamRanking.entries[0].players.map(p=>p.role),
+  ['scout','medic','anchor','rewinder','symbiote']);
+assert.deepEqual(teamRanking.entries[0].achievements.map(a=>a.id),
+  ['ward','engine','signal','team','alive']);
+assert.equal(teamRanking.entries[0].seconds,601.25);
+const teamProgress=await secondProfiles.read(secondKey);
+assert.equal(teamProgress.progress.runs,1);
+assert.equal(teamProgress.progress.bestFloors,27);
+assert.equal(teamProgress.progress.bestTime,601.25);
+assert.deepEqual(new Set(teamProgress.progress.badges),
+  new Set(['ward','engine','signal','team','alive']));
 const restored=await secondProfiles.read(key);
 assert.equal(restored.available,true);
 assert.equal(restored.progress.runs,1,'Run count must persist');
@@ -94,8 +141,8 @@ assert.equal(await secondMatches.save(solo),true);
 assert.equal(await secondProfiles.award(key,{
   eventId:'persist-solo:1:final',floorsCleared:27,finished:true,winTime:420
 }),true);
-assert.equal(matches.size,2);
+assert.equal(matches.size,4);
 assert.equal((await secondProfiles.read(key)).progress.runs,1);
 await secondMatches.close();await secondProfiles.close();
 assert.equal(opened,closed,'All database pools must close cleanly');
-console.log('PASS: match and profile data survive store reinitialization; duplicate events do not duplicate progress.');
+console.log('PASS: solo and five-player competitive victories, role/achievement persistence, restart recovery, and duplicate-event exclusion.');
