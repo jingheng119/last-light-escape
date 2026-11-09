@@ -7,7 +7,7 @@ const mockRoom={
   matchParticipants:new Map([[1,{name:'Captain'}],[2,{name:'Runner'}]]),
   engine:{snapshot:()=>({
     state:'victory',levelIndex:26,overallElapsed:180.5,
-    playerRoles:['medic','infester'],players:[{hp:2},{hp:1}]
+    playerRoles:['medic','symbiote'],players:[{hp:2},{hp:1}]
   })}
 };
 const result=buildMatchResult(mockRoom);
@@ -18,7 +18,7 @@ assert.equal(result.elapsedSeconds,180.5);
 assert.equal(result.competitive,true);
 assert.deepEqual(result.players,[
   {slot:1,nickname:'Captain',role:'medic',hearts:2},
-  {slot:2,nickname:'Runner',role:'infester',hearts:1}
+  {slot:2,nickname:'Runner',role:'symbiote',hearts:1}
 ]);
 assert.deepEqual(result.achievements.map(a=>a.id),
   ['ward','engine','signal','team','alive']);
