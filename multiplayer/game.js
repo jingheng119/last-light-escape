@@ -32,15 +32,15 @@
     { name:'THE COPPER ENGINE',seed:25717,cores:7,enemies:12,loops:0.28,speed:1.65,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 09 / 09.' },
     // Stage III — nine larger Lost Signal sectors.
     // Reuse existing enemy variants pending Stage III-specific designs.
-    { name:'THE FROZEN SIGNAL',seed:27011,cores:6,enemies:12,loops:0.240,speed:1.65,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 01 / 09.' },
-    { name:'THE MIRROR CORRIDORS',seed:28522,cores:6,enemies:12,loops:0.246,speed:1.67,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 02 / 09.' },
-    { name:'THE SILENT TRANSMISSION',seed:30033,cores:6,enemies:13,loops:0.252,speed:1.69,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 03 / 09.' },
-    { name:'THE ECHO CHAMBER',seed:31544,cores:6,enemies:13,loops:0.258,speed:1.71,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 04 / 09.' },
-    { name:'THE ABANDONED ARRAY',seed:33055,cores:7,enemies:14,loops:0.264,speed:1.73,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 05 / 09.' },
-    { name:'THE FRACTURED CORE',seed:34566,cores:7,enemies:14,loops:0.270,speed:1.75,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 06 / 09.' },
-    { name:'THE LOST FREQUENCY',seed:36077,cores:7,enemies:15,loops:0.276,speed:1.77,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 07 / 09.' },
-    { name:'THE PALE HORIZON',seed:37588,cores:7,enemies:15,loops:0.282,speed:1.79,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 08 / 09.' },
-    { name:'THE LAST SIGNAL',seed:39099,cores:8,enemies:16,loops:0.288,speed:1.81,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 09 / 09.' },
+    { name:'THE FROZEN SIGNAL',seed:27011,cores:6,enemies:15,loops:0.240,speed:1.65,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 01 / 09.' },
+    { name:'THE MIRROR CORRIDORS',seed:28522,cores:6,enemies:15,loops:0.246,speed:1.67,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 02 / 09.' },
+    { name:'THE SILENT TRANSMISSION',seed:30033,cores:6,enemies:16,loops:0.252,speed:1.69,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 03 / 09.' },
+    { name:'THE ECHO CHAMBER',seed:31544,cores:6,enemies:16,loops:0.258,speed:1.71,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 04 / 09.' },
+    { name:'THE ABANDONED ARRAY',seed:33055,cores:7,enemies:17,loops:0.264,speed:1.73,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 05 / 09.' },
+    { name:'THE FRACTURED CORE',seed:34566,cores:7,enemies:17,loops:0.270,speed:1.75,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 06 / 09.' },
+    { name:'THE LOST FREQUENCY',seed:36077,cores:7,enemies:18,loops:0.276,speed:1.77,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 07 / 09.' },
+    { name:'THE PALE HORIZON',seed:37588,cores:7,enemies:18,loops:0.282,speed:1.79,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 08 / 09.' },
+    { name:'THE LAST SIGNAL',seed:39099,cores:8,enemies:19,loops:0.288,speed:1.81,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 09 / 09.' },
   ];
   const $ = s => document.querySelector(s);
   const canvas = $('#game'), ctx = canvas.getContext('2d');
@@ -513,9 +513,11 @@
     hollows=[];
     for(let i=0;i<cfg.enemies;i++) {
       const p=selectSpot(reserved,cfg.stage>=2?8:5,distances,false);reserved.push(p);
-      // Stage III: approximately 10% standard, 40% invisible, 50% ghost.
-      const standardCount=Math.max(1,Math.round(cfg.enemies*.10));
-      const invisibleCount=Math.round(cfg.enemies*.40);
+      // Stage III retains its original normal count, adding one Invisible
+      // and two Ghost Hollows to every floor.
+      const baseEnemies=cfg.stage===3?cfg.enemies-3:cfg.enemies;
+      const standardCount=Math.max(1,Math.round(baseEnemies*.10));
+      const invisibleCount=Math.round(baseEnemies*.40)+(cfg.stage===3?1:0);
       const variant=cfg.stage===3?(i<standardCount?'standard':i<standardCount+invisibleCount?'invisible':'ghost'):
         cfg.stage===2?(i===0?'hunter':i<=4?'dasher':'standard'):(cfg.enemyVariant||'standard');
       hollows.push({x:p.x+.5,y:p.y+.5,variant,home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18)*(variant==='hunter'?1.27:1),
