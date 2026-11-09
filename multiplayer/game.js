@@ -3343,6 +3343,60 @@
     };
     $('#refreshLeaderboard')?.addEventListener('click',loadLeaderboard);
     void loadLeaderboard();
+    const PROGRESS_KEY='lastLightProgressV1';
+    const ACHIEVEMENTS={
+      ward:'Ward Escape',engine:'Copper Survivor',signal:'Last Light',
+      solo:'Lone Survivor',team:'Together Through Darkness',
+      alive:'Everyone Made It'
+    };
+    const readProgress=()=>{
+      try{
+        const saved=JSON.parse(localStorage.getItem(PROGRESS_KEY)||'null');
+        return saved&&typeof saved==='object'?saved:{runs:0,bestFloors:0,bestTime:null,badges:[]};
+      }catch{return {runs:0,bestFloors:0,bestTime:null,badges:[]};}
+    };
+    const renderProgress=()=>{
+      const progress=readProgress();
+      const count=Number(progress.runs)||0,best=Number(progress.bestFloors)||0;
+      const detail=progress.bestTime==null?'':(
+        ' · Best full-run time '+Math.floor(progress.bestTime/60)+'m '+
+        String(Math.floor(progress.bestTime%60)).padStart(2,'0')+'s');
+      $('#myProgress').textContent=count?
+        'YOUR RECORD · '+count+' completed attempts · '+best+' / 27 floors cleared'+detail:
+        'YOUR RECORD · No completed runs on this browser yet.';
+      const badges=$('#myAchievements');
+      badges.replaceChildren();
+      const earned=Array.isArray(progress.badges)?progress.badges:[];
+      for(const id of earned){
+        if(!ACHIEVEMENTS[id])continue;
+        const badge=document.createElement('span');
+        badge.className='earned-achievement';
+        badge.textContent='★ '+ACHIEVEMENTS[id];
+        badges.appendChild(badge);
+      }
+    };
+    const recordProgress=result=>{
+      if(!result||!Number.isFinite(result.floorsCleared))return;
+      if(result.competitive===false&&!(result.achievements||[]).length)return;
+      const current=readProgress(),won=result.outcome==='victory'&&result.floorsCleared===27;
+      const seconds=Number(result.elapsedSeconds);
+      const bestTime=won&&Number.isFinite(seconds)&&seconds>0?
+        (current.bestTime==null?seconds:Math.min(current.bestTime,seconds)):
+        current.bestTime;
+      const badgeIds=(result.achievements||[]).map(b=>b.id).filter(id=>ACHIEVEMENTS[id]);
+      const next={
+        runs:Math.max(0,Number(current.runs)||0)+1,
+        bestFloors:Math.max(Number(current.bestFloors)||0,result.floorsCleared),
+        bestTime,badges:[...new Set([...(current.badges||[]),...badgeIds])]
+      };
+      try{localStorage.setItem(PROGRESS_KEY,JSON.stringify(next));}catch{}
+      renderProgress();
+      const newBadges=badgeIds.filter(id=>!(current.badges||[]).includes(id));
+      if(newBadges.length)status.textContent='Achievement unlocked: '+
+        newBadges.map(id=>ACHIEVEMENTS[id]).join(', ');
+      void loadLeaderboard();
+    };
+    renderProgress();
     const renderRoster=players=>{
       savedPlayers=players;
       roomIdentity=new Map(players.map(person=>[person.id,person]));
@@ -3476,6 +3530,7 @@
         // the visitor as a viewer, never create a replacement player mid-run.
         if(previousSession?.code)joinRequest(previousSession.code);
       }
+      if(m.type==='match-result'&&m.result)recordProgress(m.result);
       if(m.type==='rooms'&&Array.isArray(m.rooms))drawRooms(m.rooms);
       if(m.type==='joined'){
         chat.clear();roomPlayerId=m.id;roomRole=m.host?'host':'guest';roomCount=1;
