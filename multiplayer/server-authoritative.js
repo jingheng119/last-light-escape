@@ -171,7 +171,7 @@ function persistCompletedMatch(room){
 function createRoom(name){
   const room={code:makeCode(),name:safeRoomName(name),engine:createRoomEngine(),
     clients:new Map(),members:new Map(),spectators:new Set(),started:false,hostId:1,ticks:0,
-    chatHistory:[],chatSerial:0,chatCountdown:null,
+    chatHistory:[],chatSerial:0,chatCountdown:null,matchParticipants:null,
     matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0,matchAnnounced:false,progressLastFloor:0,unranked:false};
   rooms.set(room.code,room);
   let last=performance.now();
@@ -314,7 +314,12 @@ const server=http.createServer(async(req,res)=>{
       maxPlayers:MAX_PLAYERS,lobby:true}));return;
   }
   if(pathname==='/api/leaderboard'&&req.method==='GET'){
-    const result=await matchStore.leaderboard();
+    const category=new URL(req.url,'http://localhost').searchParams.get('category')||'solo';
+    if(!['solo','team'].includes(category)){
+      res.writeHead(400,{'content-type':'application/json','cache-control':'no-store'});
+      res.end(JSON.stringify({available:false,entries:[],error:'Invalid leaderboard category'}));return;
+    }
+    const result=await matchStore.leaderboard(category);
     res.writeHead(result.available?200:503,{
       'content-type':'application/json; charset=utf-8',
       'cache-control':'no-store','x-content-type-options':'nosniff'});
@@ -415,6 +420,8 @@ wss.on('connection',(ws,req)=>{
         room.engine.start();
         if(room.engine.status()==='countdown'&&previous!=='countdown'){
           room.started=true;
+          room.matchParticipants=new Map([...room.members.entries()].map(([slot,member])=>
+            [slot,{name:member.name}]));
           room.chatCountdown=null;
           syncCountdownChat(room);
           room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;room.matchAnnounced=false;room.progressLastFloor=0;room.unranked=false;
