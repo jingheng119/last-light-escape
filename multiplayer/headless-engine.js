@@ -46,6 +46,7 @@ const bridge=`
         extraPlayers[id-3].invincible=0;
         extraPlayers[id-3].phaseEchoCharge=0;
         extraPlayers[id-3].phaseEchoTime=0;
+        extraPlayers[id-3].phaseEchoGranted=false;
         extraPlayers[id-3].bondedOn=null;
         extraPlayers[id-3].dashTime=0;
         extraPlayers[id-3].dashCooldown=0;
@@ -94,6 +95,11 @@ const bridge=`
       const character=id===1?player:id===2?guestPlayer:extraPlayers[id-3];
       if(!character)return false;
       character.disconnected=false;
+      // A temporarily disconnected teammate receives the same rescue reward,
+      // but never recharges a Phase Echo that was already consumed.
+      if(echoAlly?.rescued&&character.hp>0&&!character.phaseEchoGranted){
+        character.phaseEchoCharge=1;character.phaseEchoGranted=true;
+      }
       // Do not heal or teleport a returning soul.
       character.dashTime=0;
       roomCount=allPlayers().length;
