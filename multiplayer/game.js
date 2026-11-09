@@ -3301,6 +3301,48 @@
     const clearSession=()=>sessionStorage.removeItem(SESSION_KEY);
     const nameForServer=()=>nicknameInput.value.trim().slice(0,20);
     const joinRequest=code=>sendRoom({type:'join',code,nickname:nameForServer()});
+    // Public ranking data is read-only; build DOM nodes with textContent so
+    // player-submitted nicknames can never render as HTML.
+    const loadLeaderboard=async()=>{
+      const root=$('#leaderboardEntries');
+      if(!root)return;
+      try{
+        const response=await fetch('/api/leaderboard',{cache:'no-store'});
+        if(!response.ok)throw Error('Records database unavailable');
+        const data=await response.json();
+        root.replaceChildren();
+        if(!Array.isArray(data.entries)||!data.entries.length){
+          const empty=document.createElement('p');empty.className='room-empty';
+          empty.textContent='No verified 27-floor victories yet. Your team could be first!';
+          root.appendChild(empty);return;
+        }
+        for(const entry of data.entries){
+          const row=document.createElement('div');row.className='leaderboard-entry';
+          const rank=document.createElement('strong');
+          rank.textContent='#'+String(entry.rank||'?');
+          const team=document.createElement('div');
+          const name=document.createElement('strong');
+          name.textContent=String(entry.roomName||'Survivors');
+          const details=document.createElement('span');
+          const players=Array.isArray(entry.players)?entry.players:[];
+          details.textContent=players.map(p=>String(p.nickname||'Survivor')).join(' · ');
+          team.append(name,details);
+          const time=document.createElement('b');
+          const seconds=Math.max(0,Math.floor(Number(entry.seconds)||0));
+          time.textContent=String(Math.floor(seconds/3600)).padStart(2,'0')+':'+
+            String(Math.floor(seconds/60)%60).padStart(2,'0')+':'+
+            String(seconds%60).padStart(2,'0');
+          row.append(rank,team,time);root.appendChild(row);
+        }
+      }catch{
+        root.replaceChildren();
+        const error=document.createElement('p');error.className='room-empty';
+        error.textContent='Rankings are unavailable until the results database is connected.';
+        root.appendChild(error);
+      }
+    };
+    $('#refreshLeaderboard')?.addEventListener('click',loadLeaderboard);
+    void loadLeaderboard();
     const renderRoster=players=>{
       savedPlayers=players;
       roomIdentity=new Map(players.map(person=>[person.id,person]));
