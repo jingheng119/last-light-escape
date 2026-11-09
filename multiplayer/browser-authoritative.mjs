@@ -220,13 +220,20 @@ try{
   assert.equal(markers.onscreen.length,0,'Visible teammate must have no edge marker');
   assert.equal(markers.dead.length,1,'Fallen offscreen soul remains trackable');
   assert.equal(markers.dead[0].dead,true);
+  // The game canvas grows to fit the viewport; do not assume the
+  // original 992x672 canvas dimensions when checking edge indicators.
+  const gameSize=await first.locator('#game').evaluate(el=>({width:el.width,height:el.height}));
   for(const m of markers.offscreen){
-    // Arrow centers sit 18px inside every viewport edge, with a tiny
-    // tolerance for floating point projection.
     const tolerance=.001;
-    assert(m.x>=-tolerance&&m.x<=992+tolerance&&
-      m.y>=-tolerance&&m.y<=672+tolerance,
-      'Teammate arrow must stay at the game-window border: '+JSON.stringify(m));
+    const left=18,right=gameSize.width-18,top=18,bottom=gameSize.height-18;
+    assert(m.x>=left-tolerance&&m.x<=right+tolerance&&
+      m.y>=top-tolerance&&m.y<=bottom+tolerance,
+      'Teammate arrow must stay inside the resized game canvas: '+JSON.stringify({marker:m,gameSize}));
+    const edgeCoordinate=m.edge==='left'?Math.abs(m.x-left):
+      m.edge==='right'?Math.abs(m.x-right):
+      m.edge==='top'?Math.abs(m.y-top):Math.abs(m.y-bottom);
+    assert(edgeCoordinate<=tolerance,
+      'Teammate arrow must be placed on its designated canvas edge: '+JSON.stringify({marker:m,gameSize}));
   }
   assert(await first.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
   assert(await second.locator('#overlay').evaluate(el=>el.classList.contains('hidden')));
