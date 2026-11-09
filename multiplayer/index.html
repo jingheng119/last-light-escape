@@ -101,6 +101,15 @@
           <p>Complete all 27 floors to enter the fastest-team rankings. Developer-skipped runs are unranked.</p></div>
           <button type="button" id="refreshLeaderboard">↻ Refresh rankings</button>
         </div>
+        <div class="profile-recovery">
+          <div><strong>PRIVATE SURVIVOR PROFILE</strong><p>Your recovery key restores progress on another device. Keep it private; anyone with the key can access this profile.</p></div>
+          <div class="profile-recovery-controls">
+            <input id="profileRecoveryKey" type="password" maxlength="64" autocomplete="off" spellcheck="false" aria-label="Private 64-character recovery key" placeholder="Private recovery key" />
+            <button type="button" id="copyProfileKey">Copy key</button>
+            <button type="button" id="restoreProfileKey">Restore key</button>
+          </div>
+          <p id="profileSyncStatus" role="status">Browser-only progress; connecting to cloud profile…</p>
+        </div>
         <div id="myProgress" class="my-progression" aria-live="polite">YOUR RECORD · No completed runs on this browser yet.</div>
         <div id="myAchievements" class="earned-achievements" aria-label="Your unlocked achievements"></div>
         <div class="progression-stages" aria-label="Progression milestones">
