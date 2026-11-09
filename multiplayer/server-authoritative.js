@@ -135,7 +135,7 @@ function createRoom(name){
   const room={code:makeCode(),name:safeRoomName(name),engine:createRoomEngine(),
     clients:new Map(),members:new Map(),spectators:new Set(),started:false,hostId:1,ticks:0,
     chatHistory:[],chatSerial:0,chatCountdown:null,
-    matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0};
+    matchId:randomUUID(),matchRecorded:false,matchRecording:false,matchRetryAt:0,unranked:false};
   rooms.set(room.code,room);
   let last=performance.now();
   room.timer=setInterval(()=>{
@@ -275,6 +275,13 @@ const server=http.createServer(async(req,res)=>{
     res.end(JSON.stringify({status:'ok',authority:'server',rooms:rooms.size,
       maxPlayers:MAX_PLAYERS,lobby:true}));return;
   }
+  if(pathname==='/api/leaderboard'&&req.method==='GET'){
+    const result=await matchStore.leaderboard();
+    res.writeHead(result.available?200:503,{
+      'content-type':'application/json; charset=utf-8',
+      'cache-control':'no-store','x-content-type-options':'nosniff'});
+    res.end(JSON.stringify(result));return;
+  }
   const file=FILE[pathname];
   if(!file){res.writeHead(404);res.end('Not found');return;}
   try{
@@ -346,13 +353,13 @@ wss.on('connection',(ws,req)=>{
           room.started=true;
           room.chatCountdown=null;
           syncCountdownChat(room);
-          room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;
+          room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;room.unranked=false;
         }
         publish(room,true);broadcastLobby();
       }
       else if(m.type==='next'){room.engine.next();publish(room,true);broadcastLobby();}
       else if(m.type==='restart'){room.engine.restart();publish(room,true);}
-      else if(m.type==='skip'){room.engine.skip(m.fullStage===true);publish(room,true);}
+      else if(m.type==='skip'){room.unranked=true;room.engine.skip(m.fullStage===true);publish(room,true);}
       else if(m.type==='pause'){room.engine.pause();publish(room,true);}
     }
   });
