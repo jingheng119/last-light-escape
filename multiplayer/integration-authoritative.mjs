@@ -80,6 +80,13 @@ try{
       m.snapshot.players?.filter(Boolean).length===id);
     assert.equal(current.snapshot.players.filter(Boolean).length,id);
   }
+  // Symbiote must be accepted through the real WebSocket role protocol,
+  // not just by the headless engine's direct role-selection method.
+  fifthPlayer.send(JSON.stringify({type:'role',role:'symbiote'}));
+  const symbioteRoster=await waitFor(one,m=>m.type==='roster'&&
+    m.players?.find(p=>p.id===5)?.role==='symbiote');
+  assert.equal(symbioteRoster.players.find(p=>p.id===5).role,'symbiote');
+
   // The waiting lobby is genuinely capped at five player slots.
   const overflowBeforeStart=await open();
   overflowBeforeStart.send(JSON.stringify({type:'join',code:joined.code}));
@@ -129,6 +136,16 @@ try{
   assert.equal(fifthResumed.id,5);
   const fifthAfter=await waitFor(fifthBack,m=>m.type==='snapshot'&&m.snapshot.players?.[4]);
   assert.equal(fifthAfter.snapshot.players[4].hp,fifthBefore.players[4].hp);
+  assert.equal(fifthAfter.snapshot.playerRoles[4],'symbiote',
+    'Symbiote role survives a network disconnect');
+  assert(fifthBefore.players[4].dashCooldown>0,
+    'Fifth player should have a running dash cooldown before disconnect');
+  assert(fifthAfter.snapshot.players[4].dashCooldown>0,
+    'Reconnect cannot reset the running dash cooldown');
+  assert(fifthAfter.snapshot.players[4].dashCooldown<=fifthBefore.players[4].dashCooldown,
+    'Reconnection cannot increase the remaining dash cooldown');
+  assert.equal(fifthAfter.snapshot.players[4].abilityCharges,fifthBefore.players[4].abilityCharges,
+    'Reconnection must preserve remaining Symbiote skill charges');
   assert.equal(fifthAfter.snapshot.players[4].x,fifthBefore.players[4].x);
   assert.equal(fifthAfter.snapshot.playerRoles[4],fifthBefore.playerRoles[4]);
   const beforeDisconnect=wsMessages.get(two).filter(m=>m.type==='snapshot').at(-1).snapshot;
@@ -154,6 +171,10 @@ try{
   assert.equal(restored.snapshot.state,'playing');
   assert.equal(restored.snapshot.playerRoles[0],hostRole);
   assert.equal(restored.snapshot.players[0].hp,originalHost.hp,'Preserve hearts on resume');
+  assert.equal(restored.snapshot.players[0].abilityCharges,originalHost.abilityCharges,
+    'Host reconnection must preserve ability charges');
+  assert(restored.snapshot.players[0].dashCooldown<=originalHost.dashCooldown,
+    'Host reconnection cannot reset or lengthen dash cooldown');
   assert.equal(restored.snapshot.players[0].x,originalHost.x,'Preserve x coordinate');
   assert.equal(restored.snapshot.players[0].y,originalHost.y,'Preserve y coordinate');
   const replay=await open();
