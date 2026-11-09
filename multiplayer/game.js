@@ -64,7 +64,7 @@
     });
   }
   let state = 'menu', levelIndex = 0, grid, cells, player, cores, relay, exit, hollows, decoys, particles = [];
-  let roomTiles = new Set(), noiseEvents = [], illusions = [], survivor = null, technician = null;
+  let roomTiles = new Set(), noiseEvents = [], illusions = [], survivor = null, technician = null, echoAlly = null;
   // Slots 3–5 are simulated on the server, with the same original rules.
   // Browser snapshots use remotePlayers to render every teammate.
   let extraPlayers=[null,null,null],remotePlayers=[],roomPlayerId=0;
@@ -213,8 +213,9 @@
       if(hitWall)player.dashTime=0;
     }else if(vx||vy){
       const touchSteering=Math.hypot(joystickMove.x,joystickMove.y)>.08;
-      moveEntity(player,vx*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.bondedOn===player.slot)?BOND_WALK_MULTIPLIER:1)*dt,
-        vy*3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.bondedOn===player.slot)?BOND_WALK_MULTIPLIER:1)*dt,touchSteering?.18:.21,.30);
+      const speed=3.5*(allPlayers().some(p=>p.hp>0&&!p.disconnected&&p.bondedOn===player.slot)?BOND_WALK_MULTIPLIER:1)*dt;
+      if(player.phaseEchoTime>0)movePhaseEcho(player,vx*speed,vy*speed);
+      else moveEntity(player,vx*speed,vy*speed,touchSteering?.18:.21,.30);
     }
   }
   function guestAction(name,touch=false,target=null){
@@ -330,7 +331,7 @@
   const validRole=role=>Object.hasOwn(ROLE_DETAILS,role)?role:'scout';
   const TECHNICIAN_COOLDOWN_FACTOR=.70;
   const cooldownFactor=()=>technician?.rescued?TECHNICIAN_COOLDOWN_FACTOR:1;
-  const alliesReady=()=>survivor.rescued&&dist(survivor,exit)<2.0&&(!technician||(technician.rescued&&dist(technician,exit)<2.0));
+  const alliesReady=()=>survivor.rescued&&dist(survivor,exit)<2.0&&(!technician||(technician.rescued&&dist(technician,exit)<2.0))&&(!echoAlly||(echoAlly.rescued&&dist(echoAlly,exit)<2.0));
   // A room with one player has one exit requirement; a room with two
   // players requires BOTH survivors to reach the elevator together.
   // All living players must reach the elevator; a downed player spectates.
@@ -511,7 +512,12 @@
       const techSpot=selectSpot(reserved,13,distances,false);reserved.push(techSpot);
       technician={...TILE_CENTER(techSpot.x,techSpot.y),variant:'technician',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
     }
-    player={slot:1,bondedOn:null,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,abilityCharges:SKILL_MAX_CHARGES[classChoice],anchor:null};
+    echoAlly=null;
+    if(cfg.stage===3){
+      const echoSpot=selectSpot(reserved,13,distances,false);reserved.push(echoSpot);
+      echoAlly={...TILE_CENTER(echoSpot.x,echoSpot.y),variant:'echo',rescued:false,extracted:false,followPath:[],followIndex:0,repath:0};
+    }
+    player={slot:1,bondedOn:null,...TILE_CENTER(1,1),hp:hostDisconnected?0:carriedHealth,disconnected:hostDisconnected,invincible:0,phaseEchoCharge:0,phaseEchoTime:0,dashCooldown:0,dashTime:0,dashDir:{x:1,y:0},decoys:3,decoyCooldown:0,facing:{x:1,y:0},trail:[],abilityCooldown:0,abilityCharges:SKILL_MAX_CHARGES[classChoice],anchor:null};
     if(roomRole==='host'&&guestPlayer){newGuest();guestPlayer.hp=guestCarriedHealth;}
     for(let i=0;i<3;i++){
       if(extraActive[i]){
@@ -1080,7 +1086,7 @@
       noiseEvents.push({x:player.x,y:player.y,radius:8,expires:clock+.45});
     beep(220,.17,'sawtooth',.019);updateUI();
   }
-  function interact(){if(roomRole!=='none'&&(player?.hp<=0||player?.bondedOn||player?.ghostTrapped>0))return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0||player.bondedOn||player.ghostTrapped>0)return;
+  function interact(){if(roomRole!=='none'&&(player?.hp<=0||player?.bondedOn||player?.ghostTrapped>0||player?.phaseEchoTime>0))return;if(guestAction('interact'))return;if(state!=='playing'||player.hp<=0||player.bondedOn||player.ghostTrapped>0||player.phaseEchoTime>0)return;
     // Teammates free Ghost-trapped survivors with USE / E at close range.
     const trapped=allPlayers().filter(p=>p!==player&&p.hp>0&&p.ghostTrapped>0&&
       !p.disconnected&&dist(p,player)<=1.5)
@@ -1101,10 +1107,16 @@
       notify('TECHNICIAN RESCUED — ALL COOLDOWNS 30% FASTER!',2.3);
       beep(970,.24);updateUI();return;
     }
+    if(echoAlly&&!echoAlly.rescued&&dist(player,echoAlly)<1.5){
+      echoAlly.rescued=true;echoAlly.repath=0;
+      for(const teammate of allPlayers())if(teammate.hp>0)teammate.phaseEchoCharge=1;
+      notify('ECHO RESCUED — EVERY SURVIVOR GAINS ONE PHASE ECHO!',3);
+      beep(1160,.26);updateUI();return;
+    }
     if(dist(player,relay)<1.55){if(!relay.active){relay.active=true;notify('Relay activated! Emergency elevator online if all cores are found.');beep(740,.21);beep(920,.23);}else notify('Relay already active.');updateUI();return;}
     if(dist(player,exit)<1.45){
       if(cores.every(c=>c.collected)&&relay.active&&alliesReady()&&playersAtExit())completeLevel();
-      else notify(!survivor.rescued?'RESCUE THE SURVIVOR FIRST':technician&&!technician.rescued?'RESCUE THE TECHNICIAN FIRST':!alliesReady()?'WAIT FOR BOTH ALLIES':!cores.every(c=>c.collected)||!relay.active?'ELEVATOR LOCKED — collect cores and activate the relay.':'WAIT FOR YOUR TEAMMATE AT THE ELEVATOR');
+      else notify(!survivor.rescued?'RESCUE THE SURVIVOR FIRST':technician&&!technician.rescued?'RESCUE THE TECHNICIAN FIRST':echoAlly&&!echoAlly.rescued?'RESCUE THE ECHO FIRST':!alliesReady()?'WAIT FOR ALL ALLIES':!cores.every(c=>c.collected)||!relay.active?'ELEVATOR LOCKED — collect cores and activate the relay.':'WAIT FOR YOUR TEAMMATE AT THE ELEVATOR');
       return;
     }
     notify('Get closer to an ally, relay, or elevator.');
@@ -1438,7 +1450,7 @@
       else{const speed=Math.min(3.1*dt,d);moveEntity(ally,(stepTo.x-ally.x)/d*speed,(stepTo.y-ally.y)/d*speed,.22);}
     }
   }
-  function updateSurvivor(dt){followAlly(survivor,dt);followAlly(technician,dt);}
+  function updateSurvivor(dt){followAlly(survivor,dt);followAlly(technician,dt);followAlly(echoAlly,dt);}
   function completeLevel(){
     beep(950,.4,'sine',.06);beep(1180,.48,'sine',.03);
     if(levelIndex===CONFIGS.length-1){state='victory';if(!developerSkipped&&(best===0||overallElapsed<best)){best=overallElapsed;try{localStorage.setItem('last-light-best',String(best));}catch(e){}}setOverlay('YOU FOUND THE LIGHT',`All ${CONFIGS.length} floors escaped in ${formatTime(overallElapsed)}. The elevator doors close behind you. Best escape: ${formatTime(best)}.`,'PLAY AGAIN','THE WARD WILL BE WAITING');}
@@ -1586,7 +1598,7 @@
       dist(b,origin)-dist(a,origin));
     return candidates[0]||{x:origin.x,y:origin.y};
   }
-  function damage(){if(player.hp<=0||player.disconnected||player.bondedOn||player.invincible>0||player.dashTime>0||state!=='playing')return;
+  function damage(){if(player.hp<=0||player.disconnected||player.bondedOn||player.invincible>0||player.phaseEchoTime>0||player.dashTime>0||state!=='playing')return;
     if(player.phaseGuardTime>0){
       player.phaseGuardTime=0;
       const from={x:player.x,y:player.y};
@@ -1602,6 +1614,14 @@
       beep(1320,.23,'triangle',.035);
       updateUI();
       return;
+    }
+    if(player.phaseEchoCharge>0){
+      player.phaseEchoCharge=0;player.phaseEchoTime=5;
+      player.dashTime=0;player.ghostTrapped=0;
+      // Damage is negated: hearts remain unchanged for the whole transformation.
+      notify('PHASE ECHO — 5 SECONDS OF GHOST FORM!',3);
+      skillWaves.push({x:player.x,y:player.y,radius:1.6,age:0,duration:.65,color:'teleporter'});
+      beep(1180,.3,'triangle',.034);updateUI();return;
     }
     // Losing even one heart sends the carrier to spawn. Release the attached
     // Symbiote at the impact position before that happens, including final death.
@@ -1629,6 +1649,24 @@
     }
     updateUI();
   }
+  // Restore a phasing player to open space before solid collisions resume.
+  function finishPhaseEcho(p){
+    if(canStand(p.x,p.y,.21))return;
+    const origin={x:Math.floor(p.x),y:Math.floor(p.y)};
+    const cells=[];
+    for(let y=1;y<ROWS-1;y++)for(let x=1;x<COLS-1;x++){
+      if(!floorAt(x,y))continue;
+      const point=TILE_CENTER(x,y);
+      if(canStand(point.x,point.y,.21))cells.push(point);
+    }
+    cells.sort((a,b)=>Math.hypot(a.x-p.x,a.y-p.y)-Math.hypot(b.x-p.x,b.y-p.y));
+    const destination=cells[0]||TILE_CENTER(1,1);
+    p.x=destination.x;p.y=destination.y;
+  }
+  function movePhaseEcho(p,dx,dy){
+    p.x=clamp(p.x+dx,.5,COLS-.5);
+    p.y=clamp(p.y+dy,.5,ROWS-.5);
+  }
   function updatePlayer(dt){
     if(player.hp<=0||player.disconnected)return;
     if(player.ghostTrapped>0){
@@ -1640,6 +1678,14 @@
       }
       recordRewindPosition(player);
       return;
+    }
+    if(player.phaseEchoTime>0){
+      player.phaseEchoTime=Math.max(0,player.phaseEchoTime-dt);
+      if(player.phaseEchoTime===0){
+        finishPhaseEcho(player);
+        player.invincible=Math.max(player.invincible,.6);
+        notify('PHASE ECHO ENDED — HUMAN FORM RESTORED',2);
+      }
     }
     player.invincible=Math.max(0,player.invincible-dt);player.dashCooldown=Math.max(0,player.dashCooldown-dt);
     // Recharge one charge at a time, preserving elapsed progress if a large
@@ -1673,8 +1719,10 @@
       player.dashTime=Math.max(0,player.dashTime-dt);
       const touchDash=Math.hypot(joystickMove.x,joystickMove.y)>.08;
       const beforeX=player.x,beforeY=player.y;
-      const hitWall=moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,
-        player.dashTouch||touchDash?.18:.21,.32);
+      const hitWall=player.phaseEchoTime>0
+        ?(movePhaseEcho(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt),false)
+        :moveEntity(player,player.dashDir.x*9*dt,player.dashDir.y*9*dt,
+          player.dashTouch||touchDash?.18:.21,.32);
       // When dashing diagonally into a wall, the open axis should keep
       // moving along the wall. Stop only when both axes are blocked.
       // Straight-on wall collisions still end the dash immediately.
@@ -1692,10 +1740,10 @@
     }
     player.trail=player.trail.filter(p=>(p.life-=dt)>0);
     recordRewindPosition(player);
-    for(const c of cores)if(!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
+    for(const c of cores)if(player.phaseEchoTime<=0&&!c.collected&&dist(player,c)<.58){c.collected=true;notify('POWER CORE RECOVERED');beep(660,.17);setTimeout(()=>beep(990,.19),90);updateUI();}
   }
   function checkGhostContact(){
-    if(state!=='playing'||player.hp<=0||player.disconnected||player.bondedOn||player.ghostTrapped>0)return;
+    if(state!=='playing'||player.hp<=0||player.disconnected||player.bondedOn||player.ghostTrapped>0||player.phaseEchoTime>0)return;
     // A phasing Ghost can freeze even an invincible or dashing survivor.
     // There is no Ghost retrapping grace after teammate rescue.
     const ghost=hollows.find(h=>h.variant==='ghost'&&dist(player,h)<.80);
@@ -1760,7 +1808,7 @@
       const phantom=illusions.filter(i=>dist(h,i)<=8)
         .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
       // Ignore downed or invisible survivors as regular chase targets.
-      const nearest=allPlayers().filter(p=>p.hp>0&&!p.bondedOn&&!(p.invisibleTime>0)&&!(p.ghostTrapped>0))
+      const nearest=allPlayers().filter(p=>p.hp>0&&!p.bondedOn&&!(p.invisibleTime>0)&&!(p.ghostTrapped>0)&&!(p.phaseEchoTime>0))
         .sort((a,b)=>dist(h,a)-dist(h,b))[0]||null;
       if(!phantom&&h.mode==='illusion'){
         h.mode='search';h.target=null;h.path=[];h.pathIndex=0;
@@ -1935,12 +1983,13 @@
     ui.relay.textContent=relay.active?'ACTIVE':'OFFLINE';ui.relay.style.color=relay.active?'#78e8bc':'#d6f4ee';
     ui.decoys.textContent=`DECOYS × ${player.decoys}`;ui.timer.textContent=formatTime(elapsed);
     ui.classStatus.textContent=ROLE_DETAILS[classChoice].label;
-    ui.survivorStatus.textContent=technician
-      ?`${Number(survivor.rescued)+Number(technician.rescued)} / 2 ALLIES`
+    ui.survivorStatus.textContent=echoAlly
+      ?`${Number(survivor.rescued)+Number(technician.rescued)+Number(echoAlly.rescued)} / 3 ALLIES`
+      :technician?`${Number(survivor.rescued)+Number(technician.rescued)} / 2 ALLIES`
       :(survivor.rescued?'FOLLOWING':'TRAPPED');
     // Glow the entire Objectives group only after every mission goal has
     // been completed. Stage 2 requires both rescued allies.
-    const allAlliesRescued=!!survivor?.rescued&&(!technician||!!technician.rescued);
+    const allAlliesRescued=!!survivor?.rescued&&(!technician||!!technician.rescued)&&(!echoAlly||!!echoAlly.rescued);
     const allCoresCollected=cores.length>0&&cores.every(core=>core.collected);
     const objectivesComplete=allAlliesRescued&&allCoresCollected&&!!relay.active;
     $('#objectivesPanel').classList.toggle('all-complete',objectivesComplete);
@@ -1949,7 +1998,7 @@
     $('.side-objectives').classList.toggle('all-objectives-complete',objectivesComplete);
     const available=skillCharges();
     const maximum=maxSkillCharges();
-    ui.abilityStatus.textContent=player.ghostTrapped>0?'GHOST CURSE · '+Math.ceil(player.ghostTrapped)+'s LEFT':player.bondedOn?'BONDED TO TEAMMATE '+player.bondedOn+' · F TO EMERGE':
+    ui.abilityStatus.textContent=player.phaseEchoTime>0?'PHASE ECHO · '+Math.ceil(player.phaseEchoTime)+'s LEFT':player.phaseEchoCharge>0?'PHASE ECHO READY · ONE AUTO-SAVE':player.ghostTrapped>0?'GHOST CURSE · '+Math.ceil(player.ghostTrapped)+'s LEFT':player.bondedOn?'BONDED TO TEAMMATE '+player.bondedOn+' · F TO EMERGE':
       bondTargeting&&classChoice==='symbiote'?'SELECT TEAMMATE · TAB / F':
       rewindTargeting&&classChoice==='rewinder'?'SELECT TARGET · TAB / F':
       anchorTargeting&&classChoice==='anchor'?'MARK ANCHOR · TAB / F':
@@ -2154,6 +2203,12 @@
       ctx.fillStyle=technician.rescued?'#a5fcb0':'#ffe182';ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fill();
       ctx.fillStyle='#15372d';ctx.fillRect(x-6,y-2,12,4);ctx.fillRect(x-2,y-6,4,12);
     }
+    if(echoAlly){const x=echoAlly.x*TILE,y=echoAlly.y*TILE;
+      halo(x,y,62,echoAlly.rescued?'#80a9ff40':'#a78bfa35');
+      ctx.strokeStyle='#9fb7ff';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle=echoAlly.rescued?'#93dfff':'#c4afff';ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill();
+      ctx.font='bold 9px monospace';ctx.textAlign='center';ctx.fillText(echoAlly.rescued?'ECHO':'HELP',x,y-20);
+    }
     for(const d of decoys){const x=d.x*TILE,y=d.y*TILE,rad=(d.age*50)%80;ctx.strokeStyle=`rgba(244,191,101,${Math.min(.7,d.life/5)})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,rad,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(x,y,Math.max(0,rad-24),0,Math.PI*2);ctx.stroke();diamond(x,y,7,'#ffd179');}
   }
   function drawAnchors(){
@@ -2236,7 +2291,8 @@
     const color=colorForPlayer(roomPlayerId);
     if(flicker)return;
     ctx.save();
-    ctx.globalAlpha=Math.min(player.invisibleTime>0?.28:1,ghostFadeOpacity(player));
+    ctx.globalAlpha=player.phaseEchoTime>0?.36:Math.min(player.invisibleTime>0?.28:1,ghostFadeOpacity(player));
+    if(player.phaseEchoTime>0){ctx.strokeStyle='#9bd8ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,19+Math.sin(clock*9)*2,0,Math.PI*2);ctx.stroke();}
     if(player.phaseGuardTime>0){
       ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
       ctx.beginPath();ctx.arc(x,y,18+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
@@ -2281,7 +2337,8 @@
       if(teammate.bondedOn)continue;
       const x=teammate.x*TILE,y=teammate.y*TILE,color=colorForPlayer(teammate.slot);
       ctx.save();
-      ctx.globalAlpha=Math.min(teammate.invisibleTime>0?.28:1,ghostFadeOpacity(teammate));
+      ctx.globalAlpha=teammate.phaseEchoTime>0?.36:Math.min(teammate.invisibleTime>0?.28:1,ghostFadeOpacity(teammate));
+      if(teammate.phaseEchoTime>0){ctx.strokeStyle='#9bd8ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(x,y,18+Math.sin(clock*9)*2,0,Math.PI*2);ctx.stroke();}
       if(teammate.phaseGuardTime>0){
         ctx.strokeStyle='#a1baff';ctx.lineWidth=2.5;
         ctx.beginPath();ctx.arc(x,y,17+Math.sin(clock*10)*1.5,0,Math.PI*2);ctx.stroke();
@@ -3066,7 +3123,7 @@
     illusions=Array.isArray(d.illusions)?d.illusions:[];
     decoys=d.decoys;
     noiseEvents=Array.isArray(d.noiseEvents)?d.noiseEvents:[];
-    skillWaves=d.skillWaves||[];survivor=d.survivor;technician=d.technician;
+    skillWaves=d.skillWaves||[];survivor=d.survivor;technician=d.technician;echoAlly=d.echoAlly||null;
     elapsed=d.elapsed;overallElapsed=d.overallElapsed;clock=d.clock;alertLevel=d.alertLevel;
     state=d.state;
     if(state==='countdown'){
