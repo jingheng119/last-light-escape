@@ -657,4 +657,79 @@ assert.equal(duet.snapshot(false).guestPlayer.hp,0);
 for(let hit=0;hit<3;hit++)duet.testHit(1);
 assert.equal(duet.snapshot(false).state,'dead','Only end when all connected players are down');
 
+
+// Stability regression: newcomers must not inherit host buffs, cooldowns or
+// depleted consumables, even if they join while a run is active.
+{
+  const room=createRoomEngine();
+  room.role(1,'teleporter');
+  room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  const host=room.snapshot(false).players[0];
+  // The host is intentionally in an unusual state at the join boundary.
+  host.hp=1;
+  host.dashCooldown=2.1;
+  host.decoys=0;
+  host.decoyCooldown=1.2;
+  host.abilityCooldown=9.5;
+  host.abilityCharges=0;
+  host.invincible=7;
+  host.phaseGuardTime=4;
+  host.invisibleTime=2;
+  host.ghostTrapped=10;
+  host.reviveProgress=3;
+  host.anchor={x:2.5,y:2.5};
+  host.bondedOn=2;
+  for(let slot=2;slot<=5;slot++)room.join(slot);
+  const state=room.snapshot(false);
+  assert.equal(state.players[0].hp,1,'Late joins must not heal the host');
+  assert.equal(state.players[0].dashCooldown,2.1,'Late joins must not reset host cooldown');
+  for(let slot=2;slot<=5;slot++){
+    const newcomer=state.players[slot-1];
+    assert.equal(newcomer.slot,slot,'Newcomer must own their own player slot');
+    assert.equal(newcomer.hp,3,'Newcomer must start with three hearts');
+    assert.equal(newcomer.invincible,0,'Newcomer must not inherit host invincibility');
+    assert.equal(newcomer.dashCooldown,0,'Newcomer must not inherit host dash cooldown');
+    assert.equal(newcomer.decoys,3,'Newcomer must start with three decoys');
+    assert.equal(newcomer.decoyCooldown,0,'Newcomer must not inherit host decoy cooldown');
+    assert.equal(newcomer.abilityCooldown,0,'Newcomer must not inherit host skill cooldown');
+    assert.equal(newcomer.abilityCharges,1,'Newcomer must get their own starting skill charge');
+    assert.equal(newcomer.phaseGuardTime,0,'Newcomer must not inherit Phase Guard');
+    assert.equal(newcomer.invisibleTime,0,'Newcomer must not inherit invisibility');
+    assert.equal(newcomer.ghostTrapped,0,'Newcomer must not inherit a Ghost curse');
+    assert.equal(newcomer.bondedOn,null,'Newcomer must not spawn attached to another player');
+    assert.equal(newcomer.anchor,null,'Newcomer must not inherit an Anchor');
+  }
+}
+
+// Stability regression: suspended players keep their character state but
+// cannot remain visible or move using stale network input.
+{
+  const room=createRoomEngine();
+  room.join(2);
+  room.role(2,'symbiote');
+  room.start();
+  for(let i=0;i<155;i++)room.tick(.033);
+  const before=room.snapshot(false).players[1];
+  before.hp=2;
+  before.dashCooldown=2;
+  before.abilityCharges=0;
+  before.abilityCooldown=8;
+  const position={x:before.x,y:before.y};
+  room.input(2,{right:true},{x:0,y:0});
+  room.suspend(2);
+  assert.equal(room.snapshot(false).players[1],null,'Suspended player must disappear from active snapshots');
+  for(let i=0;i<6;i++)room.tick(.033);
+  assert.deepEqual({x:before.x,y:before.y},position,'Suspended player cannot move on stale input');
+  assert(room.resume(2),'Reserved player slot can resume');
+  const restored=room.snapshot(false);
+  assert.equal(restored.playerRoles[1],'symbiote','Resume must preserve Symbiote role');
+  assert.equal(restored.players[1].hp,2,'Resume must preserve hearts');
+  assert.equal(restored.players[1].abilityCharges,0,'Resume must preserve spent skill charges');
+  assert(restored.players[1].abilityCooldown>0,'Resume must not clear skill cooldown');
+  assert.equal(restored.players[1].dashCooldown,2,'Suspended player dash cooldown must not reset');
+  assert.deepEqual({x:restored.players[1].x,y:restored.players[1].y},position,
+    'Resume must retain the original position');
+}
+
 console.log('PASS: original game simulation runs server-side through Stage 3, with five independent players and correct co-op death conditions.');
