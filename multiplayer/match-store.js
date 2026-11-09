@@ -98,7 +98,7 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
   return {
     get enabled(){return enabled;},
     async save(result){
-      if(!enabled||!result)return false;
+      if(!enabled||!result||result.isDeveloperRun===true)return false;
       try{
         const db=await ensure();
         await db.query(
