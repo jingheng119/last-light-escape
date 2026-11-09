@@ -657,7 +657,7 @@
     beep(frequency,number===1?.32:.16,number===1?'triangle':'sine',
       number===1?.065:.045);
   }
-  // Stage I retains its original procedural soundscape. Stage II uses a
+  // Stage I has The Hollow Ward original ambient score. Stage II uses a
   // browser-synthesized arrangement of the original Gentle Clockwork demo:
   // Cmaj7–Fmaj9–Am7–G6, 108 BPM, warm pads, soft keys and chimes.
   // Music starts only after the player explicitly starts/resumes the game.
@@ -814,6 +814,66 @@
     if(bar%4===2)
       signalVoice(38,t+beat*3.02,beat*.28,.012,'heartbeat',0);
   }
+  // Stage I: THE HOLLOW WARD — original abandoned-maze ambient theme.
+  // 88 BPM, A minor / suspended harmony; 16 bars (about 43.6 seconds).
+  // Rounded lower drones, distant glass echoes and a sparse wandering motif.
+  const WARD_CHORDS=[
+    [45,52,57,64],[41,48,52,59],[43,50,57,64],[40,47,52,59],
+    [45,52,59,64],[41,48,55,60],[43,50,55,62],[40,47,52,57]
+  ];
+  const WARD_ECHO=[76,72,79,74,76,71,69,72,81,76,74,71,72,69,67,64];
+  function wardVoice(midi,at,duration,volume,kind,pan=0){
+    if(!musicBus)return;
+    const hz=440*Math.pow(2,(midi-69)/12),end=at+duration;
+    const env=audioCtx.createGain();
+    const panner=typeof audioCtx.createStereoPanner==='function'?
+      audioCtx.createStereoPanner():null;
+    if(panner){panner.pan.value=pan;env.connect(panner);panner.connect(musicBus);}
+    else env.connect(musicBus);
+    const attack=kind==='air'?Math.min(.75,duration*.22):
+      kind==='ground'?Math.min(.36,duration*.15):.018;
+    env.gain.setValueAtTime(.0001,at);
+    env.gain.linearRampToValueAtTime(volume,at+attack);
+    if(kind==='air'||kind==='ground'){
+      env.gain.setValueAtTime(volume,Math.max(at+attack,end-.65));
+      env.gain.linearRampToValueAtTime(.0001,end);
+    }else env.gain.exponentialRampToValueAtTime(.0001,end);
+    const partials=kind==='air'?[1,1.003,2.01]:
+      kind==='ground'?[1,2,3.01]:kind==='echo'?[1,2.005,4.01]:[1,2];
+    const levels=kind==='air'?[1,.24,.09]:
+      kind==='ground'?[1,.19,.07]:kind==='echo'?[1,.24,.065]:[1,.10];
+    const filter=audioCtx.createBiquadFilter();filter.type='lowpass';
+    filter.frequency.value=kind==='air'?1250:kind==='ground'?540:
+      kind==='echo'?2450:920;
+    filter.connect(env);
+    for(let i=0;i<partials.length;i++){
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type=kind==='step'?'triangle':'sine';
+      o.frequency.setValueAtTime(hz*partials[i],at);
+      g.gain.value=levels[i];o.connect(g).connect(filter);
+      o.start(at);o.stop(end+.025);
+    }
+  }
+  function scheduleWardBar(t,beat,bar){
+    const chord=WARD_CHORDS[Math.floor(bar/2)%WARD_CHORDS.length];
+    const side=bar%2===0?-.32:.32;
+    // Air against old brick, fading harmonic traces, no dominant beat.
+    wardVoice(chord[0]-12,t,beat*4,.025,'ground',-.12);
+    wardVoice(chord[1],t,beat*3.9,.011,'air',side);
+    wardVoice(chord[2],t+beat*.1,beat*3.6,.007,'air',-side);
+    if(bar%2===0)wardVoice(chord[3],t+beat*.65,beat*2.8,.006,'air',.25);
+    // A short, recognizable signal, with a quieter reflection in the corridor.
+    if(bar%4!==3){
+      const note=WARD_ECHO[bar%WARD_ECHO.length];
+      const offset=bar%2===0?1.15:2.15;
+      wardVoice(note,t+beat*offset,beat*1.75,.029,'echo',side);
+      wardVoice(note-12,t+beat*(offset+.36),beat*1.75,.010,'echo',-side);
+    }
+    if(bar%4===0||bar%4===2)
+      wardVoice(45,t+beat*.1,beat*.38,.015,'step',0);
+    if(bar%8===6)
+      wardVoice(48,t+beat*3.0,beat*.26,.010,'step',.18);
+  }
   function updateMusic(){
     if(!soundEnabled||state!=='playing'||!player){
       stopMusic();return;
@@ -836,6 +896,12 @@
       let scheduled=0;
       while(musicNextAt<audioCtx.currentTime+.12&&scheduled++<3){
         const beat=stage===3?60/80:stage===2?60/108:score.beat,step=musicStep++,t=musicNextAt;
+        if(stage===1){
+          // The Hollow Ward: sixteen-bar, 88 BPM ambient loop.
+          if(step%8===0)scheduleWardBar(t,beat,Math.floor(step/8)%16);
+          musicNextAt+=beat*.5;
+          continue;
+        }
         if(stage===3){
           // Sixteen bars at 80 BPM, naturally repeating every 48 seconds.
           if(step%8===0)scheduleSignalBar(t,beat,Math.floor(step/8)%16);
