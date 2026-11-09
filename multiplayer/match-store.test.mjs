@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {makeMatchStore,buildMatchResult,achievementsForResult} from './match-store.js';
+import {makeMatchStore,buildMatchResult,achievementsForResult,buildFloorProgress} from './match-store.js';
 
 const mockRoom={
   matchId:'match-123',name:'The Ward',unranked:false,
@@ -40,6 +40,24 @@ const skipped=buildMatchResult(mockRoom);
 assert.equal(skipped.competitive,false,'Developer skip must never qualify for ranking');
 assert.deepEqual(skipped.achievements,[],'Developer skip cannot earn achievements');
 assert.deepEqual(achievementsForResult({...result,competitive:false}),[]);
+// Floor-by-floor progression survives runs that never reach the ending.
+const progressRoom={
+  unranked:false,
+  engine:{snapshot:()=>({state:'leveldone',levelIndex:8})}
+};
+assert.deepEqual(buildFloorProgress(progressRoom).achievements.map(a=>a.id),['ward']);
+progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:17});
+assert.deepEqual(buildFloorProgress(progressRoom).achievements.map(a=>a.id),['engine']);
+progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:10});
+assert.deepEqual(buildFloorProgress(progressRoom).achievements,[]);
+progressRoom.unranked=true;
+progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:8});
+assert.equal(buildFloorProgress(progressRoom).eligible,false);
+assert.deepEqual(buildFloorProgress(progressRoom).achievements,[]);
+progressRoom.engine.snapshot=()=>({state:'playing',levelIndex:8});
+assert.equal(buildFloorProgress(progressRoom),null);
+progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:26});
+assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a victory, not leveldone');
 const queries=[];
 let ended=false;
 const fakePool=class {
