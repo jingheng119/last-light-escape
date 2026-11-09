@@ -153,6 +153,17 @@ const bridge=`
       player.x=original.x;player.y=original.y;
       return echoAlly.rescued;
     },
+    testApproachWall(id){
+      const character=id===1?player:id===2?guestPlayer:extraPlayers[id-3];
+      if(!character)return null;
+      for(let y=2;y<ROWS-2;y++)for(let x=2;x<COLS-2;x++){
+        if(!floorAt(x,y)||floorAt(x+1,y))continue;
+        character.x=x+.5;character.y=y+.5;
+        character.dashTime=0;character.ghostTrapped=0;
+        return {x,y,wallX:x+1};
+      }
+      return null;
+    },
     testPhaseInsideWall(id){
       const character=id===1?player:id===2?guestPlayer:extraPlayers[id-3];
       if(!character||character.phaseEchoTime<=0)return false;
