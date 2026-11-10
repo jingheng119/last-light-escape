@@ -2839,3 +2839,26 @@ body.show-play .game-shell .room-chat .chat-form button{
   .achievement-unlock-card{padding:12px 15px}
   .achievement-unlock-icon{height:45px;width:45px}}
 @media(prefers-reduced-motion:reduce){.achievement-unlock-card{animation:none}}
+
+
+/* v4.24: restore desktop lobby scrolling.
+   The full-viewport game rules above intentionally disable scrolling during
+   play, but that same restriction clipped the longer lobby on desktop. */
+@media (min-width:981px) and (pointer:fine) {
+  html:has(body.show-lobby),
+  body.show-lobby {
+    height:auto;
+    min-height:100%;
+    overflow-x:hidden;
+    overflow-y:auto!important;
+  }
+  body.show-lobby .shell {
+    height:auto;
+    min-height:100vh;
+    min-height:100dvh;
+    overflow:visible;
+  }
+  body.show-lobby .intro {
+    display:flex;
+  }
+}
