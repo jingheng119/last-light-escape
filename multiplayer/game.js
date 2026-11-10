@@ -7,6 +7,7 @@
   // Responsive client viewport; world coordinates and tile dimensions stay
   // constant so resizing never stretches the maze or changes collision.
   const TILE=32;
+  const MAX_HEARTS=9;
   let W=992,H=672;
   let COLS=31,ROWS=21;
   const STAGE_ONE_FLOORS=9,STAGE_TWO_SIZE={cols:41,rows:31},STAGE_THREE_SIZE={cols:51,rows:41};
@@ -155,7 +156,7 @@
       gameStatus.style.color=status.style.color;
     }
   }
-  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=3;guestPlayer.invincible=0;guestPlayer.phaseEchoCharge=0;guestPlayer.phaseEchoTime=0;guestPlayer.phaseEchoGranted=false;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.abilityUseSerial=0;guestPlayer.phaseGuardTime=0;guestPlayer.invisibleTime=0;guestPlayer.ghostTrapped=0;guestPlayer.reviveProgress=0;guestPlayer.anchor=null;guestPlayer.bondedOn=null;guestPlayer.trail=[];}
+  function newGuest(){guestPlayer=structuredClone(player);guestPlayer.slot=2;guestPlayer.x=1.5;guestPlayer.y=1.5;guestPlayer.hp=MAX_HEARTS;guestPlayer.invincible=0;guestPlayer.phaseEchoCharge=0;guestPlayer.phaseEchoTime=0;guestPlayer.phaseEchoGranted=false;guestPlayer.dashTime=0;guestPlayer.dashCooldown=0;guestPlayer.decoys=3;guestPlayer.decoyCooldown=0;guestPlayer.abilityCooldown=0;guestPlayer.abilityCharges=SKILL_MAX_CHARGES[guestClassChoice];guestPlayer.abilityUseSerial=0;guestPlayer.phaseGuardTime=0;guestPlayer.invisibleTime=0;guestPlayer.ghostTrapped=0;guestPlayer.reviveProgress=0;guestPlayer.anchor=null;guestPlayer.bondedOn=null;guestPlayer.trail=[];}
   let extraContextGuest=null;
   function allPlayers(){
     // A player action temporarily swaps the global 'player' reference.
@@ -488,12 +489,12 @@
   }
   function buildLevel(index) {
     // Hearts carry across floors in the same run. A fresh run (floor 1)
-    // always starts with three hearts. Only the Medic skill restores health.
+    // always starts with nine hearts. Only the Medic skill restores health.
     // A downed player returns with one heart at the start of the next floor.
     const hostDisconnected=!!player?.disconnected;
-    const carriedHealth=index>0&&player?Math.max(1,Math.min(3,player.hp)):3;
-    const guestCarriedHealth=index>0&&guestPlayer?Math.max(1,Math.min(3,guestPlayer.hp)):3;
-    const extraCarriedHealth=extraPlayers.map(p=>index>0&&p?Math.max(1,Math.min(3,p.hp)):3);
+    const carriedHealth=index>0&&player?Math.max(1,Math.min(MAX_HEARTS,player.hp)):MAX_HEARTS;
+    const guestCarriedHealth=index>0&&guestPlayer?Math.max(1,Math.min(MAX_HEARTS,guestPlayer.hp)):MAX_HEARTS;
+    const extraCarriedHealth=extraPlayers.map(p=>index>0&&p?Math.max(1,Math.min(MAX_HEARTS,p.hp)):MAX_HEARTS);
     const extraActive=extraPlayers.map(Boolean);
     levelIndex=index;const cfg=CONFIGS[index];
     spectatorSlot=null;spectatorStickLatch=false;
@@ -1304,13 +1305,13 @@
     }else if(classChoice==='medic'){
       // Self-healing always takes priority. When healthy, heal exactly one
       // randomly selected injured, connected, living teammate in range.
-      const target=player.hp<3?player:(()=>{
-        const candidates=allPlayers().filter(p=>p!==player&&p.hp>0&&p.hp<3&&
+      const target=player.hp<MAX_HEARTS?player:(()=>{
+        const candidates=allPlayers().filter(p=>p!==player&&p.hp>0&&p.hp<MAX_HEARTS&&
           !p.bondedOn&&dist(p,player)<=MEDIC_HEAL_RADIUS);
         return candidates.length?candidates[Math.floor(Math.random()*candidates.length)]:null;
       })();
       if(!target){notify('MEDIC — no injured teammate within range.');return;}
-      target.hp=Math.min(3,target.hp+1);
+      target.hp=Math.min(MAX_HEARTS,target.hp+1);
       consumeSkillCharge();
       skillWaves.push({x:player.x,y:player.y,healX:target.x,healY:target.y,
         radius:MEDIC_HEAL_RADIUS,age:0,duration:.7,color:'medic'});
@@ -1991,7 +1992,7 @@
   function updateUI(){
     syncTouchTargeting();
     if(!player)return;
-    ui.health.textContent=Array.from({length:3},(_,i)=>i<player.hp?'♥':'♡').join(' ');
+    ui.health.textContent=Array.from({length:MAX_HEARTS},(_,i)=>i<player.hp?'♥':'♡').join(' ');
     ui.cores.textContent=`${cores.filter(c=>c.collected).length} / ${cores.length}`;
     ui.relay.textContent=relay.active?'ACTIVE':'OFFLINE';ui.relay.style.color=relay.active?'#78e8bc':'#d6f4ee';
     ui.decoys.textContent=`DECOYS × ${player.decoys}`;ui.timer.textContent=formatTime(elapsed);
