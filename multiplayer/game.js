@@ -2837,6 +2837,13 @@
     if(rewindTargeting&&k==='escape'){cancelRewindTarget();return;}
     if(anchorTargeting&&k==='escape'){anchorTargeting=false;return;}
     if(bondTargeting&&k==='escape'){bondTargeting=false;return;}
+    // Escape dismisses keyboard-focused action help before handling pause.
+    if(k==='escape'&&actionTooltip.classList.contains('is-visible')){
+      const helpButton=activeActionHelp;
+      hideActionTooltip();
+      if(helpButton===document.activeElement)helpButton.blur();
+      return;
+    }
     if(bondTargeting&&k==='tab'){bondTargetIndex++;return;}
     if(bondTargeting&&k==='enter'){commitBondTarget(chosenBondTarget());return;}
     if(anchorTargeting&&k==='tab'){anchorTargetIndex++;return;}
