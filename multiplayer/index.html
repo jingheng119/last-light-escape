@@ -250,7 +250,7 @@
       </div>
         <section class="room-chat" id="roomChat" aria-label="Team chat">
           <div id="chatDrawer" class="chat-drawer">
-            <div class="chat-heading" id="chatDragHandle" title="Drag to reposition chat"><strong>TEAM CHAT</strong><span class="chat-drag-symbol" aria-hidden="true">⠿</span></div>
+            <div class="chat-heading" id="chatDragHandle" title="Drag to reposition chat"><strong>TEAM CHAT</strong><span class="chat-heading-actions"><span class="chat-drag-symbol" aria-hidden="true">⠿</span><button type="button" id="chatCollapseToggle" class="chat-collapse-toggle" aria-expanded="true" aria-controls="chatContent" aria-label="Collapse team chat" title="Collapse team chat">−</button></span></div><div id="chatContent" class="chat-content">
             <div id="chatMessages" class="chat-messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Recent room messages">
               <p class="chat-placeholder">Chat with your teammates in this room.</p>
             </div>
@@ -267,6 +267,7 @@
               <button id="chatSend" type="submit" aria-label="Send message">SEND</button>
             </form>
             <p id="chatFeedback" class="chat-feedback" role="status" aria-live="polite"></p>
+            </div>
           </div>
         </section>
         <div id="desktopStageInfo" class="desktop-stage-info" aria-label="Current stage and floor">BROWSER GAME V4.19 · STAGE 01 · FLOOR 01 / 09</div>
