@@ -1841,7 +1841,7 @@
       // Five Stage II Dashers lunge along their movement/chase direction.
       if(h.variant==='dasher'){
         if(h.dashTime>0){
-          const step=Math.min(h.dashTime,dt)*8.2;
+          const step=Math.min(h.dashTime,dt)*9;
           h.dashTime=Math.max(0,h.dashTime-dt);
           const x=h.x,y=h.y;
           moveEntity(h,h.dashDir.x*step,h.dashDir.y*step,.13);
@@ -1952,15 +1952,15 @@
             // Walk speed remains identical to a Standard Hollow. Dashing is
             // the only burst of speed. Extend the lunge beyond a nearby path
             // waypoint, but never across solid walls or diagonal corners.
-            const maxDash=canAimAtPlayer?Math.min(2.75,distanceToTarget):2.75;
+            const maxDash=canAimAtPlayer?Math.min(2.16,distanceToTarget):2.16;
             let clearance=0;
-            for(let check=.15;check<=maxDash+.001;check+=.15){
+            for(let check=.15;check<maxDash+.15;check+=.15){
               const distance=Math.min(check,maxDash);
               if(!canStand(h.x+nx*distance,h.y+ny*distance,.13))break;
               clearance=distance;
             }
             if(clearance>=.6){
-              h.dashDir={x:nx,y:ny};h.dashTime=Math.min(.34,clearance/8.2);
+              h.dashDir={x:nx,y:ny};h.dashTime=Math.min(.24,clearance/9);
               h.dashCooldown=2.5+rand()*1.0;
               h.angle=Math.atan2(ny,nx);
               // Rebuild path after the dash; no random steering.
