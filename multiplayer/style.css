@@ -2862,3 +2862,25 @@ body.show-play .game-shell .room-chat .chat-form button{
     display:flex;
   }
 }
+
+
+/* v4.25: allow vertical scrolling through the mobile lobby and room list.
+   Keep the immersive, no-scroll controls exclusively on the play screen. */
+@media (max-width:980px), (hover:none) and (pointer:coarse) {
+  html:has(body.show-lobby),
+  body.show-lobby {
+    height:auto!important;
+    min-height:100%;
+    overflow-x:hidden;
+    overflow-y:auto!important;
+  }
+  body.show-lobby .shell {
+    height:auto!important;
+    min-height:100dvh;
+    overflow:visible!important;
+  }
+  body.show-lobby .page-lobby {
+    height:auto;
+    overflow:visible;
+  }
+}
