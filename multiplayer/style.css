@@ -2922,7 +2922,13 @@ body.show-play .game-shell .room-chat .chat-form button{
   outline:2px solid #85ffda;
   outline-offset:2px;
 }
-.game-shell .room-chat.chat-collapsed {
+.game-shell .room-chat.chat-collapsed,
+body.show-play .game-shell .room-chat.chat-collapsed,
+body.show-play .game-shell .room-chat.chat-collapsed.chat-no-gutter,
+body.show-play .game-shell .room-chat.chat-collapsed.chat-is-dragged,
+body.show-play .game-shell .room-chat.chat-collapsed.chat-is-dragged.chat-no-gutter,
+body.show-play .game-shell:fullscreen .room-chat.chat-collapsed,
+body.show-play .game-shell:fullscreen .room-chat.chat-collapsed.chat-is-dragged {
   bottom:auto!important;
   height:43px!important;
   min-height:0!important;
