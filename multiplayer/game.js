@@ -3286,6 +3286,25 @@
     // Both desktop mouse and mobile touch can drag the chat by its heading.
     // Other chat content (messages, quick replies and input) stays untouched.
     const dragHandle=panel.querySelector('#chatDragHandle');
+    const chatCollapseToggle=panel.querySelector('#chatCollapseToggle');
+    const chatContent=panel.querySelector('#chatContent');
+    chatCollapseToggle.addEventListener('pointerdown',event=>event.stopPropagation());
+    chatCollapseToggle.addEventListener('click',event=>{
+      event.stopPropagation();
+      const collapsed=panel.classList.toggle('chat-collapsed');
+      chatCollapseToggle.setAttribute('aria-expanded',String(!collapsed));
+      chatCollapseToggle.setAttribute('aria-label',collapsed?'Expand team chat':'Collapse team chat');
+      chatCollapseToggle.title=collapsed?'Expand team chat':'Collapse team chat';
+      chatCollapseToggle.textContent=collapsed?'+':'−';
+      chatContent.hidden=collapsed;
+      requestAnimationFrame(()=>{
+        if(panel.classList.contains('chat-is-dragged')){
+          const x=parseFloat(panel.style.getPropertyValue('--chat-drag-left'))||8;
+          const y=parseFloat(panel.style.getPropertyValue('--chat-drag-top'))||8;
+          positionDraggedChat(x,y);
+        }
+      });
+    });
     let dragged=false,dragPointer=null,dragOrigin=null;
     const positionDraggedChat=(left,top)=>{
       const shell=$('.game-shell'),bounds=shell.getBoundingClientRect();
