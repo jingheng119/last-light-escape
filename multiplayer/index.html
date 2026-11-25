@@ -8,23 +8,9 @@
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/style.css?v=chat-collapse-34" />
-  <style>
-    #bootLoader{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 42%,#142b35 0%,#07121a 62%,#04090e 100%);color:#d9eee9;font-family:inherit;transition:opacity .45s ease,visibility .45s ease}
-    #bootLoader.is-hidden{opacity:0;visibility:hidden;pointer-events:none}
-    #bootLoader .boot-card{display:grid;justify-items:center;gap:18px;padding:28px;text-align:center}
-    #bootLoader .boot-mark{width:46px;height:46px;border:2px solid #2c4d52;border-top-color:#8fe4ce;border-radius:50%;animation:bootSpin .9s linear infinite;box-shadow:0 0 28px #64d9bd20}
-    #bootLoader .boot-title{font-size:clamp(22px,4vw,30px);font-weight:800;letter-spacing:.2em}
-    #bootLoader .boot-subtitle{font-size:11px;letter-spacing:.2em;color:#8da8ac}
-    #bootLoader .boot-status{font-size:12px;color:#b8d6d1;letter-spacing:.08em}
-    @keyframes bootSpin{to{transform:rotate(360deg)}}
-    @media(prefers-reduced-motion:reduce){#bootLoader,#bootLoader .boot-mark{transition:none;animation:none}}
-  </style>
   <script src="/game.js?v=dasher-player-dash-36" defer></script>
 </head>
 <body>
-  <div id="bootLoader" role="status" aria-live="polite" aria-label="Loading Last Light">
-    <div class="boot-card"><div class="boot-mark" aria-hidden="true"></div><div class="boot-title">LAST LIGHT</div><div class="boot-subtitle">THE HOLLOW WARD</div><div class="boot-status">Preparing your session…</div></div>
-  </div>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
   <div id="achievementNotifications" class="achievement-notifications" role="status" aria-live="polite" aria-atomic="true"></div>
   <main class="shell">
@@ -289,14 +275,5 @@
 
     </div>
   </main>
-  <script>
-    window.addEventListener('load', function () {
-      var loader = document.getElementById('bootLoader');
-      if (loader) {
-        loader.classList.add('is-hidden');
-        window.setTimeout(function () { loader.remove(); }, 500);
-      }
-    }, { once: true });
-  </script>
 </body>
 </html>
