@@ -2945,3 +2945,19 @@ body.show-play .game-shell:fullscreen .room-chat.chat-collapsed.chat-is-dragged 
 .game-shell .room-chat.chat-collapsed .chat-content {
   display:none;
 }
+
+
+/* Entrance-to-lobby handoff: keep hidden screens out of layout and animate
+   the lobby into view after ENTER THE WARD is selected. */
+#homePage[hidden]{display:none!important}
+#lobbyPage[hidden]{display:none!important}
+#lobbyPage:not([hidden]){
+  animation:lastLightLobbyEnter .42s cubic-bezier(.2,.75,.25,1) both;
+}
+@keyframes lastLightLobbyEnter{
+  from{opacity:0;transform:translateY(12px);filter:blur(2px)}
+  to{opacity:1;transform:translateY(0);filter:blur(0)}
+}
+@media(prefers-reduced-motion:reduce){
+  #lobbyPage:not([hidden]){animation:none}
+}
