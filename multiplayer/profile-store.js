@@ -6,7 +6,7 @@ import {createHash} from 'node:crypto';
 export const validProfileKey=key=>typeof key==='string'&&/^[a-f0-9]{64}$/.test(key);
 export const profileHash=key=>validProfileKey(key)?
   createHash('sha256').update(key,'utf8').digest('hex'):null;
-const allowedBadges=new Set(['ward','engine','signal','solo','team','alive']);
+const allowedBadges=new Set(['ward','engine','signal','solo','team','alive','role_scout','role_medic','role_invisibler','role_teleporter','role_illusioner','role_rewinder','role_anchor','role_symbiote']);
 const normalizeBadges=value=>[...new Set((Array.isArray(value)?value:[])
   .map(b=>typeof b==='string'?b:b?.id).filter(id=>allowedBadges.has(id)))];
 export function normalizeLegacyProgress(value){
