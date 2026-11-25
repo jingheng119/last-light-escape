@@ -3028,3 +3028,8 @@ body.show-home .shell {
 /* Return to the entrance from the survivor lobby. */
 .online-lobby .lobby-entrance-button{background:#142c31;border-color:#526f72;color:#d7eee7;white-space:nowrap}
 .online-lobby .lobby-entrance-button:hover:not(:disabled){background:#203e43;border-color:#8bcdbb}
+
+/* Keep the lobby return action aligned with the main title in the top bar. */
+.topbar .lobby-entrance-top{border:1px solid #526f72;border-radius:8px;background:#142c31;color:#d7eee7;padding:9px 13px;font-family:inherit;font-size:11px;font-weight:800;letter-spacing:.07em;white-space:nowrap;cursor:pointer}
+.topbar .lobby-entrance-top:hover{background:#203e43;border-color:#8bcdbb}
+.topbar .lobby-entrance-top[hidden]{display:none!important}
