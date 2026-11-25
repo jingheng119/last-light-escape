@@ -38,7 +38,8 @@
     </header>
 
 
-    <section id="homePage" class="home-screen" aria-label="Last Light main menu">
+    <div id="homePage" class="home-page" aria-label="Last Light main menu">
+    <section class="home-screen">
       <div class="home-copy">
         <div class="home-eyebrow"><i></i> THE LIGHT IS FADING</div>
         <h1 class="home-title">LAST <span>LIGHT.</span></h1>
@@ -57,6 +58,34 @@
       </div>
       <div class="home-art" aria-hidden="true"><div class="home-orbit"></div><div class="home-core"><span>◇</span></div><div class="home-art-label">WARD SYSTEM · POWER CRITICAL</div></div>
     </section>
+      <section id="progressionPanel" class="progression-panel" aria-label="Progression achievements and leaderboard">
+        <div class="progression-heading"><div><span class="lobby-eyebrow">SURVIVOR RECORDS</span>
+          <h2>Progression &amp; Leaderboard</h2>
+          <p>Complete all 27 floors to enter the fastest-team rankings. Developer-skipped runs are unranked.</p></div>
+          <button type="button" id="refreshLeaderboard">↻ Refresh rankings</button>
+        </div>
+        <div class="profile-recovery">
+          <div><strong>PRIVATE SURVIVOR PROFILE</strong><p>Your recovery key restores progress on another device. Keep it private; anyone with the key can access this profile.</p></div>
+          <div class="profile-recovery-controls">
+            <input id="profileRecoveryKey" type="password" maxlength="64" autocomplete="off" spellcheck="false" aria-label="Private 64-character recovery key" placeholder="Private recovery key" />
+            <button type="button" id="copyProfileKey">Copy key</button>
+            <button type="button" id="restoreProfileKey">Restore key</button>
+          </div>
+          <p id="profileSyncStatus" role="status">Browser-only progress; connecting to cloud profile…</p>
+        </div>
+        <div id="myProgress" class="my-progression" aria-live="polite">YOUR RECORD · No completed runs on this browser yet.</div>
+        <div class="achievement-heading"><strong>YOUR ACHIEVEMENTS</strong><span id="achievementCount">0 / 6 unlocked</span></div>
+        <div id="myAchievements" class="achievement-gallery" aria-label="Locked and unlocked achievements"></div>
+        <div class="leaderboard-title">FASTEST COMPLETE RUNS <span>Top 20 per category · 27 floors · verified runs only</span></div>
+        <div class="leaderboard-tabs" role="group" aria-label="Leaderboard category">
+          <button type="button" id="leaderboardSolo" class="active" aria-pressed="true">Solo · 1 player</button>
+          <button type="button" id="leaderboardTeam" aria-pressed="false">Team · 2–5 players</button>
+        </div>
+        <div id="leaderboardEntries" class="leaderboard-entries" aria-live="polite">
+          <p class="room-empty">Loading rankings…</p>
+        </div>
+      </section>
+    </div>
     <div id="lobbyPage" class="page-lobby" hidden>
     <section class="intro"><div><div class="eyebrow"><i></i> THE LIGHT IS FADING</div><h1>Outrun the <em>Hollow.</em></h1><p>Choose your role. Find power cores, rescue trapped survivors, activate the relay, and escape together.</p></div>
       <div class="stage-info-card" aria-label="Current game stage and floor">
@@ -131,33 +160,7 @@
       </div>
       <p id="roomStatus" role="status" class="lobby-status">Connecting to room server…</p>
       <p id="networkStatus" class="lobby-ping">NETWORK · measuring…</p>
-      <section id="progressionPanel" class="progression-panel" aria-label="Progression achievements and leaderboard">
-        <div class="progression-heading"><div><span class="lobby-eyebrow">SURVIVOR RECORDS</span>
-          <h2>Progression &amp; Leaderboard</h2>
-          <p>Complete all 27 floors to enter the fastest-team rankings. Developer-skipped runs are unranked.</p></div>
-          <button type="button" id="refreshLeaderboard">↻ Refresh rankings</button>
-        </div>
-        <div class="profile-recovery">
-          <div><strong>PRIVATE SURVIVOR PROFILE</strong><p>Your recovery key restores progress on another device. Keep it private; anyone with the key can access this profile.</p></div>
-          <div class="profile-recovery-controls">
-            <input id="profileRecoveryKey" type="password" maxlength="64" autocomplete="off" spellcheck="false" aria-label="Private 64-character recovery key" placeholder="Private recovery key" />
-            <button type="button" id="copyProfileKey">Copy key</button>
-            <button type="button" id="restoreProfileKey">Restore key</button>
-          </div>
-          <p id="profileSyncStatus" role="status">Browser-only progress; connecting to cloud profile…</p>
-        </div>
-        <div id="myProgress" class="my-progression" aria-live="polite">YOUR RECORD · No completed runs on this browser yet.</div>
-        <div class="achievement-heading"><strong>YOUR ACHIEVEMENTS</strong><span id="achievementCount">0 / 6 unlocked</span></div>
-        <div id="myAchievements" class="achievement-gallery" aria-label="Locked and unlocked achievements"></div>
-        <div class="leaderboard-title">FASTEST COMPLETE RUNS <span>Top 20 per category · 27 floors · verified runs only</span></div>
-        <div class="leaderboard-tabs" role="group" aria-label="Leaderboard category">
-          <button type="button" id="leaderboardSolo" class="active" aria-pressed="true">Solo · 1 player</button>
-          <button type="button" id="leaderboardTeam" aria-pressed="false">Team · 2–5 players</button>
-        </div>
-        <div id="leaderboardEntries" class="leaderboard-entries" aria-live="polite">
-          <p class="room-empty">Loading rankings…</p>
-        </div>
-      </section>
+
     </section>
     </div>
     <div id="playPage" class="page-play" hidden>
