@@ -102,6 +102,7 @@
       url.searchParams.set('room',new URLSearchParams(location.search).get('room'));
     else if(['progression','leaderboard','profile'].includes(page))
       url.searchParams.set('view',page);
+    const next=url.pathname+url.search;
     if(push&&location.pathname+location.search!==next)history.pushState({screen:page},'',next);
     if(!push&&location.pathname+location.search!==next)history.replaceState({screen:page},'',next);
     const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Private Survivor Profile — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
