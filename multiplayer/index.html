@@ -47,7 +47,7 @@
         <p class="home-description">The emergency systems have failed. The corridors are no longer safe. Find the power cores, rescue those still trapped, and make your way out of the ward.</p>
         <div class="home-actions">
           <button type="button" id="enterLobby" class="home-enter">ENTER THE WARD&nbsp; ↗</button>
-          <a class="home-link" href="/how-to-play">HOW TO PLAY</a>
+          <button type="button" class="home-link" data-open-page="howtoplay">HOW TO PLAY</button>
           <a class="home-link" href="https://discord.gg/dA7gg2UHh" target="_blank" rel="noopener noreferrer">DISCORD ↗</a>
         </div>
         <p class="home-note">Online co-op · Up to 5 survivors · 27 floors to escape</p>
@@ -60,10 +60,11 @@
       <div class="home-art" aria-hidden="true"><div class="home-orbit"></div><div class="home-core"><span>◇</span></div><div class="home-art-label">WARD SYSTEM · POWER CRITICAL</div></div>
     </section>
 
-      <nav class="home-record-nav" aria-label="Survivor records">
+      <nav class="home-record-nav" aria-label="Survivor records and guides">
         <button type="button" data-open-page="progression"><span>01</span><strong>PROGRESSION</strong><small>Your records &amp; achievements</small></button>
-        <button type="button" data-open-page="leaderboard"><span>02</span><strong>LEADERBOARD</strong><small>Fastest verified runs</small></button>
-        <button type="button" data-open-page="profile"><span>03</span><strong>PRIVATE SURVIVOR PROFILE</strong><small>Restore your profile securely</small></button>
+        <button type="button" data-open-page="howtoplay"><span>02</span><strong>HOW TO PLAY</strong><small>Watch full gameplay demonstrations</small></button>
+        <button type="button" data-open-page="leaderboard"><span>03</span><strong>LEADERBOARD</strong><small>Fastest verified runs</small></button>
+        <button type="button" data-open-page="profile"><span>04</span><strong>PRIVATE SURVIVOR PROFILE</strong><small>Restore your profile securely</small></button>
       </nav>
     </div>
     <section id="progressionPage" class="records-page" hidden aria-label="Survivor progression">
@@ -73,6 +74,30 @@
         <div id="myProgress" class="my-progression" aria-live="polite">YOUR RECORD · No completed runs on this browser yet.</div>
         <div class="achievement-heading"><strong>YOUR ACHIEVEMENTS</strong><span id="achievementCount">0 / 14 unlocked</span></div>
         <div id="myAchievements" class="achievement-gallery" aria-label="Locked and unlocked achievements"></div>
+      </section>
+    </section>
+    <section id="howtoplayPage" class="records-page" hidden aria-label="How to play">
+      <div class="records-page-nav"><button type="button" class="records-back" data-back-home>← BACK TO ENTRANCE</button></div>
+      <section class="progression-panel how-to-play-panel" aria-label="Gameplay demonstrations">
+        <div class="progression-heading"><div><span class="lobby-eyebrow">FIELD GUIDE</span><h2>HOW TO PLAY</h2><p>Watch these full gameplay demonstrations to see how a run through the Hollow Ward works.</p></div></div>
+        <div class="gameplay-video-grid">
+          <article class="gameplay-video-card">
+            <div class="gameplay-video-frame"><iframe src="https://www.youtube-nocookie.com/embed/5POih24seYY" title="Last Light full gameplay demonstration 1" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
+            <strong>FULL GAMEPLAY 01</strong>
+          </article>
+          <article class="gameplay-video-card">
+            <div class="gameplay-video-frame"><iframe src="https://www.youtube-nocookie.com/embed/1IcYTGHjbYc" title="Last Light full gameplay demonstration 2" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
+            <strong>FULL GAMEPLAY 02</strong>
+          </article>
+          <article class="gameplay-video-card">
+            <div class="gameplay-video-frame"><iframe src="https://www.youtube-nocookie.com/embed/bPxCGjSislM" title="Last Light full gameplay demonstration 3" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
+            <strong>FULL GAMEPLAY 03</strong>
+          </article>
+          <article class="gameplay-video-card">
+            <div class="gameplay-video-frame"><iframe src="https://www.youtube-nocookie.com/embed/oBBYno8I0-M" title="Last Light full gameplay demonstration 4" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
+            <strong>FULL GAMEPLAY 04</strong>
+          </article>
+        </div>
       </section>
     </section>
     <section id="leaderboardPage" class="records-page" hidden aria-label="Leaderboard">
