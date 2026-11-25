@@ -155,15 +155,18 @@ function persistCompletedMatch(room){
   if(!room.matchAnnounced){
     room.matchAnnounced=true;
     for(const [slot,ws] of room.clients){
+      const playerRole=result.players.find(player=>player.slot===slot)?.role;
+      const personalAchievements=result.achievements.filter(badge=>
+        !badge.id.startsWith('role_')||badge.id==='role_'+playerRole);
       send(ws,{type:'match-result',result:{
         floorsCleared:result.floorsCleared,outcome:result.outcome,
         elapsedSeconds:result.elapsedSeconds,
         competitive:result.competitive,eligible:!room.unranked,
-        achievements:result.achievements,slot
+        achievements:personalAchievements,slot
       }});
       if(!room.unranked&&ws.profileKey)
         void profileStore.award(ws.profileKey,{eventId:room.matchId+':'+slot+':final',
-          floorsCleared:result.floorsCleared,achievements:result.achievements,
+          floorsCleared:result.floorsCleared,achievements:personalAchievements,
           finished:true,winTime:result.competitive?result.elapsedSeconds:null});
     }
   }
