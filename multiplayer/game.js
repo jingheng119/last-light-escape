@@ -541,13 +541,15 @@
       }
     }
     hollows=[];
-    for(let i=0;i<cfg.enemies;i++) {
+    // Double Stage III Ghost Hollows while keeping the existing standard and
+    // Invisible Hollow counts unchanged on every floor.
+    const baseEnemies=cfg.stage===3?cfg.enemies-3:cfg.enemies;
+    const standardCount=Math.max(1,Math.round(baseEnemies*.10));
+    const invisibleCount=Math.round(baseEnemies*.40)+(cfg.stage===3?1:0);
+    const originalGhostCount=cfg.stage===3?Math.max(0,cfg.enemies-standardCount-invisibleCount):0;
+    const totalEnemies=cfg.enemies+originalGhostCount;
+    for(let i=0;i<totalEnemies;i++) {
       const p=selectSpot(reserved,cfg.stage>=2?8:5,distances,false);reserved.push(p);
-      // Stage III retains its original normal count, adding one Invisible
-      // and two Ghost Hollows to every floor.
-      const baseEnemies=cfg.stage===3?cfg.enemies-3:cfg.enemies;
-      const standardCount=Math.max(1,Math.round(baseEnemies*.10));
-      const invisibleCount=Math.round(baseEnemies*.40)+(cfg.stage===3?1:0);
       const variant=cfg.stage===3?(i<standardCount?'standard':i<standardCount+invisibleCount?'invisible':'ghost'):
         cfg.stage===2?(i===0?'hunter':i<=3?'dasher':'standard'):(cfg.enemyVariant||'standard');
       hollows.push({x:p.x+.5,y:p.y+.5,variant,home:{x:p.x,y:p.y},speed:cfg.speed*(.9+rand()*.18)*(variant==='hunter'?1.15:1),
