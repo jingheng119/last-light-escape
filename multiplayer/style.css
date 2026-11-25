@@ -3037,3 +3037,6 @@ body.show-home .shell {
 /* Keep the entrance header focused on the LAST LIGHT title only. */
 body.show-home .topbar .top-room-details,
 body.show-home .topbar .top-links{display:none!important}
+/* Keep the records tabs (Progression, Leaderboard, Private Survivor Profile) focused on their content. */
+body.show-records .topbar .top-room-details,
+body.show-records .topbar .top-links{display:none!important}
