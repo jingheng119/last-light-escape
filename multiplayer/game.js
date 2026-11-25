@@ -75,18 +75,20 @@
   const CHAT_BUBBLE_MS=3200;
   // The two screens share a single live WebSocket connection. Switching
   // screens never removes a player from their server-side room.
-  let activePage='lobby';
+  let activePage='home';
   let lastCountdownNumber=0;
   function showPage(target,push=true){
-    const page=target==='play'&&roomRole!=='none'?'play':'lobby';
+    const page=target==='play'&&roomRole!=='none'?'play':target==='home'?'home':'lobby';
     // Start each visit to the game with Objectives collapsed.
     // Players can still expand it manually whenever they want.
     if(page==='play'&&activePage!=='play')$('#objectivesPanel').open=false;
     activePage=page;
+    $('#homePage').hidden=page!=='home';
     $('#lobbyPage').hidden=page!=='lobby';
     $('#playPage').hidden=page!=='play';
     document.body.classList.toggle('show-lobby',page==='lobby');
     document.body.classList.toggle('show-play',page==='play');
+    document.body.classList.toggle('show-home',page==='home');
     const url=new URL(location.href);
     url.pathname=page==='play'?'/play':'/';
     if(page==='play')url.searchParams.set('room',$('#joinRoomCode').value.trim().toUpperCase());
@@ -97,7 +99,7 @@
     const next=url.pathname+url.search;
     if(push&&location.pathname+location.search!==next)history.pushState({screen:page},'',next);
     if(!push&&location.pathname+location.search!==next)history.replaceState({screen:page},'',next);
-    document.title=page==='lobby'?'Survivor Lobby — Last Light':'Last Light — The Hollow Ward';
+    document.title=page==='home'?'Last Light — The Hollow Ward':page==='lobby'?'Survivor Lobby — Last Light':'Last Light — The Hollow Ward';
     if(page==='play'){
       $('#gameRoomName').textContent=$('#currentRoomName').textContent;
       $('#gameRoomCount').textContent=roomCount+' / 5 SURVIVORS';
@@ -3969,6 +3971,7 @@
     $('#refreshRooms').addEventListener('click',()=>sendRoom({type:'list'}));
     $('#leaveRoom').addEventListener('click',()=>{clearSession();spectatorReconnectCode=null;sendRoom({type:'leave'});});
     $('#leaveGameRoom').addEventListener('click',()=>{clearSession();spectatorReconnectCode=null;sendRoom({type:'leave'});});
+    $('#enterLobby').addEventListener('click',()=>showPage('lobby'));
     $('#backToLobby').addEventListener('click',()=>showPage('lobby'));
     $('#returnToGame').addEventListener('click',()=>{unlockGameAudio();showPage('play');});
     // Room cards and invitation links may join directly without using the
@@ -3982,10 +3985,10 @@
       if(activePage==='play'&&!soundEnabled)unlockGameAudio();
     },{capture:true});
     window.addEventListener('popstate',()=>{
-      showPage(location.pathname==='/play'?'play':'lobby',false);
+      showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':'home',false);
     });
     setJoined(false);
-    showPage('lobby',false);
+    showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':'home',false);
   }
   connectRoom();
   // Build the first level behind the menu so the player sees the environment before starting.
