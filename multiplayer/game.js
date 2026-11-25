@@ -78,28 +78,34 @@
   let activePage='home';
   let lastCountdownNumber=0;
   function showPage(target,push=true){
-    const page=target==='play'&&roomRole!=='none'?'play':target==='home'?'home':'lobby';
+    const validPages=['home','progression','leaderboard','profile','lobby','play'];
+    const page=validPages.includes(target)?(target==='play'&&roomRole==='none'?'lobby':target):'home';
     // Start each visit to the game with Objectives collapsed.
     // Players can still expand it manually whenever they want.
     if(page==='play'&&activePage!=='play')$('#objectivesPanel').open=false;
     activePage=page;
     $('#homePage').hidden=page!=='home';
+    $('#progressionPage').hidden=page!=='progression';
+    $('#leaderboardPage').hidden=page!=='leaderboard';
+    $('#profilePage').hidden=page!=='profile';
     $('#lobbyPage').hidden=page!=='lobby';
     $('#playPage').hidden=page!=='play';
     document.body.classList.toggle('show-lobby',page==='lobby');
     document.body.classList.toggle('show-play',page==='play');
     document.body.classList.toggle('show-home',page==='home');
+    document.body.classList.toggle('show-records',['progression','leaderboard','profile'].includes(page));
     const url=new URL(location.href);
     url.pathname=page==='play'?'/play':'/';
-    if(page==='play')url.searchParams.set('room',$('#joinRoomCode').value.trim().toUpperCase());
-    else url.searchParams.delete('room');
-    // Keep invitations clean: unrelated query parameters are not propagated.
     url.search='';
     if(page==='play')url.searchParams.set('room',$('#joinRoomCode').value.trim().toUpperCase());
-    const next=url.pathname+url.search;
+    else if(page==='lobby'&&new URLSearchParams(location.search).has('room'))
+      url.searchParams.set('room',new URLSearchParams(location.search).get('room'));
+    else if(['progression','leaderboard','profile'].includes(page))
+      url.searchParams.set('view',page);
     if(push&&location.pathname+location.search!==next)history.pushState({screen:page},'',next);
     if(!push&&location.pathname+location.search!==next)history.replaceState({screen:page},'',next);
-    document.title=page==='home'?'Last Light — The Hollow Ward':page==='lobby'?'Survivor Lobby — Last Light':'Last Light — The Hollow Ward';
+    const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Private Survivor Profile — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
+    document.title=titles[page];
     if(page==='play'){
       $('#gameRoomName').textContent=$('#currentRoomName').textContent;
       $('#gameRoomCount').textContent=roomCount+' / 5 SURVIVORS';
@@ -3972,6 +3978,10 @@
     $('#leaveRoom').addEventListener('click',()=>{clearSession();spectatorReconnectCode=null;sendRoom({type:'leave'});});
     $('#leaveGameRoom').addEventListener('click',()=>{clearSession();spectatorReconnectCode=null;sendRoom({type:'leave'});});
     $('#enterLobby').addEventListener('click',()=>showPage('lobby'));
+    document.querySelectorAll('[data-open-page]').forEach(button=>
+      button.addEventListener('click',()=>showPage(button.dataset.openPage)));
+    document.querySelectorAll('[data-back-home]').forEach(button=>
+      button.addEventListener('click',()=>showPage('home')));
     $('#backToLobby').addEventListener('click',()=>showPage('lobby'));
     $('#returnToGame').addEventListener('click',()=>{unlockGameAudio();showPage('play');});
     // Room cards and invitation links may join directly without using the
@@ -3985,10 +3995,10 @@
       if(activePage==='play'&&!soundEnabled)unlockGameAudio();
     },{capture:true});
     window.addEventListener('popstate',()=>{
-      showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':'home',false);
+      showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
     });
     setJoined(false);
-    showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':'home',false);
+    showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
   }
   connectRoom();
   // Build the first level behind the menu so the player sees the environment before starting.
