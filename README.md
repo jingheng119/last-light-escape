@@ -27,7 +27,7 @@ npm test
 npm start
 ```
 
-The beta deployment uses Render's `feature/persistent-match-results` branch with `multiplayer` as the working directory. Never commit database secrets or private recovery keys.
+The beta deployment uses Render's `main` branch with `multiplayer` as the working directory. Never commit database secrets or private recovery keys.
 
 ## Release checks
 
