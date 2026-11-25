@@ -2961,3 +2961,33 @@ body.show-play .game-shell:fullscreen .room-chat.chat-collapsed.chat-is-dragged 
 @media(prefers-reduced-motion:reduce){
   #lobbyPage:not([hidden]){animation:none}
 }
+
+
+/* The entrance page now hosts survivor records and profile management.
+   Keep the full page scrollable on desktop and mobile. */
+html:has(body.show-home),
+body.show-home {
+  height:auto;
+  min-height:100%;
+  overflow-x:hidden;
+  overflow-y:auto!important;
+}
+body.show-home .shell {
+  height:auto;
+  min-height:100vh;
+  min-height:100dvh;
+  overflow:visible!important;
+}
+.home-page {
+  display:block;
+  min-height:calc(100vh - 76px);
+  padding-bottom:34px;
+}
+.home-page .progression-panel {
+  margin:0 clamp(8px,3vw,34px) 28px;
+}
+@media(max-width:760px) {
+  .home-page .progression-panel {
+    margin:0 4px 24px;
+  }
+}
