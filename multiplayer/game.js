@@ -101,7 +101,7 @@
     if(page==='play')url.searchParams.set('room',$('#joinRoomCode').value.trim().toUpperCase());
     else if(page==='lobby'&&new URLSearchParams(location.search).has('room'))
       url.searchParams.set('room',new URLSearchParams(location.search).get('room'));
-    else if(['progression','howtoplay','leaderboard','profile'].includes(page))
+    else if(['progression','leaderboard','profile'].includes(page))
       url.searchParams.set('view',page);
     const next=url.pathname+url.search;
     if(push&&location.pathname+location.search!==next)history.pushState({screen:page},'',next);
@@ -4024,10 +4024,10 @@
       if(activePage==='play'&&!soundEnabled)unlockGameAudio();
     },{capture:true});
     window.addEventListener('popstate',()=>{
-      showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','howtoplay','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
+      showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
     });
     setJoined(false);
-    showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','howtoplay','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
+    showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
   }
   connectRoom();
   // Build the first level behind the menu so the player sees the environment before starting.
