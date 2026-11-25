@@ -36,8 +36,8 @@ function leave(ws){
     if(!room.players.size)rooms.delete(room.code);
   }
 }
-const mime={'index.html':'text/html; charset=utf-8','game.js':'text/javascript; charset=utf-8','style.css':'text/css; charset=utf-8','favicon.svg':'image/svg+xml'};
-const paths={'/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg'};
+const mime={'index.html':'text/html; charset=utf-8','how-to-play.html':'text/html; charset=utf-8','game.js':'text/javascript; charset=utf-8','style.css':'text/css; charset=utf-8','favicon.svg':'image/svg+xml'};
+const paths={'/':'index.html','/how-to-play':'how-to-play.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg','/assets/stage-1.webp':'assets/stage-1.webp','/assets/stage-2.webp':'assets/stage-2.webp','/assets/stage-3.webp':'assets/stage-3.webp','/assets/stage-artwork.webp':'assets/stage-artwork.webp','/assets/stage-overview.webp':'assets/stage-overview.webp'};
 const server=http.createServer(async(req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
   if(pathname==='/health'){
@@ -48,7 +48,7 @@ const server=http.createServer(async(req,res)=>{
   if(!file){res.writeHead(404);res.end('Not found');return;}
   try{
     const buffer=await readFile(new URL(file,import.meta.url));
-    res.writeHead(200,{'content-type':mime[file],'cache-control':'no-store','x-content-type-options':'nosniff'});
+    res.writeHead(200,{'content-type':mime[file]||(file.endsWith('.webp')?'image/webp':'application/octet-stream'),'cache-control':'no-store','x-content-type-options':'nosniff'});
     res.end(buffer);
   }catch(e){res.writeHead(500);res.end('Failed to load game asset');}
 });
