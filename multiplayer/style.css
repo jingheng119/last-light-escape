@@ -1494,7 +1494,7 @@
    tucked up beside (rather than over) the left fullscreen control. */
 .game-shell .statusbar{
   display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
+  grid-template-columns:repeat(3,minmax(0,1fr));
   align-items:center;
   padding-inline:clamp(30px,6.5vw,112px);
   gap:clamp(12px,3vw,38px);
@@ -3038,32 +3038,3 @@ body.show-home .shell {
 body.show-home .topbar .top-room-details,
 body.show-home .topbar .top-links{display:none!important}
 
-
-/* Embedded full-gameplay demonstrations on the HOW TO PLAY page. */
-.home-actions .home-link{font-family:inherit;cursor:pointer}
-.gameplay-video-grid{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:18px;margin-top:22px;
-}
-.gameplay-video-card{
-  min-width:0;padding:12px;border:1px solid #36545a;
-  border-radius:10px;background:rgba(14,34,39,.78);
-}
-.gameplay-video-frame{
-  position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;
-  border-radius:7px;background:#050d12;
-}
-.gameplay-video-frame iframe{
-  position:absolute;inset:0;width:100%;height:100%;border:0;
-}
-.gameplay-video-card>strong{
-  display:block;margin-top:11px;color:#d8eee6;
-  font-size:.76rem;letter-spacing:.1em;
-}
-@media(max-width:950px){
-  .home-record-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-@media(max-width:700px){
-  .home-record-nav{grid-template-columns:1fr}
-  .gameplay-video-grid{grid-template-columns:1fr;gap:13px}
-}
