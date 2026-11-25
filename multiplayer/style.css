@@ -3033,3 +3033,7 @@ body.show-home .shell {
 .topbar .lobby-entrance-top{border:1px solid #526f72;border-radius:8px;background:#142c31;color:#d7eee7;padding:9px 13px;font-family:inherit;font-size:11px;font-weight:800;letter-spacing:.07em;white-space:nowrap;cursor:pointer}
 .topbar .lobby-entrance-top:hover{background:#203e43;border-color:#8bcdbb}
 .topbar .lobby-entrance-top[hidden]{display:none!important}
+
+/* Keep the entrance header focused on the LAST LIGHT title only. */
+body.show-home .topbar .top-room-details,
+body.show-home .topbar .top-links{display:none!important}
