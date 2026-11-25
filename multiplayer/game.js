@@ -90,6 +90,7 @@
     $('#profilePage').hidden=page!=='profile';
     $('#lobbyPage').hidden=page!=='lobby';
     $('#playPage').hidden=page!=='play';
+    $('#lobbyEntranceTop').hidden=page!=='lobby';
     document.body.classList.toggle('show-lobby',page==='lobby');
     document.body.classList.toggle('show-play',page==='play');
     document.body.classList.toggle('show-home',page==='home');
