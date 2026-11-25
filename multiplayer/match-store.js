@@ -2,6 +2,8 @@
 // Rankings are team runs, not verified identities. Developer skips are unranked.
 export const MATCH_OUTCOMES=new Set(['victory','dead']);
 const VALID_ROLES=new Set(['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor','symbiote']);
+const ROLE_ACHIEVEMENTS={scout:'role_scout',medic:'role_medic',invisibler:'role_invisibler',teleporter:'role_teleporter',illusioner:'role_illusioner',rewinder:'role_rewinder',anchor:'role_anchor',symbiote:'role_symbiote'};
+const ROLE_ACHIEVEMENT_TITLES={scout:'First Responder',medic:'Lifeline',invisibler:'Unseen Survivor',teleporter:'Beyond the Walls',illusioner:'Master of Deception',rewinder:'Timekeeper',anchor:'Unbreakable',symbiote:'One With the Team'};
 export function achievementsForResult(result){
   if(!result?.competitive)return [];
   const badges=[];
@@ -15,6 +17,10 @@ export function achievementsForResult(result){
     badges.push({id:'team',title:'Together Through Darkness',description:'Complete the game as a team'});
   if(result.outcome==='victory'&&result.players.every(p=>p.hearts>0))
     badges.push({id:'alive',title:'Everyone Made It',description:'Finish with every teammate alive'});
+  if(result.outcome==='victory'&&result.floorsCleared===27){
+    for(const role of new Set(result.players.map(p=>p.role).filter(role=>VALID_ROLES.has(role))))
+      badges.push({id:ROLE_ACHIEVEMENTS[role],title:ROLE_ACHIEVEMENT_TITLES[role],description:'Complete all 27 floors as '+role});
+  }
   return badges;
 }
 export function buildFloorProgress(room){
