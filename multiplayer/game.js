@@ -78,7 +78,7 @@
   let activePage='home';
   let lastCountdownNumber=0;
   function showPage(target,push=true){
-    const validPages=['home','progression','howtoplay','leaderboard','profile','lobby','play'];
+    const validPages=['home','progression','leaderboard','profile','lobby','play'];
     const page=validPages.includes(target)?(target==='play'&&roomRole==='none'?'lobby':target):'home';
     // Start each visit to the game with Objectives collapsed.
     // Players can still expand it manually whenever they want.
@@ -86,7 +86,6 @@
     activePage=page;
     $('#homePage').hidden=page!=='home';
     $('#progressionPage').hidden=page!=='progression';
-    $('#howtoplayPage').hidden=page!=='howtoplay';
     $('#leaderboardPage').hidden=page!=='leaderboard';
     $('#profilePage').hidden=page!=='profile';
     $('#lobbyPage').hidden=page!=='lobby';
@@ -95,7 +94,7 @@
     document.body.classList.toggle('show-lobby',page==='lobby');
     document.body.classList.toggle('show-play',page==='play');
     document.body.classList.toggle('show-home',page==='home');
-    document.body.classList.toggle('show-records',['progression','howtoplay','leaderboard','profile'].includes(page));
+    document.body.classList.toggle('show-records',['progression','leaderboard','profile'].includes(page));
     const url=new URL(location.href);
     url.pathname=page==='play'?'/play':'/';
     url.search='';
@@ -107,7 +106,7 @@
     const next=url.pathname+url.search;
     if(push&&location.pathname+location.search!==next)history.pushState({screen:page},'',next);
     if(!push&&location.pathname+location.search!==next)history.replaceState({screen:page},'',next);
-    const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',howtoplay:'How to Play — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Private Survivor Profile — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
+    const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Private Survivor Profile — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
     document.title=titles[page];
     if(page==='play'){
       $('#gameRoomName').textContent=$('#currentRoomName').textContent;
