@@ -78,7 +78,7 @@
   let activePage='home';
   let lastCountdownNumber=0;
   function showPage(target,push=true){
-    const validPages=['home','progression','leaderboard','profile','lobby','play'];
+    const validPages=['home','progression','howtoplay','leaderboard','profile','lobby','play'];
     const page=validPages.includes(target)?(target==='play'&&roomRole==='none'?'lobby':target):'home';
     // Start each visit to the game with Objectives collapsed.
     // Players can still expand it manually whenever they want.
@@ -86,6 +86,7 @@
     activePage=page;
     $('#homePage').hidden=page!=='home';
     $('#progressionPage').hidden=page!=='progression';
+    $('#howtoplayPage').hidden=page!=='howtoplay';
     $('#leaderboardPage').hidden=page!=='leaderboard';
     $('#profilePage').hidden=page!=='profile';
     $('#lobbyPage').hidden=page!=='lobby';
@@ -94,19 +95,19 @@
     document.body.classList.toggle('show-lobby',page==='lobby');
     document.body.classList.toggle('show-play',page==='play');
     document.body.classList.toggle('show-home',page==='home');
-    document.body.classList.toggle('show-records',['progression','leaderboard','profile'].includes(page));
+    document.body.classList.toggle('show-records',['progression','howtoplay','leaderboard','profile'].includes(page));
     const url=new URL(location.href);
     url.pathname=page==='play'?'/play':'/';
     url.search='';
     if(page==='play')url.searchParams.set('room',$('#joinRoomCode').value.trim().toUpperCase());
     else if(page==='lobby'&&new URLSearchParams(location.search).has('room'))
       url.searchParams.set('room',new URLSearchParams(location.search).get('room'));
-    else if(['progression','leaderboard','profile'].includes(page))
+    else if(['progression','howtoplay','leaderboard','profile'].includes(page))
       url.searchParams.set('view',page);
     const next=url.pathname+url.search;
     if(push&&location.pathname+location.search!==next)history.pushState({screen:page},'',next);
     if(!push&&location.pathname+location.search!==next)history.replaceState({screen:page},'',next);
-    const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Private Survivor Profile — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
+    const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',howtoplay:'How to Play — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Private Survivor Profile — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
     document.title=titles[page];
     if(page==='play'){
       $('#gameRoomName').textContent=$('#currentRoomName').textContent;
@@ -4024,10 +4025,10 @@
       if(activePage==='play'&&!soundEnabled)unlockGameAudio();
     },{capture:true});
     window.addEventListener('popstate',()=>{
-      showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
+      showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','howtoplay','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
     });
     setJoined(false);
-    showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
+    showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','howtoplay','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
   }
   connectRoom();
   // Build the first level behind the menu so the player sees the environment before starting.
