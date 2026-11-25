@@ -8,7 +8,21 @@
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/style.css?v=chat-collapse-34" />
-  <script src="/game.js?v=dasher-player-dash-36" defer></script>
+  <script src="/game.js?v=main-menu-1" defer></script>
+  <style>
+    .home-screen{position:relative;min-height:calc(100vh - 110px);display:grid;grid-template-columns:minmax(0,1.1fr) minmax(260px,.9fr);align-items:center;gap:clamp(28px,7vw,90px);padding:clamp(38px,7vh,78px) clamp(8px,3vw,34px)}
+    .home-copy{max-width:650px}.home-eyebrow{display:flex;align-items:center;gap:10px;color:#a9c6e6;font-size:10px;font-weight:800;letter-spacing:.22em}.home-eyebrow i{width:7px;height:7px;border-radius:50%;background:#9cc8c0;box-shadow:0 0 13px #9cc8c0}
+    .home-title{margin:22px 0 0;font-size:clamp(3.4rem,8vw,6.6rem);line-height:.9;letter-spacing:-.065em;font-weight:800;color:#edf2fb}.home-title span{display:block;color:#b7cbe4;font-weight:450}
+    .home-description{max-width:520px;margin:24px 0 0;color:#aab8cc;font-size:16px;line-height:1.85}
+    .home-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px}.home-enter{border:1px solid #c4d8ef;border-radius:8px;padding:15px 22px;background:#c4d8ef;color:#0b1421;font-size:12px;font-weight:850;letter-spacing:.12em;cursor:pointer}.home-enter:hover{background:#e0ebf8}
+    .home-link{display:inline-flex;align-items:center;border:1px solid #60748f;border-radius:8px;padding:14px 18px;color:#d1dced;background:#101b2b99;text-decoration:none;font-size:11px;font-weight:750;letter-spacing:.1em}
+    .home-note{margin-top:15px;color:#8294ad;font-size:11px}.home-stats{display:flex;gap:24px;flex-wrap:wrap;margin-top:42px}.home-stat{border-left:1px solid #7892b04a;padding-left:12px}.home-stat strong{display:block;color:#dce7f5;font-size:14px}.home-stat span{display:block;margin-top:5px;color:#8294ad;font-size:9px;letter-spacing:.12em}
+    .home-art{position:relative;min-height:340px;display:grid;place-items:center;border:1px solid #a9c5e51e;border-radius:48% 48% 42% 42%;background:radial-gradient(ellipse,#263d572e 0%,#15233819 48%,transparent 72%)}
+    .home-orbit{position:absolute;width:min(100%,360px);aspect-ratio:1;border:1px solid #9bb6d51b;border-radius:50%;transform:rotate(-24deg) scaleY(.72)}.home-orbit:before,.home-orbit:after{content:"";position:absolute;border:1px solid #9bb6d516;border-radius:50%;inset:13%}.home-orbit:after{inset:27%}
+    .home-core{width:112px;height:112px;display:grid;place-items:center;border:1px solid #b9d0eb70;transform:rotate(45deg);box-shadow:0 0 65px #8fb8e52b,inset 0 0 38px #8fb8e51b;background:linear-gradient(135deg,#a7c7e51a,#15263b88)}.home-core span{transform:rotate(-45deg);font-size:42px;color:#d6e5f7;text-shadow:0 0 24px #a8c9f4}
+    .home-art-label{position:absolute;bottom:22px;color:#8399b5;font-size:9px;letter-spacing:.2em}
+    @media(max-width:760px){.home-screen{min-height:auto;grid-template-columns:1fr;padding:34px 4px 48px;gap:24px}.home-art{grid-row:1;min-height:220px}.home-orbit{width:235px}.home-core{width:78px;height:78px}.home-core span{font-size:30px}.home-art-label{bottom:12px}.home-description{font-size:14px}.home-stats{margin-top:30px;gap:18px}}
+  </style>
 </head>
 <body>
   <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
@@ -23,7 +37,27 @@
       <div class="top-links"><span class="edition" id="missionLevel">BROWSER GAME V4.19 · STAGE 01 · FLOOR 01 / 09</span></div>
     </header>
 
-    <div id="lobbyPage" class="page-lobby">
+
+    <section id="homePage" class="home-screen" aria-label="Last Light main menu">
+      <div class="home-copy">
+        <div class="home-eyebrow"><i></i> THE LIGHT IS FADING</div>
+        <h1 class="home-title">LAST <span>LIGHT.</span></h1>
+        <p class="home-description">The emergency systems have failed. The corridors are no longer safe. Find the power cores, rescue those still trapped, and make your way out of the ward.</p>
+        <div class="home-actions">
+          <button type="button" id="enterLobby" class="home-enter">ENTER THE WARD&nbsp; ↗</button>
+          <a class="home-link" href="/how-to-play">HOW TO PLAY</a>
+          <a class="home-link" href="https://discord.gg/dA7gg2UHh" target="_blank" rel="noopener noreferrer">DISCORD ↗</a>
+        </div>
+        <p class="home-note">Online co-op · Up to 5 survivors · 27 floors to escape</p>
+        <div class="home-stats">
+          <div class="home-stat"><strong>03</strong><span>STAGES</span></div>
+          <div class="home-stat"><strong>27</strong><span>FLOORS</span></div>
+          <div class="home-stat"><strong>08</strong><span>SURVIVOR ROLES</span></div>
+        </div>
+      </div>
+      <div class="home-art" aria-hidden="true"><div class="home-orbit"></div><div class="home-core"><span>◇</span></div><div class="home-art-label">WARD SYSTEM · POWER CRITICAL</div></div>
+    </section>
+    <div id="lobbyPage" class="page-lobby" hidden>
     <section class="intro"><div><div class="eyebrow"><i></i> THE LIGHT IS FADING</div><h1>Outrun the <em>Hollow.</em></h1><p>Choose your role. Find power cores, rescue trapped survivors, activate the relay, and escape together.</p></div>
       <div class="stage-info-card" aria-label="Current game stage and floor">
         <span id="stageInfoCard">BROWSER GAME V4.19 · STAGE 01 · FLOOR 01 / 09</span>
