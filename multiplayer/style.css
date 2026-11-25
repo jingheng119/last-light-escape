@@ -3024,3 +3024,7 @@ body.show-home .shell {
  .records-page{padding:12px 4px 30px}
  .progression-heading{flex-direction:column}
 }
+
+/* Return to the entrance from the survivor lobby. */
+.online-lobby .lobby-entrance-button{background:#142c31;border-color:#526f72;color:#d7eee7;white-space:nowrap}
+.online-lobby .lobby-entrance-button:hover:not(:disabled){background:#203e43;border-color:#8bcdbb}
