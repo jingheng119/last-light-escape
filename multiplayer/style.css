@@ -3037,4 +3037,6 @@ body.show-home .shell {
 /* Keep the entrance header focused on the LAST LIGHT title only. */
 body.show-home .topbar .top-room-details,
 body.show-home .topbar .top-links{display:none!important}
-
+/* Keep the entrance header clean; room occupancy and build/stage metadata belong to the game screen. */
+.show-lobby .topbar .top-room-details,
+.show-lobby .topbar .edition{display:none!important}
