@@ -3480,7 +3480,11 @@
     const LEADERBOARD_BADGES={
       ward:'Ward Escape',engine:'Copper Survivor',signal:'Last Light',
       solo:'Lone Survivor',team:'Together Through Darkness',
-      alive:'Everyone Made It'
+      alive:'Everyone Made It',
+      role_scout:'First Responder',role_medic:'Lifeline',
+      role_invisibler:'Unseen Survivor',role_teleporter:'Beyond the Walls',
+      role_illusioner:'Master of Deception',role_rewinder:'Timekeeper',
+      role_anchor:'Unbreakable',role_symbiote:'One With the Team'
     };
     const setLeaderboardCategory=category=>{
       if(!['solo','team'].includes(category))return;
@@ -3603,7 +3607,15 @@
       signal:{name:'Last Light',icon:'★',description:'Complete all 27 floors'},
       solo:{name:'Lone Survivor',icon:'♟',description:'Complete the full game alone'},
       team:{name:'Together Through Darkness',icon:'✧',description:'Complete the full game with a team'},
-      alive:{name:'Everyone Made It',icon:'♥',description:'Finish with every teammate alive'}
+      alive:{name:'Everyone Made It',icon:'♥',description:'Finish with every teammate alive'},
+      role_scout:{name:'First Responder',icon:'◎',description:'Complete all 27 floors as Scout'},
+      role_medic:{name:'Lifeline',icon:'✚',description:'Complete all 27 floors as Medic'},
+      role_invisibler:{name:'Unseen Survivor',icon:'◌',description:'Complete all 27 floors as Invisibler'},
+      role_teleporter:{name:'Beyond the Walls',icon:'✧',description:'Complete all 27 floors as Teleporter'},
+      role_illusioner:{name:'Master of Deception',icon:'◈',description:'Complete all 27 floors as Illusioner'},
+      role_rewinder:{name:'Timekeeper',icon:'↶',description:'Complete all 27 floors as Rewinder'},
+      role_anchor:{name:'Unbreakable',icon:'⌖',description:'Complete all 27 floors as Anchor'},
+      role_symbiote:{name:'One With the Team',icon:'✿',description:'Complete all 27 floors as Symbiote'}
     };
     const unlockQueue=[];
     let unlockTimer=null;
