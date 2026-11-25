@@ -1,12 +1,11 @@
-# Online multiplayer trial — original public single-player site remains on main.
-# Persistent completed-match database runs from feature/persistent-match-results; the original game on main is unchanged.
+# Last Light multiplayer service — deploy the active main branch.
 services:
   - type: web
     runtime: node
     name: last-light-online-trial
     region: singapore
     plan: free
-    branch: feature/persistent-match-results
+    branch: main
     rootDir: multiplayer
     buildCommand: npm install --omit=dev
     startCommand: npm start
