@@ -2991,3 +2991,36 @@ body.show-home .shell {
     margin:0 4px 24px;
   }
 }
+
+
+/* Dedicated entrance navigation and focused survivor-record pages. */
+.home-record-nav{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;margin:10px clamp(8px,3vw,34px) 34px;
+}
+.home-record-nav button{
+  position:relative;display:flex;flex-direction:column;align-items:flex-start;
+  gap:7px;min-height:112px;padding:18px 20px;text-align:left;
+  border:1px solid #426068;border-radius:12px;
+  background:linear-gradient(145deg,rgba(18,43,49,.96),rgba(8,22,28,.96));
+  color:#e6f6f0;cursor:pointer;transition:border-color .18s,transform .18s,background .18s;
+}
+.home-record-nav button:hover{border-color:#83c9b5;transform:translateY(-2px);background:#17363b}
+.home-record-nav button>span{font:11px monospace;letter-spacing:.12em;color:#9fc8bd}
+.home-record-nav button strong{font-size:13px;letter-spacing:.08em}
+.home-record-nav button small{font-size:12px;color:#a5c5c5}
+.records-page{min-height:calc(100vh - 110px);padding:18px clamp(8px,3vw,34px) 42px}
+.records-page[hidden]{display:none!important}
+.records-page .progression-panel{margin:0 auto;max-width:1100px;padding:clamp(16px,3vw,28px)}
+.records-page-nav{max-width:1100px;margin:0 auto 14px}
+.records-back{border:1px solid #526f72;border-radius:8px;background:#142c31;color:#d7eee7;padding:10px 14px;font-weight:700;cursor:pointer}
+.records-back:hover{border-color:#8bcdbb}
+.records-page .profile-recovery{margin-top:12px}
+.records-page .leaderboard-title{margin-top:8px}
+.show-records .shell{max-width:1180px}
+@media(max-width:700px){
+ .home-record-nav{grid-template-columns:1fr;margin:8px 4px 24px}
+ .home-record-nav button{min-height:86px;padding:15px}
+ .records-page{padding:12px 4px 30px}
+ .progression-heading{flex-direction:column}
+}
