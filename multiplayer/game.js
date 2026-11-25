@@ -2265,7 +2265,20 @@
   function drawHollows(){for(let i=0;i<hollows.length;i++){const h=hollows[i];
     if(h.variant==='ghost'){
       const x=h.x*TILE,y=h.y*TILE;
-      ctx.save();ctx.translate(x,y);ctx.globalAlpha=.73;
+      ctx.save();
+      // Ghosts can phase through walls, but only the portion inside floor
+      // tiles remains visible. Clip the glow and body to nearby walkable tiles.
+      const clipRadius=55;
+      const minX=Math.max(0,Math.floor((x-clipRadius)/TILE));
+      const maxX=Math.min(COLS-1,Math.floor((x+clipRadius)/TILE));
+      const minY=Math.max(0,Math.floor((y-clipRadius)/TILE));
+      const maxY=Math.min(ROWS-1,Math.floor((y+clipRadius)/TILE));
+      ctx.beginPath();
+      for(let ty=minY;ty<=maxY;ty++)for(let tx=minX;tx<=maxX;tx++){
+        if(grid[ty]?.[tx]!==1)ctx.rect(tx*TILE,ty*TILE,TILE,TILE);
+      }
+      ctx.clip();
+      ctx.translate(x,y);ctx.globalAlpha=.73;
       halo(0,0,50,'#d9ecff48');
       ctx.fillStyle='#d5dce5';ctx.beginPath();ctx.arc(0,-2,11,Math.PI,0);
       ctx.lineTo(11,12);ctx.quadraticCurveTo(5,7,0,12);
