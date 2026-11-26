@@ -39,11 +39,11 @@ const FILE={
   '/assets/stage-overview.webp':'assets/stage-overview.webp','/assets/stage-artwork.webp':'assets/stage-artwork.webp',
   '/assets/stage-1.webp':'assets/stage-1.webp','/assets/stage-2.webp':'assets/stage-2.webp','/assets/stage-3.webp':'assets/stage-3.webp',
   '/videos/Skill%20-%20Scout.mp4':'videos/Skill - Scout.mp4',
-  '/videos/Skill%20-%20Anchor.mp4':'videos/Skill - Anchor part 1.mp4',
+  '/videos/Skill%20-%20Anchor.mp4':'videos/Skill - Anchor.mp4',
   '/videos/Skill%20-%20Illusioner.mp4':'videos/Skill - Illusioner.mp4',
   '/videos/Skill%20-%20Invisibler.mp4':'videos/Skill - Invisibler.mp4',
   '/videos/Skill%20-%20Medic.mp4':'videos/Skill - Medic.mp4',
-  '/videos/Skill%20-%20Rewinder.mp4':'videos/Skill - Rewinder part 1.mp4',
+  '/videos/Skill%20-%20Rewinder.mp4':'videos/Skill - Rewinder.mp4',
   '/videos/Skill%20-%20Symbiote.mp4':'videos/Skill - Symbiote.mp4',
   '/videos/Skill%20-%20Teleporter.mp4':'videos/Skill - Teleporter.mp4'
 };
