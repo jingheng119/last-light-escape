@@ -24,14 +24,34 @@ const MIME={
   '/how-to-play':'text/html; charset=utf-8','/how-to-play.html':'text/html; charset=utf-8',
   '/assets/stage-overview.webp':'image/webp','/assets/stage-artwork.webp':'image/webp',
   '/assets/stage-1.webp':'image/webp','/assets/stage-2.webp':'image/webp','/assets/stage-3.webp':'image/webp',
-  '/videos/Skill%20-%20Scout.mp4':'video/mp4'
+  '/videos/Skill%20-%20Scout.mp4':'video/mp4',
+  '/videos/Skill%20-%20Anchor%20part%201.mp4':'video/mp4',
+  '/videos/Skill%20-%20Anchor%20part%202.mp4':'video/mp4',
+  '/videos/Skill%20-%20Illusioner.mp4':'video/mp4',
+  '/videos/Skill%20-%20Invisibler.mp4':'video/mp4',
+  '/videos/Skill%20-%20Medic.mp4':'video/mp4',
+  '/videos/Skill%20-%20Rewinder%20part%201.mp4':'video/mp4',
+  '/videos/Skill%20-%20Rewinder%20part%202.mp4':'video/mp4',
+  '/videos/Skill%20-%20Rewinder%20part%203.mp4':'video/mp4',
+  '/videos/Skill%20-%20Symbiote.mp4':'video/mp4',
+  '/videos/Skill%20-%20Teleporter.mp4':'video/mp4'
 };
 const FILE={
   '/':'index.html','/play':'index.html','/play/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg',
   '/how-to-play':'how-to-play.html','/how-to-play.html':'how-to-play.html',
   '/assets/stage-overview.webp':'assets/stage-overview.webp','/assets/stage-artwork.webp':'assets/stage-artwork.webp',
   '/assets/stage-1.webp':'assets/stage-1.webp','/assets/stage-2.webp':'assets/stage-2.webp','/assets/stage-3.webp':'assets/stage-3.webp',
-  '/videos/Skill%20-%20Scout.mp4':'videos/Skill - Scout.mp4'
+  '/videos/Skill%20-%20Scout.mp4':'videos/Skill - Scout.mp4',
+  '/videos/Skill%20-%20Anchor%20part%201.mp4':'videos/Skill - Anchor part 1.mp4',
+  '/videos/Skill%20-%20Anchor%20part%202.mp4':'videos/Skill - Anchor part 2.mp4',
+  '/videos/Skill%20-%20Illusioner.mp4':'videos/Skill - Illusioner.mp4',
+  '/videos/Skill%20-%20Invisibler.mp4':'videos/Skill - Invisibler.mp4',
+  '/videos/Skill%20-%20Medic.mp4':'videos/Skill - Medic.mp4',
+  '/videos/Skill%20-%20Rewinder%20part%201.mp4':'videos/Skill - Rewinder part 1.mp4',
+  '/videos/Skill%20-%20Rewinder%20part%202.mp4':'videos/Skill - Rewinder part 2.mp4',
+  '/videos/Skill%20-%20Rewinder%20part%203.mp4':'videos/Skill - Rewinder part 3.mp4',
+  '/videos/Skill%20-%20Symbiote.mp4':'videos/Skill - Symbiote.mp4',
+  '/videos/Skill%20-%20Teleporter.mp4':'videos/Skill - Teleporter.mp4'
 };
 const send=(ws,m)=>{
   if(ws?.readyState===WebSocket.OPEN&&ws.bufferedAmount<192000)
