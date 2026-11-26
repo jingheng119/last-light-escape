@@ -18,15 +18,21 @@ const QUICK_MESSAGES=new Set(['Help!','Follow!','Relay on!','Hollow!','Healing!'
 const rooms=new Map(),lobbyClients=new Set();
 const matchStore=makeMatchStore();
 const profileStore=makeProfileStore();
-const MIME={'/':'text/html; charset=utf-8','/play':'text/html; charset=utf-8','/play/':'text/html; charset=utf-8','/game.js':'text/javascript; charset=utf-8',
+const MIME={
+  '/':'text/html; charset=utf-8','/play':'text/html; charset=utf-8','/play/':'text/html; charset=utf-8','/game.js':'text/javascript; charset=utf-8',
   '/style.css':'text/css; charset=utf-8','/favicon.svg':'image/svg+xml',
   '/how-to-play':'text/html; charset=utf-8','/how-to-play.html':'text/html; charset=utf-8',
   '/assets/stage-overview.webp':'image/webp','/assets/stage-artwork.webp':'image/webp',
-  '/assets/stage-1.webp':'image/webp','/assets/stage-2.webp':'image/webp','/assets/stage-3.webp':'image/webp'};
-const FILE={'/':'index.html','/play':'index.html','/play/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg',
+  '/assets/stage-1.webp':'image/webp','/assets/stage-2.webp':'image/webp','/assets/stage-3.webp':'image/webp',
+  '/videos/Skill%20-%20Scout.mp4':'video/mp4'
+};
+const FILE={
+  '/':'index.html','/play':'index.html','/play/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg',
   '/how-to-play':'how-to-play.html','/how-to-play.html':'how-to-play.html',
   '/assets/stage-overview.webp':'assets/stage-overview.webp','/assets/stage-artwork.webp':'assets/stage-artwork.webp',
-  '/assets/stage-1.webp':'assets/stage-1.webp','/assets/stage-2.webp':'assets/stage-2.webp','/assets/stage-3.webp':'assets/stage-3.webp'};
+  '/assets/stage-1.webp':'assets/stage-1.webp','/assets/stage-2.webp':'assets/stage-2.webp','/assets/stage-3.webp':'assets/stage-3.webp',
+  '/videos/Skill%20-%20Scout.mp4':'videos/Skill - Scout.mp4'
+};
 const send=(ws,m)=>{
   if(ws?.readyState===WebSocket.OPEN&&ws.bufferedAmount<192000)
     ws.send(JSON.stringify(m));
