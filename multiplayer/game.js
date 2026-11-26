@@ -547,7 +547,7 @@
     const baseInvisibleCount=Math.round(baseEnemies*.40)+(cfg.stage===3?1:0);
     const baseGhostCount=cfg.stage===3?Math.max(0,cfg.enemies-baseStandardCount-baseInvisibleCount):0;
     const standardCount=cfg.stage===3?baseStandardCount*2:baseStandardCount;
-    const invisibleCount=cfg.stage===3?baseInvisibleCount+5:baseInvisibleCount;
+    const invisibleCount=cfg.stage===3?Math.max(0,baseInvisibleCount-5):baseInvisibleCount;
     const ghostCount=cfg.stage===3?baseGhostCount*2:0;
     const totalEnemies=cfg.stage===3?standardCount+invisibleCount+ghostCount:cfg.enemies;
     for(let i=0;i<totalEnemies;i++) {
