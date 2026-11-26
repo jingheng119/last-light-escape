@@ -357,16 +357,6 @@ const server=http.createServer(async(req,res)=>{
       'cache-control':'no-store','x-content-type-options':'nosniff'});
     res.end(JSON.stringify(result));return;
   }
-  // A direct browser visit to the Rewinder MP4 URL gets a dedicated player page.
-  // Embedded video requests keep receiving the original MP4 response.
-  if(pathname==='/videos/Skill%20-%20Rewinder.mp4'&&req.headers['sec-fetch-mode']==='navigate'){
-    try{
-      const page=await readFile(new URL('rewinder-player.html',import.meta.url));
-      res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store',
-        'x-content-type-options':'nosniff'});res.end(page);
-    }catch{res.writeHead(500);res.end('Player page unavailable');}
-    return;
-  }
   const file=FILE[pathname];
   if(!file){res.writeHead(404);res.end('Not found');return;}
   try{
