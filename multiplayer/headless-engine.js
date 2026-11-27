@@ -183,6 +183,16 @@ const bridge=`
       h.mode='patrol';h.target=null;h.path=[];h.repath=0;
       return true;
     },
+    // Local regression hook: place the host on a Ghost Hollow and process contact.
+    // This is never exposed as a WebSocket command.
+    testGhostContact(){
+      const ghost=hollows.find(h=>h.variant==='ghost');
+      if(!ghost)return false;
+      player.x=ghost.x;player.y=ghost.y;
+      player.invincible=0;player.dashTime=0;
+      checkGhostContact();
+      return player.ghostTrapped>0;
+    },
     // Used only by local/CI engine tests. There is no WebSocket command for it.
     testHit(id){
       const hit=()=>{player.invincible=0;player.dashTime=0;damage();};

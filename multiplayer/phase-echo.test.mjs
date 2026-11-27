@@ -22,12 +22,17 @@ for(const p of team){
   assert.equal(p.phaseEchoCharge,1,'Rescue grants one charge to every teammate');
   assert.equal(p.phaseEchoTime,0);
 }
+assert.equal(room.testGhostContact(),true,'Ghost Hollow contact applies its curse first');
+assert.equal(team[0].ghostTrapped,30,'Ghost curse lasts the full 30 seconds');
+assert.equal(team[0].phaseEchoCharge,1,'Phase Echo charge is preserved during the curse');
+assert.equal(team[0].phaseEchoTime,0,'Phase Echo does not activate on initial Ghost Hollow contact');
+for(let i=0;i<601;i++)room.tick(.05);
+assert.equal(team[0].ghostTrapped,0,'Ghost curse expires after 30 seconds');
+assert.equal(team[0].hp,1,'Ghost curse does not remove a heart');
+assert.equal(team[0].phaseEchoCharge,0,'Phase Echo charge is consumed after the curse expires');
+assert.equal(team[0].phaseEchoTime,5,'Phase Echo activates automatically after the 30-second curse');
 room.testHit(1);
-assert.equal(team[0].hp,1,'First hit is fully prevented even at one heart');
-assert.equal(team[0].phaseEchoCharge,0,'Charge consumed immediately');
-assert.equal(team[0].phaseEchoTime,5,'Ghost transformation lasts five seconds');
-room.testHit(1);
-assert.equal(team[0].hp,1,'Repeated hits during phasing have no effect');
+assert.equal(team[0].hp,1,'Repeated hits during Phase Echo have no effect');
 team[3].invincible=0;
 room.testHit(4);
 assert.equal(team[3].hp,2,'Fourth player receives own defensive trigger');
