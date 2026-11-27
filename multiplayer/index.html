@@ -22,6 +22,17 @@
     .home-core{width:112px;height:112px;display:grid;place-items:center;border:1px solid #b9d0eb70;transform:rotate(45deg);box-shadow:0 0 65px #8fb8e52b,inset 0 0 38px #8fb8e51b;background:linear-gradient(135deg,#a7c7e51a,#15263b88)}.home-core span{transform:rotate(-45deg);font-size:42px;color:#d6e5f7;text-shadow:0 0 24px #a8c9f4}
     .home-art-label{position:absolute;bottom:22px;color:#8399b5;font-size:9px;letter-spacing:.2em}
     @media(max-width:760px){.home-screen{min-height:auto;grid-template-columns:1fr;padding:34px 4px 48px;gap:24px}.home-art{grid-row:1;min-height:220px}.home-orbit{width:235px}.home-core{width:78px;height:78px}.home-core span{font-size:30px}.home-art-label{bottom:12px}.home-description{font-size:14px}.home-stats{margin-top:30px;gap:18px}}
+  
+    .news-home-link{font-family:inherit;cursor:pointer}
+    .news-home-link:hover{border-color:#c4d8ef;background:#1a2a40}
+    .news-panel{max-width:980px;margin-inline:auto}
+    .news-list{display:grid;gap:0;margin-top:28px;border-top:1px solid #8fa9c329}
+    .news-entry{display:grid;grid-template-columns:155px minmax(0,1fr);gap:24px;padding:24px 0;border-bottom:1px solid #8fa9c329}
+    .news-date{color:#9eb6d2;font-size:10px;font-weight:800;letter-spacing:.14em}
+    .news-date span{display:block;margin-top:9px;color:#9cc8c0;font-size:9px}
+    .news-entry h3{margin:0;color:#e4edf8;font-size:17px;font-weight:700}
+    .news-entry p{margin:9px 0 0;color:#aab8cc;font-size:13px;line-height:1.8}
+    @media(max-width:620px){.news-entry{grid-template-columns:1fr;gap:10px;padding:20px 0}.news-entry h3{font-size:15px}}
   </style>
 </head>
 <body>
@@ -49,6 +60,7 @@
           <button type="button" id="enterLobby" class="home-enter">ENTER THE WARD&nbsp; ↗</button>
           <a class="home-link" href="/how-to-play">HOW TO PLAY</a>
           <a class="home-link" href="https://discord.gg/dA7gg2UHh" target="_blank" rel="noopener noreferrer">DISCORD ↗</a>
+          <button type="button" class="home-link news-home-link" data-open-page="news">NEWS &amp; UPDATES</button>
         </div>
         <p class="home-note">Online co-op · Up to 5 survivors · 27 floors to escape</p>
         <div class="home-stats">
@@ -60,7 +72,21 @@
       <div class="home-art" aria-hidden="true"><div class="home-orbit"></div><div class="home-core"><span>◇</span></div><div class="home-art-label">WARD SYSTEM · POWER CRITICAL</div></div>
     </section>
 
-      <nav class="home-record-nav" aria-label="Survivor records">
+          <section id="newsPage" class="records-page news-page" hidden aria-label="News and updates">
+      <div class="records-page-nav"><button type="button" class="records-back" data-back-home>← ENTRANCE</button></div>
+      <section class="progression-panel news-panel" aria-label="Last Light news and updates">
+        <div class="progression-heading"><div><span class="lobby-eyebrow">DEVELOPMENT LOG</span><h2>News &amp; Updates</h2><p>Milestones, new features and changes from the development of Last Light: The Hollow Ward.</p></div></div>
+        <div class="news-list">
+          <article class="news-entry news-latest"><div class="news-date">26 NOV 2026 <span>LATEST UPDATE</span></div><div><h3>Survivor Skills &amp; Gameplay Showcase</h3><p>Skill demonstration videos are now available to help players understand each survivor's abilities before entering the ward. A full gameplay video has also been prepared to introduce the experience.</p></div></article>
+          <article class="news-entry"><div class="news-date">25 NOV 2026</div><div><h3>Presentation &amp; Stage 3 Refinements</h3><p>A new loading page and clearer page navigation improve the entrance experience. Achievements have been expanded, while Stage 3 enemy balance and Ghost Hollow behaviour have been refined.</p></div></article>
+          <article class="news-entry"><div class="news-date">10 NOV 2026</div><div><h3>Beta Release</h3><p>Last Light entered beta with three stages and 27 floors. Further balancing focused on enemy difficulty, survivor vitality and interface clarity.</p></div></article>
+          <article class="news-entry"><div class="news-date">9 NOV 2026</div><div><h3>Stage 3: Lost Signal</h3><p>The third stage expanded the journey to 27 floors, introducing new Hollow variants and the Echo ally, alongside survivor profiles, achievements and leaderboards.</p></div></article>
+          <article class="news-entry"><div class="news-date">5–8 NOV 2026</div><div><h3>Co-operative Multiplayer</h3><p>Online co-op grew to support up to five survivors, with room lobbies, reconnection, spectator viewing, chat and persistent progression. Additional survivor roles joined the roster.</p></div></article>
+          <article class="news-entry"><div class="news-date">4 NOV 2026</div><div><h3>The Beginning</h3><p>The first playable single-player experience introduced the Scout and Medic. The Copper Engine followed, expanding the game with a second stage.</p></div></article>
+        </div>
+      </section>
+    </section>
+<nav class="home-record-nav" aria-label="Survivor records">
         <button type="button" data-open-page="progression"><span>01</span><strong>PROGRESSION</strong><small>Your records &amp; achievements</small></button>
         <button type="button" data-open-page="leaderboard"><span>02</span><strong>LEADERBOARD</strong><small>Fastest verified runs</small></button>
         <button type="button" data-open-page="profile"><span>03</span><strong>PRIVATE SURVIVOR PROFILE</strong><small>Restore your profile securely</small></button>
