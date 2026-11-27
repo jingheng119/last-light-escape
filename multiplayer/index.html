@@ -26,11 +26,12 @@
 
 
     .news-bulletin[hidden]{display:none!important}
-    .news-bulletin{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:22px;clip-path:circle(0 at var(--news-origin-x,50%) var(--news-origin-y,50%));transition:clip-path .52s cubic-bezier(.22,.75,.2,1);will-change:clip-path}
-    .news-bulletin.is-visible{clip-path:circle(150vmax at var(--news-origin-x,50%) var(--news-origin-y,50%))}
-    .news-bulletin-backdrop{position:absolute;inset:0;background:#030811d9;backdrop-filter:blur(8px)}
-    .news-bulletin-panel{position:relative;z-index:1;width:min(100%,1000px);max-height:min(88vh,900px);overflow-y:auto;overscroll-behavior:contain;box-shadow:0 24px 100px #000b}
-    @media(prefers-reduced-motion:reduce){.news-bulletin{transition:none}}
+    .news-bulletin{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:22px}
+    .news-bulletin-backdrop{position:absolute;inset:0;background:#030811d9;backdrop-filter:blur(8px);opacity:0;transition:opacity .38s ease}
+    .news-bulletin-panel{position:relative;z-index:1;width:min(100%,1000px);max-height:min(88vh,900px);overflow-y:auto;overscroll-behavior:contain;box-shadow:0 24px 100px #000b;opacity:0;transform:translateY(12px) scale(.965);transform-origin:var(--news-origin-x,50%) var(--news-origin-y,50%);transition:opacity .34s ease,transform .46s cubic-bezier(.2,.75,.25,1)}
+    .news-bulletin.is-visible .news-bulletin-backdrop{opacity:1}
+    .news-bulletin.is-visible .news-bulletin-panel{opacity:1;transform:translateY(0) scale(1)}
+    @media(prefers-reduced-motion:reduce){.news-bulletin-backdrop,.news-bulletin-panel{transition:none}}
     .news-bulletin-close{position:sticky;top:0;float:right;z-index:3;margin:-8px -8px 0 12px;width:36px;height:36px;border:1px solid #8fa9c34a;border-radius:8px;background:#101b2b;color:#dce7f5;font-size:25px;line-height:1;cursor:pointer}
     .news-bulletin-close:hover{background:#263d57}
     @media(max-width:650px){.news-bulletin{padding:10px}.news-bulletin-panel{max-height:92vh}.news-bulletin-close{margin:-5px -5px 0 8px}}
