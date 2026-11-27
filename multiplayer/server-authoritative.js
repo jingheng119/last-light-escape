@@ -37,10 +37,10 @@ const MIME={
   '/videos/Enemies/Hunter.mp4':'video/mp4',
   '/videos/Enemies/Ghost.mp4':'video/mp4',
   '/videos/Enemies/Invisible%20Hollow.mp4':'video/mp4',
-  '/videos/objectives/Collecting%20cores.mp4':'video/mp4',
-  '/videos/objectives/Rescue%20help.mp4':'video/mp4',
-  '/videos/objectives/Relay%20activate.mp4':'video/mp4',
-  '/videos/objectives/Exit%20at%20elevator.mp4':'video/mp4'
+  '/videos/Objectives/Collecting%20cores.mp4':'video/mp4',
+  '/videos/Objectives/Rescue%20help.mp4':'video/mp4',
+  '/videos/Objectives/Relay%20activate.mp4':'video/mp4',
+  '/videos/Objectives/Exit%20at%20elevator.mp4':'video/mp4'
 };
 const FILE={
   '/':'index.html','/play':'index.html','/play/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg',
@@ -60,10 +60,10 @@ const FILE={
   '/videos/Enemies/Hunter.mp4':'videos/Enemies/Hunter.mp4',
   '/videos/Enemies/Ghost.mp4':'videos/Enemies/Ghost.mp4',
   '/videos/Enemies/Invisible%20Hollow.mp4':'videos/Enemies/Invisible Hollow.mp4',
-  '/videos/objectives/Collecting%20cores.mp4':'videos/objectives/Collecting cores.mp4',
-  '/videos/objectives/Rescue%20help.mp4':'videos/objectives/Rescue help.mp4',
-  '/videos/objectives/Relay%20activate.mp4':'videos/objectives/Relay activate.mp4',
-  '/videos/objectives/Exit%20at%20elevator.mp4':'videos/objectives/Exit at elevator.mp4'
+  '/videos/Objectives/Collecting%20cores.mp4':'videos/objectives/Collecting cores.mp4',
+  '/videos/Objectives/Rescue%20help.mp4':'videos/objectives/Rescue help.mp4',
+  '/videos/Objectives/Relay%20activate.mp4':'videos/objectives/Relay activate.mp4',
+  '/videos/Objectives/Exit%20at%20elevator.mp4':'videos/objectives/Exit at elevator.mp4'
 };
 const send=(ws,m)=>{
   if(ws?.readyState===WebSocket.OPEN&&ws.bufferedAmount<192000)
