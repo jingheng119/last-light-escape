@@ -41,6 +41,14 @@
     .news-overview>div{padding:16px 12px;border:1px solid #8fa9c329;border-radius:9px;background:#101b2b66}
     .news-overview strong{display:block;color:#e1ebf8;font-size:25px;letter-spacing:-.04em}
     .news-overview span{display:block;margin-top:5px;color:#8299b5;font-size:9px;font-weight:800;letter-spacing:.13em}
+    .news-switcher{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:8px 0 22px;padding:0 2px;border-bottom:1px solid #8fa9c329}
+    .news-switch-button{flex:1;padding:15px 12px;border:0;border-bottom:2px solid transparent;background:transparent;color:#8299b5;font-size:10px;font-weight:850;letter-spacing:.16em;cursor:pointer;transition:color .2s ease,border-color .2s ease}
+    .news-switch-button:first-child{text-align:left}
+    .news-switch-button:last-child{text-align:right}
+    .news-switch-button:hover,.news-switch-button.active{color:#dce7f5}
+    .news-switch-button.active{border-bottom-color:#9cc8c0}
+    .news-switch-divider{width:1px;height:18px;background:#8fa9c329}
+    .news-view[hidden]{display:none!important}
     .news-list{display:grid;gap:0;margin-top:10px;border-top:1px solid #8fa9c329}
     .news-entry{display:grid;grid-template-columns:150px minmax(0,1fr);gap:25px;padding:28px 0;border-bottom:1px solid #8fa9c329}
     .news-date{color:#9eb6d2;font-size:10px;font-weight:800;letter-spacing:.12em;line-height:1.6}
@@ -107,7 +115,13 @@
         <div class="news-overview">
           <div><strong>03</strong><span>STAGES</span></div><div><strong>27</strong><span>FLOORS</span></div><div><strong>08</strong><span>SURVIVOR ROLES</span></div><div><strong>05</strong><span>PLAYERS PER ROOM</span></div>
         </div>
-        <div class="news-list">
+        <div class="news-switcher" role="group" aria-label="News bulletin sections">
+          <button type="button" class="news-switch-button active" data-news-view="news" aria-pressed="true">← NEWS</button>
+          <span class="news-switch-divider" aria-hidden="true"></span>
+          <button type="button" class="news-switch-button" data-news-view="updates" aria-pressed="false">UPDATES →</button>
+        </div>
+        <div id="newsView" class="news-view">
+          <div class="news-list">
           <article class="news-entry news-latest"><div class="news-date">25–26 NOV 2026<span>LATEST MILESTONE · V5</span></div><div>
             <div class="news-version">VERSION 5</div><h3>Gameplay Refinement &amp; Presentation</h3>
             <p>With the core game in place, development shifted towards making the experience clearer, more balanced and easier to learn.</p>
@@ -118,6 +132,10 @@
               <li><strong>Progression and presentation:</strong> expanded achievements and prepared full-gameplay footage to introduce the game to new players.</li>
             </ul>
           </div></article>
+          </div>
+        </div>
+        <div id="updatesView" class="news-view" hidden>
+          <div class="news-list">
           <article class="news-entry"><div class="news-date">9–10 NOV 2026<span>BETA RELEASE</span></div><div>
             <div class="news-version">VERSION 4</div><h3>Stage 3: The Lost Signal</h3>
             <p>The final stage completed the original 27-floor journey and brought the three environments together into one full run.</p>
@@ -159,6 +177,7 @@
               <li><strong>Original browser presentation:</strong> created the game's visuals and real-time gameplay using HTML Canvas and JavaScript.</li>
             </ul>
           </div></article>
+          </div>
         </div>
         <p class="news-footer-note">This timeline highlights the major milestones. Smaller balance changes and ongoing refinements are not listed individually.</p>
       </section>
