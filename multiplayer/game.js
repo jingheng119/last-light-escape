@@ -77,13 +77,37 @@
   // screens never removes a player from their server-side room.
   let activePage='home';
   let lastCountdownNumber=0;
+  let newsBulletinCloseTimer=null;
+  const NEWS_BULLETIN_ANIMATION_MS=520;
+  function setNewsBulletinOrigin(){
+    const button=$('.news-home-link');
+    const rect=button?.getBoundingClientRect();
+    const x=rect?rect.left+rect.width/2:window.innerWidth/2;
+    const y=rect?rect.top+rect.height/2:window.innerHeight/2;
+    const bulletin=$('#newsBulletin');
+    bulletin.style.setProperty('--news-origin-x',x+'px');
+    bulletin.style.setProperty('--news-origin-y',y+'px');
+  }
   function openNewsBulletin(){
-    $('#newsBulletin').hidden=false;
+    const bulletin=$('#newsBulletin');
+    if(newsBulletinCloseTimer){clearTimeout(newsBulletinCloseTimer);newsBulletinCloseTimer=null;}
+    setNewsBulletinOrigin();
+    bulletin.hidden=false;
     document.body.classList.add('news-bulletin-open');
+    requestAnimationFrame(()=>requestAnimationFrame(()=>bulletin.classList.add('is-visible')));
   }
   function closeNewsBulletin(){
-    $('#newsBulletin').hidden=true;
+    const bulletin=$('#newsBulletin');
+    if(bulletin.hidden)return;
+    setNewsBulletinOrigin();
+    bulletin.classList.remove('is-visible');
     document.body.classList.remove('news-bulletin-open');
+    if(newsBulletinCloseTimer)clearTimeout(newsBulletinCloseTimer);
+    const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    newsBulletinCloseTimer=setTimeout(()=>{
+      bulletin.hidden=true;
+      newsBulletinCloseTimer=null;
+    },reducedMotion?0:NEWS_BULLETIN_ANIMATION_MS);
   }
   function showPage(target,push=true){
     const validPages=['home','progression','leaderboard','profile','lobby','play'];
