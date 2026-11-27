@@ -156,6 +156,11 @@ header {
   gap: 12px;
 }
 
+.objective-cards {
+  grid-template-columns: 1fr;
+}
+
+
 
 .role-skill-video {
   width: 100%;
@@ -507,7 +512,7 @@ kbd {
 <button type="button" class="tab" role="tab" id="tab-progression" aria-controls="panel-progression" aria-selected="false" tabindex="-1" data-topic="progression">Progression</button>
 <button type="button" class="tab" role="tab" id="tab-gameplay" aria-controls="panel-gameplay" aria-selected="false" tabindex="-1" data-topic="gameplay">Gameplay</button>
 </nav><main>
-<section class="panel" role="tabpanel" id="panel-objectives" aria-labelledby="tab-objectives"><h2>Escape each floor</h2><p>Every floor is a maze with objectives to complete before extraction.</p><div class="cards">
+<section class="panel" role="tabpanel" id="panel-objectives" aria-labelledby="tab-objectives"><h2>Escape each floor</h2><p>Every floor is a maze with objectives to complete before extraction.</p><div class="cards objective-cards">
 <div class="card"><strong>Collect power cores</strong><p>Find the power cores scattered throughout the maze.</p><video class="role-skill-video" autoplay muted loop playsinline preload="metadata"><source src="/videos/objectives/Collecting%20cores.mp4" type="video/mp4"></video></div>
 <div class="card"><strong>Rescue the trapped survivor</strong><p>Approach the trapped survivor and interact to rescue them.</p><video class="role-skill-video" autoplay muted loop playsinline preload="metadata"><source src="/videos/objectives/Rescue%20help.mp4" type="video/mp4"></video></div>
 <div class="card"><strong>Activate the relay</strong><p>Restore the exit systems by activating the relay.</p><video class="role-skill-video" autoplay muted loop playsinline preload="metadata"><source src="/videos/objectives/Relay%20activate.mp4" type="video/mp4"></video></div>
