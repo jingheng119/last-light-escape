@@ -102,12 +102,12 @@
     if(page==='play')url.searchParams.set('room',$('#joinRoomCode').value.trim().toUpperCase());
     else if(page==='lobby'&&new URLSearchParams(location.search).has('room'))
       url.searchParams.set('room',new URLSearchParams(location.search).get('room'));
-    else if(['progression','leaderboard','profile'].includes(page))
+    else if(['progression','leaderboard','profile','news'].includes(page))
       url.searchParams.set('view',page);
     const next=url.pathname+url.search;
     if(push&&location.pathname+location.search!==next)history.pushState({screen:page},'',next);
     if(!push&&location.pathname+location.search!==next)history.replaceState({screen:page},'',next);
-    const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Private Survivor Profile — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
+    const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Private Survivor Profile — Last Light',news:'News & Updates — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
     document.title=titles[page];
     if(page==='play'){
       $('#gameRoomName').textContent=$('#currentRoomName').textContent;
@@ -4028,7 +4028,7 @@
       if(activePage==='play'&&!soundEnabled)unlockGameAudio();
     },{capture:true});
     window.addEventListener('popstate',()=>{
-      showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
+      showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile','news'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
     });
     setJoined(false);
     showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
