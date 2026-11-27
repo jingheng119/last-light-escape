@@ -3040,3 +3040,23 @@ body.show-home .topbar .top-links{display:none!important}
 /* Keep the records tabs (Progression, Leaderboard, Private Survivor Profile) focused on their content. */
 body.show-records .topbar .top-room-details,
 body.show-records .topbar .top-links{display:none!important}
+
+
+/* Keep survivor record pages scrollable when opened from desktop fullscreen.
+   The immersive gameplay layout locks page scrolling; records pages need the
+   normal document scroll so long profiles and rankings remain reachable. */
+@media (min-width:981px) and (min-height:560px) and (pointer:fine) {
+  html:has(body.show-records),
+  body.show-records {
+    height:auto;
+    min-height:100%;
+    overflow-x:hidden;
+    overflow-y:auto!important;
+  }
+  body.show-records .shell {
+    height:auto!important;
+    min-height:100vh;
+    min-height:100dvh;
+    overflow:visible!important;
+  }
+}
