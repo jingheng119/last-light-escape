@@ -31,7 +31,11 @@ const MIME={
   '/videos/Skill%20-%20Medic.mp4':'video/mp4',
   '/videos/Skill%20-%20Rewinder.mp4':'video/mp4',
   '/videos/Skill%20-%20Symbiote.mp4':'video/mp4',
-  '/videos/Skill%20-%20Teleporter.mp4':'video/mp4'
+  '/videos/Skill%20-%20Teleporter.mp4':'video/mp4',
+  '/videos/objectives/Collecting%20cores.mp4':'video/mp4',
+  '/videos/objectives/Rescue%20help.mp4':'video/mp4',
+  '/videos/objectives/Relay%20activate.mp4':'video/mp4',
+  '/videos/objectives/Exit%20at%20elevator.mp4':'video/mp4'
 };
 const FILE={
   '/':'index.html','/play':'index.html','/play/':'index.html','/game.js':'game.js','/style.css':'style.css','/favicon.svg':'favicon.svg',
@@ -45,7 +49,11 @@ const FILE={
   '/videos/Skill%20-%20Medic.mp4':'videos/Skill - Medic.mp4',
   '/videos/Skill%20-%20Rewinder.mp4':'videos/Skill - Rewinder.mp4',
   '/videos/Skill%20-%20Symbiote.mp4':'videos/Skill - Symbiote.mp4',
-  '/videos/Skill%20-%20Teleporter.mp4':'videos/Skill - Teleporter.mp4'
+  '/videos/Skill%20-%20Teleporter.mp4':'videos/Skill - Teleporter.mp4',
+  '/videos/objectives/Collecting%20cores.mp4':'videos/objectives/Collecting cores.mp4',
+  '/videos/objectives/Rescue%20help.mp4':'videos/objectives/Rescue help.mp4',
+  '/videos/objectives/Relay%20activate.mp4':'videos/objectives/Relay activate.mp4',
+  '/videos/objectives/Exit%20at%20elevator.mp4':'videos/objectives/Exit at elevator.mp4'
 };
 const send=(ws,m)=>{
   if(ws?.readyState===WebSocket.OPEN&&ws.bufferedAmount<192000)
@@ -361,8 +369,33 @@ const server=http.createServer(async(req,res)=>{
   if(!file){res.writeHead(404);res.end('Not found');return;}
   try{
     const data=await readFile(new URL(file,import.meta.url));
-    res.writeHead(200,{'content-type':MIME[pathname],'cache-control':'no-store',
-      'x-content-type-options':'nosniff'});res.end(data);
+    const isVideo=file.endsWith('.mp4');
+    const headers={'content-type':MIME[pathname]||(isVideo?'video/mp4':'application/octet-stream'),
+      'cache-control':'no-store','x-content-type-options':'nosniff'};
+    if(isVideo){
+      headers['accept-ranges']='bytes';
+      const range=req.headers.range;
+      if(range){
+        const match=/^bytes=(\\d*)-(\\d*)$/.exec(range);
+        if(!match){res.writeHead(416,{'content-range':`bytes */${data.length}`});res.end();return;}
+        let start,end;
+        if(match[1]===''){
+          const suffix=Number(match[2]);
+          start=Math.max(0,data.length-suffix);end=data.length-1;
+        }else{
+          start=Number(match[1]);
+          end=match[2]===''?data.length-1:Math.min(Number(match[2]),data.length-1);
+        }
+        if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||start>=data.length||end<start){
+          res.writeHead(416,{'content-range':`bytes */${data.length}`});res.end();return;
+        }
+        headers['content-range']=`bytes ${start}-${end}/${data.length}`;
+        headers['content-length']=end-start+1;
+        res.writeHead(206,headers);res.end(data.subarray(start,end+1));return;
+      }
+      headers['content-length']=data.length;
+    }
+    res.writeHead(200,headers);res.end(data);
   }catch{res.writeHead(500);res.end('Asset error');}
 });
 const wss=new WebSocketServer({server,maxPayload:32768});
