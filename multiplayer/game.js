@@ -1177,7 +1177,6 @@
       .sort((a,b)=>dist(a,player)-dist(b,player))[0];
     if(trapped){
       trapped.ghostTrapped=0;
-      trapped.invincible=Math.max(trapped.invincible,2);
       notify('GHOST CURSE LIFTED — TEAMMATE RESCUED!',3);
       beep(1040,.25);updateUI();return;
     }
