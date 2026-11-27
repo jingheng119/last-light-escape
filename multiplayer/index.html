@@ -23,16 +23,25 @@
     .home-art-label{position:absolute;bottom:22px;color:#8399b5;font-size:9px;letter-spacing:.2em}
     @media(max-width:760px){.home-screen{min-height:auto;grid-template-columns:1fr;padding:34px 4px 48px;gap:24px}.home-art{grid-row:1;min-height:220px}.home-orbit{width:235px}.home-core{width:78px;height:78px}.home-core span{font-size:30px}.home-art-label{bottom:12px}.home-description{font-size:14px}.home-stats{margin-top:30px;gap:18px}}
   
-    .news-home-link{font-family:inherit;cursor:pointer}
-    .news-home-link:hover{border-color:#c4d8ef;background:#1a2a40}
-    .news-panel{max-width:980px;margin-inline:auto}
-    .news-list{display:grid;gap:0;margin-top:28px;border-top:1px solid #8fa9c329}
-    .news-entry{display:grid;grid-template-columns:155px minmax(0,1fr);gap:24px;padding:24px 0;border-bottom:1px solid #8fa9c329}
-    .news-date{color:#9eb6d2;font-size:10px;font-weight:800;letter-spacing:.14em}
-    .news-date span{display:block;margin-top:9px;color:#9cc8c0;font-size:9px}
-    .news-entry h3{margin:0;color:#e4edf8;font-size:17px;font-weight:700}
-    .news-entry p{margin:9px 0 0;color:#aab8cc;font-size:13px;line-height:1.8}
-    @media(max-width:620px){.news-entry{grid-template-columns:1fr;gap:10px;padding:20px 0}.news-entry h3{font-size:15px}}
+
+    .news-panel{max-width:1000px;margin-inline:auto}
+    .news-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:26px 0 32px}
+    .news-overview>div{padding:16px 12px;border:1px solid #8fa9c329;border-radius:9px;background:#101b2b66}
+    .news-overview strong{display:block;color:#e1ebf8;font-size:25px;letter-spacing:-.04em}
+    .news-overview span{display:block;margin-top:5px;color:#8299b5;font-size:9px;font-weight:800;letter-spacing:.13em}
+    .news-list{display:grid;gap:0;margin-top:10px;border-top:1px solid #8fa9c329}
+    .news-entry{display:grid;grid-template-columns:150px minmax(0,1fr);gap:25px;padding:28px 0;border-bottom:1px solid #8fa9c329}
+    .news-date{color:#9eb6d2;font-size:10px;font-weight:800;letter-spacing:.12em;line-height:1.6}
+    .news-date span{display:block;margin-top:8px;color:#9cc8c0;font-size:9px}
+    .news-version{margin-bottom:8px;color:#9cc8c0;font-size:9px;font-weight:850;letter-spacing:.18em}
+    .news-entry h3{margin:0;color:#e4edf8;font-size:19px;font-weight:750}
+    .news-entry p{margin:10px 0 0;color:#aab8cc;font-size:13px;line-height:1.8}
+    .news-entry ul{display:grid;gap:9px;margin:15px 0 0;padding-left:18px;color:#aab8cc;font-size:12px;line-height:1.75}
+    .news-entry li{padding-left:3px}
+    .news-entry li strong{color:#d6e3f3;font-weight:700}
+    .news-footer-note{margin:22px 0 0;color:#8294ad;font-size:11px;line-height:1.7}
+    @media(max-width:650px){.news-entry{grid-template-columns:1fr;gap:12px;padding:22px 0}.news-entry h3{font-size:17px}.news-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
   </style>
 </head>
 <body>
@@ -74,19 +83,68 @@
 
           <section id="newsPage" class="records-page news-page" hidden aria-label="News and updates">
       <div class="records-page-nav"><button type="button" class="records-back" data-back-home>← ENTRANCE</button></div>
-      <section class="progression-panel news-panel" aria-label="Last Light news and updates">
-        <div class="progression-heading"><div><span class="lobby-eyebrow">DEVELOPMENT LOG</span><h2>News &amp; Updates</h2><p>Milestones, new features and changes from the development of Last Light: The Hollow Ward.</p></div></div>
-        <div class="news-list">
-          <article class="news-entry news-latest"><div class="news-date">26 NOV 2026 <span>LATEST UPDATE</span></div><div><h3>Survivor Skills &amp; Gameplay Showcase</h3><p>Skill demonstration videos are now available to help players understand each survivor's abilities before entering the ward. A full gameplay video has also been prepared to introduce the experience.</p></div></article>
-          <article class="news-entry"><div class="news-date">25 NOV 2026</div><div><h3>Presentation &amp; Stage 3 Refinements</h3><p>A new loading page and clearer page navigation improve the entrance experience. Achievements have been expanded, while Stage 3 enemy balance and Ghost Hollow behaviour have been refined.</p></div></article>
-          <article class="news-entry"><div class="news-date">10 NOV 2026</div><div><h3>Beta Release</h3><p>Last Light entered beta with three stages and 27 floors. Further balancing focused on enemy difficulty, survivor vitality and interface clarity.</p></div></article>
-          <article class="news-entry"><div class="news-date">9 NOV 2026</div><div><h3>Stage 3: Lost Signal</h3><p>The third stage expanded the journey to 27 floors, introducing new Hollow variants and the Echo ally, alongside survivor profiles, achievements and leaderboards.</p></div></article>
-          <article class="news-entry"><div class="news-date">5–8 NOV 2026</div><div><h3>Co-operative Multiplayer</h3><p>Online co-op grew to support up to five survivors, with room lobbies, reconnection, spectator viewing, chat and persistent progression. Additional survivor roles joined the roster.</p></div></article>
-          <article class="news-entry"><div class="news-date">4 NOV 2026</div><div><h3>The Beginning</h3><p>The first playable single-player experience introduced the Scout and Medic. The Copper Engine followed, expanding the game with a second stage.</p></div></article>
+      <section class="progression-panel news-panel" aria-label="Last Light development timeline">
+        <div class="progression-heading"><div><span class="lobby-eyebrow">THE MAKING OF LAST LIGHT</span><h2>News &amp; Updates</h2><p>From a small single-player experiment to a three-stage, 27-floor online survival game. Explore the major milestones behind The Hollow Ward.</p></div></div>
+        <div class="news-overview">
+          <div><strong>03</strong><span>STAGES</span></div><div><strong>27</strong><span>FLOORS</span></div><div><strong>08</strong><span>SURVIVOR ROLES</span></div><div><strong>05</strong><span>PLAYERS PER ROOM</span></div>
         </div>
+        <div class="news-list">
+          <article class="news-entry news-latest"><div class="news-date">25–26 NOV 2026<span>LATEST MILESTONE · V5</span></div><div>
+            <div class="news-version">VERSION 5</div><h3>Gameplay Refinement &amp; Presentation</h3>
+            <p>With the core game in place, development shifted towards making the experience clearer, more balanced and easier to learn.</p>
+            <ul>
+              <li><strong>New entrance and loading experience:</strong> introduced a dedicated loading page and clearer navigation between the entrance, game guide and other pages.</li>
+              <li><strong>Survivor skill demonstrations:</strong> added demonstrations to help players understand each role's ability before choosing a survivor.</li>
+              <li><strong>Stage 3 enemy refinements:</strong> adjusted Hollow encounters, increased the presence of Ghost Hollows and refined their behaviour, including their ability to see survivors through walls.</li>
+              <li><strong>Progression and presentation:</strong> expanded achievements and prepared full-gameplay footage to introduce the game to new players.</li>
+            </ul>
+          </div></article>
+          <article class="news-entry"><div class="news-date">9–10 NOV 2026<span>BETA RELEASE</span></div><div>
+            <div class="news-version">VERSION 4</div><h3>Stage 3: The Lost Signal</h3>
+            <p>The final stage completed the original 27-floor journey and brought the three environments together into one full run.</p>
+            <ul>
+              <li><strong>Stage 3 — The Lost Signal:</strong> floors 19–27 introduced a new environment and distinct threats, including Invisible and Ghost Hollow encounters.</li>
+              <li><strong>New ally and progression:</strong> introduced the Echo ally and expanded the survivor journey with profiles, achievements and leaderboards.</li>
+              <li><strong>Full game structure:</strong> connected The Hollow Ward (floors 1–9), The Copper Engine (10–18) and The Lost Signal (19–27).</li>
+              <li><strong>Beta release — 10 November:</strong> opened the game for players to try the complete experience and provide feedback.</li>
+            </ul>
+          </div></article>
+          <article class="news-entry"><div class="news-date">5–8 NOV 2026<span>MULTIPLAYER EXPANSION</span></div><div>
+            <div class="news-version">VERSION 3</div><h3>Online Co-operative Survival</h3>
+            <p>The project grew beyond a solo browser game. Players could now enter the ward together and experience the same run as a team.</p>
+            <ul>
+              <li><strong>Rooms for up to five survivors:</strong> create or join rooms, invite friends by room code and choose a survivor role.</li>
+              <li><strong>Shared multiplayer experience:</strong> added room rosters, host-controlled starts, team communication, reconnection and spectator viewing.</li>
+              <li><strong>Expanded survivor roster:</strong> Scout, Medic, Invisibler, Teleporter, Illusioner, Rewinder, Anchor and Symbiote.</li>
+              <li><strong>Persistent records:</strong> introduced server-backed player profiles and match records, with PostgreSQL storage for progression data.</li>
+            </ul>
+          </div></article>
+          <article class="news-entry"><div class="news-date">4 NOV 2026<span>SECOND STAGE</span></div><div>
+            <div class="news-version">VERSION 2</div><h3>Stage 2: The Copper Engine</h3>
+            <p>The original ward expanded into a larger journey. A second environment brought new pressure and a tougher survival challenge.</p>
+            <ul>
+              <li><strong>Floors 10–18:</strong> introduced an industrial setting with faster and more demanding enemy encounters.</li>
+              <li><strong>Increasing difficulty:</strong> developed the challenge beyond the first nine floors, asking players to adapt as they progressed.</li>
+              <li><strong>Survivor abilities:</strong> Scout Pulse could stun a Hollow, while the Medic could restore a heart with a healing ability.</li>
+              <li><strong>Rescue objective:</strong> trapped survivors could be rescued and would follow the player towards the elevator.</li>
+            </ul>
+          </div></article>
+          <article class="news-entry"><div class="news-date">4 NOV 2026<span>THE FIRST BUILD</span></div><div>
+            <div class="news-version">VERSION 1</div><h3>The Hollow Ward — Single-player Foundation</h3>
+            <p>It began as a browser-based survival prototype: explore a maze, avoid the Hollow and restore the systems needed to escape.</p>
+            <ul>
+              <li><strong>Procedural maze floors:</strong> built interconnected rooms and corridors, with objectives placed throughout each floor.</li>
+              <li><strong>Hollow behaviour:</strong> enemies patrol, investigate sounds, detect survivors and pursue their last known position.</li>
+              <li><strong>Core survival mechanics:</strong> introduced movement, dash, decoys, power cores, relays and the elevator escape objective.</li>
+              <li><strong>First playable roles:</strong> Scout and Medic established the foundation for survivor abilities and class selection.</li>
+              <li><strong>Original browser presentation:</strong> created the game's visuals and real-time gameplay using HTML Canvas and JavaScript.</li>
+            </ul>
+          </div></article>
+        </div>
+        <p class="news-footer-note">This timeline highlights the major milestones. Smaller balance changes and ongoing refinements are not listed individually.</p>
       </section>
     </section>
-<nav class="home-record-nav" aria-label="Survivor records">
+    <nav class="home-record-nav" aria-label="Survivor records">
         <button type="button" data-open-page="progression"><span>01</span><strong>PROGRESSION</strong><small>Your records &amp; achievements</small></button>
         <button type="button" data-open-page="leaderboard"><span>02</span><strong>LEADERBOARD</strong><small>Fastest verified runs</small></button>
         <button type="button" data-open-page="profile"><span>03</span><strong>PRIVATE SURVIVOR PROFILE</strong><small>Restore your profile securely</small></button>
