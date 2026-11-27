@@ -363,7 +363,7 @@
     scout:{label:'SCOUT',skill:'STUN SHOCKWAVE',ready:'PULSE READY'},
     medic:{label:'MEDIC',skill:'HEALING BURST',ready:'HEAL READY'},
     invisibler:{label:'INVISIBLER',skill:'VANISH · 3 SECONDS',ready:'VANISH READY'},
-    teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 5 SECONDS',ready:'GUARD READY'},
+    teleporter:{label:'TELEPORTER',skill:'PHASE GUARD · 16 SECONDS',ready:'GUARD READY'},
     illusioner:{label:'ILLUSIONER',skill:'PHANTOM DOUBLE · 5 SECONDS',ready:'PHANTOM READY'},
     rewinder:{label:'REWINDER',skill:'TARGET REWIND · 5.5 TILES',ready:'REWIND READY'},
     anchor:{label:'ANCHOR',skill:'TARGET ANCHOR · RETURN',ready:'ANCHOR READY'},
@@ -373,7 +373,7 @@
     scout: "Release a shockwave that stuns Hollows within 5.5 tiles for 2.5 seconds.",
     medic: "Restore 1 heart to yourself. At full health, heal one randomly chosen injured teammate within 5.5 tiles. No charge is spent if nobody needs healing.",
     invisibler: "Become invisible for 3 seconds, breaking Hollow pursuit and hiding your trail.",
-    teleporter: "Activate Phase Guard for 5 seconds. If a Hollow strikes during this period, teleport to safety.",
+    teleporter: "Activate Phase Guard for 16 seconds. If a Hollow strikes during this period, teleport to safety.",
     illusioner: "Summon an invincible roaming phantom that distracts Hollows for 5 seconds. Two phantoms can roam at once without replacing each other.",
     rewinder: "Choose yourself, a teammate, or a Hollow within 5.5 tiles; return that target to its position 3 seconds ago. Players gain 2 seconds of protection.",
     anchor: "Choose yourself or a living teammate within 5.5 tiles. Marking yourself leaves a fixed anchor at your location; marking a teammate attaches the anchor to them as they move. Press Skill again to teleport to the anchor with 2 seconds of protection. Hollows cannot be marked.",
@@ -1415,9 +1415,9 @@
       notify('INVISIBLER — Hollows lost your trail for 3 seconds!');
       beep(1040,.24,'triangle',.024);
     }else if(classChoice==='teleporter'){
-      player.phaseGuardTime=5;
+      player.phaseGuardTime=16;
       consumeSkillCharge();
-      notify('TELEPORTER — Phase Guard active for 5 seconds!');
+      notify('TELEPORTER — Phase Guard active for 16 seconds!');
       beep(700,.24,'triangle',.025);
     }else if(classChoice==='rewinder'){
       // A single explicitly chosen target. The authoritative simulation checks
