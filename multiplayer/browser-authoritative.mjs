@@ -29,7 +29,7 @@ try{
   await handbook.goto('http://127.0.0.1:'+port+'/how-to-play.html#progression');
   assert(await handbook.locator('#panel-progression').isVisible());
   const artwork=await handbook.evaluate(async()=>{
-    const response=await fetch('/assets/stage-artwork.webp');
+    const response=await fetch('/images/stages/stage-artwork.webp');
     if(!response.ok)return {ok:false,status:response.status};
     try{
       const bitmap=await createImageBitmap(await response.blob());
