@@ -79,6 +79,20 @@
   let lastCountdownNumber=0;
   let newsBulletinCloseTimer=null;
   const NEWS_BULLETIN_ANIMATION_MS=460;
+  const NEWS_BULLETIN_SESSION_KEY='lastLightNewsBulletinShown';
+  let newsBulletinShownThisSession=false;
+  function openNewsBulletinOnFirstEntry(){
+    if(newsBulletinShownThisSession)return;
+    try{
+      if(sessionStorage.getItem(NEWS_BULLETIN_SESSION_KEY)==='1'){
+        newsBulletinShownThisSession=true;
+        return;
+      }
+      sessionStorage.setItem(NEWS_BULLETIN_SESSION_KEY,'1');
+    }catch{}
+    newsBulletinShownThisSession=true;
+    openNewsBulletin();
+  }
   function setNewsBulletinOrigin(){
     const button=$('.news-home-link');
     const panel=$('.news-bulletin-panel');
@@ -130,7 +144,7 @@
     const validPages=['home','progression','leaderboard','profile','lobby','play'];
     const previousPage=activePage;
     const page=validPages.includes(target)?(target==='play'&&roomRole==='none'?'lobby':target):'home';
-    if(page==='home'&&previousPage!=='home')openNewsBulletin();
+    if(page==='home'&&previousPage!=='home')openNewsBulletinOnFirstEntry();
     else if(page!=='home')closeNewsBulletin();
     // Start each visit to the game with Objectives collapsed.
     // Players can still expand it manually whenever they want.
@@ -4087,7 +4101,7 @@
     });
     setJoined(false);
     showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
-    if(activePage==='home')openNewsBulletin();
+    if(activePage==='home')openNewsBulletinOnFirstEntry();
   }
   connectRoom();
   // Build the first level behind the menu so the player sees the environment before starting.
