@@ -77,8 +77,17 @@
   // screens never removes a player from their server-side room.
   let activePage='home';
   let lastCountdownNumber=0;
+  function openNewsBulletin(){
+    $('#newsBulletin').hidden=false;
+    document.body.classList.add('news-bulletin-open');
+  }
+  function closeNewsBulletin(){
+    $('#newsBulletin').hidden=true;
+    document.body.classList.remove('news-bulletin-open');
+  }
   function showPage(target,push=true){
-    const validPages=['home','progression','leaderboard','profile','news','lobby','play'];
+    const validPages=['home','progression','leaderboard','profile','lobby','play'];
+    const previousPage=activePage;
     const page=validPages.includes(target)?(target==='play'&&roomRole==='none'?'lobby':target):'home';
     // Start each visit to the game with Objectives collapsed.
     // Players can still expand it manually whenever they want.
@@ -88,26 +97,25 @@
     $('#progressionPage').hidden=page!=='progression';
     $('#leaderboardPage').hidden=page!=='leaderboard';
     $('#profilePage').hidden=page!=='profile';
-    $('#newsPage').hidden=page!=='news';
     $('#lobbyPage').hidden=page!=='lobby';
     $('#playPage').hidden=page!=='play';
     $('#lobbyEntranceTop').hidden=page!=='lobby';
     document.body.classList.toggle('show-lobby',page==='lobby');
     document.body.classList.toggle('show-play',page==='play');
     document.body.classList.toggle('show-home',page==='home');
-    document.body.classList.toggle('show-records',['progression','leaderboard','profile','news'].includes(page));
+    document.body.classList.toggle('show-records',['progression','leaderboard','profile'].includes(page));
     const url=new URL(location.href);
     url.pathname=page==='play'?'/play':'/';
     url.search='';
     if(page==='play')url.searchParams.set('room',$('#joinRoomCode').value.trim().toUpperCase());
     else if(page==='lobby'&&new URLSearchParams(location.search).has('room'))
       url.searchParams.set('room',new URLSearchParams(location.search).get('room'));
-    else if(['progression','leaderboard','profile','news'].includes(page))
+    else if(['progression','leaderboard','profile'].includes(page))
       url.searchParams.set('view',page);
     const next=url.pathname+url.search;
     if(push&&location.pathname+location.search!==next)history.pushState({screen:page},'',next);
     if(!push&&location.pathname+location.search!==next)history.replaceState({screen:page},'',next);
-    const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Private Survivor Profile — Last Light',news:'News & Updates — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
+    const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Private Survivor Profile — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
     document.title=titles[page];
     if(page==='play'){
       $('#gameRoomName').textContent=$('#currentRoomName').textContent;
@@ -4012,7 +4020,12 @@
     $('#leaveGameRoom').addEventListener('click',()=>{clearSession();spectatorReconnectCode=null;sendRoom({type:'leave'});});
     $('#enterLobby').addEventListener('click',()=>showPage('lobby'));
     document.querySelectorAll('[data-open-page]').forEach(button=>
-      button.addEventListener('click',()=>showPage(button.dataset.openPage)));
+      button.addEventListener('click',()=>{
+        if(button.dataset.openPage==='news')openNewsBulletin();
+        else showPage(button.dataset.openPage);
+      }));
+    document.querySelectorAll('[data-close-news]').forEach(button=>
+      button.addEventListener('click',closeNewsBulletin));
     document.querySelectorAll('[data-back-home]').forEach(button=>
       button.addEventListener('click',()=>showPage('home')));
     $('#backToLobby').addEventListener('click',()=>showPage('lobby'));
@@ -4028,7 +4041,8 @@
       if(activePage==='play'&&!soundEnabled)unlockGameAudio();
     },{capture:true});
     window.addEventListener('popstate',()=>{
-      showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile','news'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
+      showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
+    if(activePage==='home')openNewsBulletin();
     });
     setJoined(false);
     showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
