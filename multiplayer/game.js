@@ -78,7 +78,7 @@
   let activePage='home';
   let lastCountdownNumber=0;
   function showPage(target,push=true){
-    const validPages=['home','progression','leaderboard','profile','lobby','play'];
+    const validPages=['home','progression','leaderboard','profile','news','lobby','play'];
     const page=validPages.includes(target)?(target==='play'&&roomRole==='none'?'lobby':target):'home';
     // Start each visit to the game with Objectives collapsed.
     // Players can still expand it manually whenever they want.
@@ -88,13 +88,14 @@
     $('#progressionPage').hidden=page!=='progression';
     $('#leaderboardPage').hidden=page!=='leaderboard';
     $('#profilePage').hidden=page!=='profile';
+    $('#newsPage').hidden=page!=='news';
     $('#lobbyPage').hidden=page!=='lobby';
     $('#playPage').hidden=page!=='play';
     $('#lobbyEntranceTop').hidden=page!=='lobby';
     document.body.classList.toggle('show-lobby',page==='lobby');
     document.body.classList.toggle('show-play',page==='play');
     document.body.classList.toggle('show-home',page==='home');
-    document.body.classList.toggle('show-records',['progression','leaderboard','profile'].includes(page));
+    document.body.classList.toggle('show-records',['progression','leaderboard','profile','news'].includes(page));
     const url=new URL(location.href);
     url.pathname=page==='play'?'/play':'/';
     url.search='';
