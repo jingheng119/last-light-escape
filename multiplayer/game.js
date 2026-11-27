@@ -89,6 +89,8 @@
     const validPages=['home','progression','leaderboard','profile','lobby','play'];
     const previousPage=activePage;
     const page=validPages.includes(target)?(target==='play'&&roomRole==='none'?'lobby':target):'home';
+    if(page==='home'&&previousPage!=='home')openNewsBulletin();
+    else if(page!=='home')closeNewsBulletin();
     // Start each visit to the game with Objectives collapsed.
     // Players can still expand it manually whenever they want.
     if(page==='play'&&activePage!=='play')$('#objectivesPanel').open=false;
