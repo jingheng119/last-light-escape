@@ -24,6 +24,15 @@
     @media(max-width:760px){.home-screen{min-height:auto;grid-template-columns:1fr;padding:34px 4px 48px;gap:24px}.home-art{grid-row:1;min-height:220px}.home-orbit{width:235px}.home-core{width:78px;height:78px}.home-core span{font-size:30px}.home-art-label{bottom:12px}.home-description{font-size:14px}.home-stats{margin-top:30px;gap:18px}}
   
 
+
+    .news-bulletin[hidden]{display:none!important}
+    .news-bulletin{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:22px}
+    .news-bulletin-backdrop{position:absolute;inset:0;background:#030811d9;backdrop-filter:blur(8px)}
+    .news-bulletin-panel{position:relative;z-index:1;width:min(100%,1000px);max-height:min(88vh,900px);overflow-y:auto;overscroll-behavior:contain;box-shadow:0 24px 100px #000b}
+    .news-bulletin-close{position:sticky;top:0;float:right;z-index:3;margin:-8px -8px 0 12px;width:36px;height:36px;border:1px solid #8fa9c34a;border-radius:8px;background:#101b2b;color:#dce7f5;font-size:25px;line-height:1;cursor:pointer}
+    .news-bulletin-close:hover{background:#263d57}
+    @media(max-width:650px){.news-bulletin{padding:10px}.news-bulletin-panel{max-height:92vh}.news-bulletin-close{margin:-5px -5px 0 8px}}
+
     .news-panel{max-width:1000px;margin-inline:auto}
     .news-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:26px 0 32px}
     .news-overview>div{padding:16px 12px;border:1px solid #8fa9c329;border-radius:9px;background:#101b2b66}
@@ -87,10 +96,11 @@
         <button type="button" data-open-page="profile"><span>03</span><strong>PRIVATE SURVIVOR PROFILE</strong><small>Restore your profile securely</small></button>
       </nav>
     </div>
-          <section id="newsPage" class="records-page news-page" hidden aria-label="News and updates">
-      <div class="records-page-nav"><button type="button" class="records-back" data-back-home>← ENTRANCE</button></div>
-      <section class="progression-panel news-panel" aria-label="Last Light development timeline">
-        <div class="progression-heading"><div><span class="lobby-eyebrow">THE MAKING OF LAST LIGHT</span><h2>News &amp; Updates</h2><p>From a small single-player experiment to a three-stage, 27-floor online survival game. Explore the major milestones behind The Hollow Ward.</p></div></div>
+          <div id="newsBulletin" class="news-bulletin" hidden role="dialog" aria-modal="true" aria-labelledby="newsBulletinTitle">
+      <div class="news-bulletin-backdrop" data-close-news></div>
+      <section class="progression-panel news-panel news-bulletin-panel" aria-label="Last Light development timeline">
+        <button type="button" class="news-bulletin-close" data-close-news aria-label="Close news bulletin">×</button>
+        <div class="progression-heading"><div><span class="lobby-eyebrow">THE MAKING OF LAST LIGHT</span><h2 id="newsBulletinTitle">News &amp; Updates</h2><p>From a small single-player experiment to a three-stage, 27-floor online survival game. Explore the major milestones behind The Hollow Ward.</p></div></div>
         <div class="news-overview">
           <div><strong>03</strong><span>STAGES</span></div><div><strong>27</strong><span>FLOORS</span></div><div><strong>08</strong><span>SURVIVOR ROLES</span></div><div><strong>05</strong><span>PLAYERS PER ROOM</span></div>
         </div>
@@ -149,7 +159,7 @@
         </div>
         <p class="news-footer-note">This timeline highlights the major milestones. Smaller balance changes and ongoing refinements are not listed individually.</p>
       </section>
-    </section>
+    </div>
     <section id="progressionPage" class="records-page" hidden aria-label="Survivor progression">
       <div class="records-page-nav"><button type="button" class="records-back" data-back-home>← ENTRANCE</button></div>
       <section id="progressionPanel" class="progression-panel" aria-label="Survivor progression">
