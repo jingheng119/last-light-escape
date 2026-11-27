@@ -4044,10 +4044,10 @@
     },{capture:true});
     window.addEventListener('popstate',()=>{
       showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
-    if(activePage==='home')openNewsBulletin();
     });
     setJoined(false);
     showPage(location.pathname==='/play'?'play':new URLSearchParams(location.search).has('room')?'lobby':(['progression','leaderboard','profile'].includes(new URLSearchParams(location.search).get('view'))?new URLSearchParams(location.search).get('view'):'home'),false);
+    if(activePage==='home')openNewsBulletin();
   }
   connectRoom();
   // Build the first level behind the menu so the player sees the environment before starting.
