@@ -48,7 +48,26 @@ const server=http.createServer(async(req,res)=>{
   if(!file){res.writeHead(404);res.end('Not found');return;}
   try{
     const buffer=await readFile(new URL(file,import.meta.url));
-    res.writeHead(200,{'content-type':mime[file]||(file.endsWith('.webp')?'image/webp':'application/octet-stream'),'cache-control':'no-store','x-content-type-options':'nosniff'});
+    const isVideo=file.endsWith('.mp4');
+    const headers={'content-type':mime[file]||(isVideo?'video/mp4':file.endsWith('.webp')?'image/webp':'application/octet-stream'),'cache-control':'no-store','x-content-type-options':'nosniff'};
+    if(isVideo){
+      headers['accept-ranges']='bytes';
+      const range=req.headers.range;
+      if(range){
+        const match=/^bytes=(\\d*)-(\\d*)$/.exec(range);
+        if(!match){res.writeHead(416,{'content-range':`bytes */${buffer.length}`});res.end();return;}
+        let start=match[1]?Number(match[1]):0;
+        let end=match[2]?Number(match[2]):buffer.length-1;
+        if(!match[1]&&match[2]){const suffix=Number(match[2]);start=Math.max(0,buffer.length-suffix);end=buffer.length-1;}
+        if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start<0||start>=buffer.length||end<start){res.writeHead(416,{'content-range':`bytes */${buffer.length}`});res.end();return;}
+        end=Math.min(end,buffer.length-1);
+        headers['content-range']=`bytes ${start}-${end}/${buffer.length}`;
+        headers['content-length']=String(end-start+1);
+        res.writeHead(206,headers);res.end(buffer.subarray(start,end+1));return;
+      }
+    }
+    headers['content-length']=String(buffer.length);
+    res.writeHead(200,headers);
     res.end(buffer);
   }catch(e){res.writeHead(500);res.end('Failed to load game asset');}
 });
