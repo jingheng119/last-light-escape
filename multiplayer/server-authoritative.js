@@ -376,7 +376,7 @@ const server=http.createServer(async(req,res)=>{
       headers['accept-ranges']='bytes';
       const range=req.headers.range;
       if(range){
-        const match=/^bytes=(\\d*)-(\\d*)$/.exec(range);
+        const match=/^bytes=(\d*)-(\d*)$/.exec(range);
         if(!match){res.writeHead(416,{'content-range':`bytes */${data.length}`});res.end();return;}
         let start,end;
         if(match[1]===''){
