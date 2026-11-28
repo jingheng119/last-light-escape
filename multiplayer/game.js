@@ -4076,7 +4076,7 @@
     document.querySelectorAll('[data-open-page]').forEach(button=>
       button.addEventListener('click',()=>{
         if(button.dataset.openPage==='news')openNewsBulletin();
-        else showPage(button.dataset.openPage);
+        else if(button.dataset.openPage!=='analytics')showPage(button.dataset.openPage);
       }));
     document.querySelectorAll('[data-close-news]').forEach(button=>
       button.addEventListener('click',closeNewsBulletin));
