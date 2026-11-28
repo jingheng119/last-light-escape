@@ -138,7 +138,7 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
             FROM last_light_matches AS match
             CROSS JOIN LATERAL jsonb_array_elements(
               CASE WHEN jsonb_typeof(match.players)='array' THEN match.players ELSE '[]'::jsonb END
-            ) AS player
+            ) AS player_entry(player)
             WHERE match.is_developer_run=FALSE
             GROUP BY lower(player->>'role')
           ),
