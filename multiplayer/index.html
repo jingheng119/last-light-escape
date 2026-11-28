@@ -63,6 +63,24 @@
     .news-footer-note{margin:22px 0 0;color:#8294ad;font-size:11px;line-height:1.7}
     @media(max-width:650px){.news-entry{grid-template-columns:1fr;gap:12px;padding:22px 0}.news-entry h3{font-size:17px}.news-overview{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
+
+    .analytics-panel{max-width:900px}
+    .analytics-overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:26px 0 30px}
+    .analytics-overview>div{padding:19px 16px;border:1px solid #8fa9c329;border-radius:9px;background:#101b2b66}
+    .analytics-overview strong{display:block;color:#e1ebf8;font-size:30px;letter-spacing:-.04em}
+    .analytics-overview span{display:block;margin-top:6px;color:#8299b5;font-size:9px;font-weight:800;letter-spacing:.13em}
+    .analytics-section-title{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:24px 0 12px;color:#dce7f5;font-size:10px;font-weight:850;letter-spacing:.16em}
+    .analytics-section-title span{color:#8299b5;font-size:9px;font-weight:650;letter-spacing:.08em}
+    .analytics-role-list{display:grid;gap:15px;padding:18px;border:1px solid #8fa9c329;border-radius:9px;background:#101b2b45}
+    .analytics-role-row{display:grid;grid-template-columns:125px minmax(0,1fr) 82px;align-items:center;gap:14px}
+    .analytics-role-name{color:#dce7f5;font-size:11px;font-weight:800;letter-spacing:.07em}
+    .analytics-role-track{height:8px;overflow:hidden;border-radius:99px;background:#263747}
+    .analytics-role-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#6c9fb5,#9cc8c0);transition:width .35s ease}
+    .analytics-role-value{color:#9eb6d2;font-size:10px;text-align:right;font-variant-numeric:tabular-nums}
+    .analytics-note{margin:18px 0 0;color:#8294ad;font-size:11px;line-height:1.7}
+    .analytics-status{padding:22px 0;color:#9eb6d2;font-size:12px;line-height:1.7}
+    @media(max-width:650px){.analytics-role-row{grid-template-columns:92px minmax(0,1fr) 66px;gap:9px}.analytics-role-name{font-size:9px}.analytics-overview strong{font-size:25px}}
+
   </style>
 </head>
 <body>
@@ -91,6 +109,7 @@
           <a class="home-link" href="/how-to-play">HOW TO PLAY</a>
           <a class="home-link" href="https://discord.gg/dA7gg2UHh" target="_blank" rel="noopener noreferrer">DISCORD ↗</a>
           <button type="button" class="home-link news-home-link" data-open-page="news">NEWS &amp; UPDATES</button>
+          <button type="button" class="home-link analytics-home-link" data-open-page="analytics">ANALYTICS</button>
         </div>
         <p class="home-note">Online co-op · Up to 5 survivors · 27 floors to escape</p>
         <div class="home-stats">
@@ -234,6 +253,22 @@
           </div>
         </div>
         <p class="news-footer-note">This timeline highlights the major milestones. Smaller balance changes and ongoing refinements are not listed individually.</p>
+      </section>
+    </div>
+    <div id="analyticsBulletin" class="news-bulletin" hidden role="dialog" aria-modal="true" aria-labelledby="analyticsBulletinTitle">
+      <div class="news-bulletin-backdrop" data-close-analytics></div>
+      <section class="progression-panel news-bulletin-panel analytics-panel" aria-label="Last Light game analytics">
+        <button type="button" class="news-bulletin-close" data-close-analytics aria-label="Close analytics">×</button>
+        <div class="progression-heading"><div><span class="lobby-eyebrow">THE WARD · LIVE RECORDS</span><h2 id="analyticsBulletinTitle">Game Analytics</h2><p>See how the community is playing Last Light.</p></div></div>
+        <div class="analytics-overview">
+          <div><strong id="analyticsTotalMatches">—</strong><span>TOTAL MATCHES RECORDED</span></div>
+          <div><strong id="analyticsTotalSelections">—</strong><span>TOTAL ROLE SELECTIONS</span></div>
+        </div>
+        <div class="analytics-section-title">ROLE POPULARITY <span>Share of all recorded role selections</span></div>
+        <div id="analyticsRoleList" class="analytics-role-list" aria-live="polite">
+          <div class="analytics-status">Loading community analytics…</div>
+        </div>
+        <p class="analytics-note">Based on recorded matches, including incomplete runs. Developer runs are excluded. Role popularity counts each player's selected role in each match.</p>
       </section>
     </div>
     <section id="progressionPage" class="records-page" hidden aria-label="Survivor progression">
@@ -497,5 +532,85 @@
 
     </div>
   </main>
+
+<script>
+(() => {
+  const modal=document.getElementById('analyticsBulletin');
+  if(!modal)return;
+  const totalMatches=document.getElementById('analyticsTotalMatches');
+  const totalSelections=document.getElementById('analyticsTotalSelections');
+  const roleList=document.getElementById('analyticsRoleList');
+  const labels={scout:'SCOUT',medic:'MEDIC',invisibler:'INVISIBLER',
+    teleporter:'TELEPORTER',illusioner:'ILLUSIONER',rewinder:'REWINDER',
+    anchor:'ANCHOR',symbiote:'SYMBIOTE'};
+  let closeTimer=null;
+  const open=()=>{
+    if(closeTimer){clearTimeout(closeTimer);closeTimer=null;}
+    modal.hidden=false;
+    document.body.classList.add('news-bulletin-open');
+    requestAnimationFrame(()=>requestAnimationFrame(()=>modal.classList.add('is-visible')));
+    load();
+  };
+  const close=()=>{
+    if(modal.hidden)return;
+    modal.classList.remove('is-visible');
+    document.body.classList.remove('news-bulletin-open');
+    if(closeTimer)clearTimeout(closeTimer);
+    const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    closeTimer=setTimeout(()=>{modal.hidden=true;closeTimer=null;},reduced?0:460);
+  };
+  async function load(){
+    roleList.innerHTML='<div class="analytics-status">Loading community analytics…</div>';
+    try{
+      const response=await fetch('/api/analytics',{cache:'no-store'});
+      if(!response.ok)throw new Error('Analytics are temporarily unavailable.');
+      const data=await response.json();
+      if(!data.available)throw new Error('Analytics are temporarily unavailable.');
+      totalMatches.textContent=Number(data.totalMatches||0).toLocaleString();
+      totalSelections.textContent=Number(data.totalSelections||0).toLocaleString();
+      const roles=Array.isArray(data.roles)?data.roles:[];
+      const total=Number(data.totalSelections)||0;
+      roleList.replaceChildren();
+      if(!total){
+        roleList.innerHTML='<div class="analytics-status">No player role selections have been recorded yet. Check back after a few matches.</div>';
+        return;
+      }
+      for(const item of roles){
+        const count=Number(item.selections)||0;
+        const percent=count/total*100;
+        const row=document.createElement('div');
+        row.className='analytics-role-row';
+        const name=document.createElement('strong');
+        name.className='analytics-role-name';
+        name.textContent=labels[item.role]||String(item.role||'').toUpperCase();
+        const track=document.createElement('div');
+        track.className='analytics-role-track';
+        const fill=document.createElement('div');
+        fill.className='analytics-role-fill';
+        fill.style.width=percent.toFixed(2)+'%';
+        track.append(fill);
+        const value=document.createElement('span');
+        value.className='analytics-role-value';
+        value.textContent=count.toLocaleString()+' · '+percent.toFixed(1)+'%';
+        row.append(name,track,value);
+        roleList.append(row);
+      }
+    }catch(error){
+      totalMatches.textContent='—';
+      totalSelections.textContent='—';
+      roleList.textContent=error.message||'Unable to load analytics right now.';
+      roleList.className='analytics-role-list analytics-status';
+    }
+  }
+  document.addEventListener('click',event=>{
+    if(event.target.closest('[data-open-page="analytics"]'))open();
+    if(event.target.closest('[data-close-analytics]'))close();
+  });
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&!modal.hidden)close();
+  });
+})();
+</script>
+
 </body>
 </html>
