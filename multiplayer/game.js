@@ -3659,6 +3659,50 @@
       if(roomSocket?.readyState===WebSocket.OPEN)
         sendRoom({type:'profile-key',key:recoveryKey});
     };
+    const profileHistoryStatus=$('#profileHistoryStatus');
+    const profileHistoryEntries=$('#profileHistoryEntries');
+    const renderProfileHistory=data=>{
+      profileHistoryEntries.replaceChildren();
+      if(!data?.available){
+        profileHistoryStatus.textContent='Match history is unavailable right now. Your profile will sync again when the server reconnects.';
+        return;
+      }
+      const entries=Array.isArray(data.entries)?data.entries.slice(0,20):[];
+      profileHistoryStatus.textContent=entries.length?
+        entries.length+' recent '+(entries.length===1?'run':'runs')+' found.':
+        'No match history yet. Complete a run to record it here.';
+      for(const entry of entries){
+        const card=document.createElement('article');card.className='profile-history-entry';
+        const details=document.createElement('div');
+        const title=document.createElement('strong');
+        title.textContent=entry.outcome==='victory'?'VICTORY':entry.outcome==='dead'?'DEATH':'ABANDONED';
+        const date=document.createElement('small');
+        const stamp=new Date(entry.completedAt);
+        date.textContent=(Number.isNaN(stamp.getTime())?'Recorded match':stamp.toLocaleString())+
+          ' · '+(entry.partySize>1?'TEAM':'SOLO')+' · '+String(entry.role||'scout').toUpperCase();
+        const floors=Math.max(0,Number(entry.floorsCleared)||0);
+        const stage=floors>=18?'STAGE 3 · THE LOST SIGNAL':floors>=9?'STAGE 2 · THE COPPER ENGINE':'STAGE 1 · HOLLOW WARD';
+        const duration=Math.max(0,Math.floor(Number(entry.elapsedSeconds)||0));
+        const time=Math.floor(duration/60)+'m '+String(duration%60).padStart(2,'0')+'s';
+        const progress=document.createElement('small');
+        progress.textContent=stage+' · '+floors+' floors cleared · '+time;
+        details.append(title,date,progress);
+        const result=document.createElement('span');
+        result.className='profile-history-result '+(entry.outcome||'incomplete');
+        result.textContent=entry.outcome==='victory'?'VICTORY':entry.outcome==='dead'?'DEATH':'ABANDONED';
+        card.append(details,result);profileHistoryEntries.appendChild(card);
+      }
+    };
+    document.querySelectorAll('[data-profile-view]').forEach(button=>
+      button.addEventListener('click',()=>{
+        const view=button.dataset.profileView;
+        document.querySelectorAll('[data-profile-view]').forEach(tab=>{
+          const active=tab===button;tab.classList.toggle('active',active);
+          tab.setAttribute('aria-selected',String(active));
+        });
+        $('#profileHistoryView').hidden=view!=='history';
+        $('#profileAccountView').hidden=view!=='account';
+      }));
     $('#copyProfileKey').addEventListener('click',async()=>{
       try{
         await navigator.clipboard.writeText(recoveryKey);
@@ -3961,6 +4005,7 @@
       }
       if(m.type==='floor-progress')recordFloorProgress(m);
       if(m.type==='match-result'&&m.result)recordProgress(m.result);
+      if(m.type==='profile-history')renderProfileHistory(m);
       if(m.type==='profile-data'){
         const cloud=m.progress||{runs:0,bestFloors:0,bestTime:null,badges:[]};
         if(m.available&&!legacyImportAttempted&&pendingLegacyImport&&!m.legacyProgress){
@@ -4076,7 +4121,11 @@
     document.querySelectorAll('[data-open-page]').forEach(button=>
       button.addEventListener('click',()=>{
         if(button.dataset.openPage==='news')openNewsBulletin();
-        else if(button.dataset.openPage!=='analytics')showPage(button.dataset.openPage);
+        else if(button.dataset.openPage!=='analytics'){
+          showPage(button.dataset.openPage);
+          if(button.dataset.openPage==='profile'&&roomSocket?.readyState===WebSocket.OPEN)
+            sendRoom({type:'profile-history'});
+        }
       }));
     document.querySelectorAll('[data-close-news]').forEach(button=>
       button.addEventListener('click',closeNewsBulletin));
