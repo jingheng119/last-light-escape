@@ -65,7 +65,13 @@
 
 
     .analytics-panel{max-width:900px}
-    .analytics-overview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:26px 0 30px}
+    .analytics-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:26px 0 30px}
+    .analytics-metric-list{display:grid;gap:13px;padding:18px;border:1px solid #8fa9c329;border-radius:9px;background:#101b2b45}
+    .analytics-metric-row{display:grid;grid-template-columns:145px minmax(0,1fr) 110px;align-items:center;gap:14px}
+    .analytics-metric-name{color:#dce7f5;font-size:11px;font-weight:800}
+    .analytics-metric-track{height:8px;overflow:hidden;border-radius:99px;background:#263747}
+    .analytics-metric-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#6c9fb5,#9cc8c0)}
+    .analytics-metric-value{color:#9eb6d2;font-size:10px;text-align:right;font-variant-numeric:tabular-nums}
     .analytics-overview>div{padding:19px 16px;border:1px solid #8fa9c329;border-radius:9px;background:#101b2b66}
     .analytics-overview strong{display:block;color:#e1ebf8;font-size:30px;letter-spacing:-.04em}
     .analytics-overview span{display:block;margin-top:6px;color:#8299b5;font-size:9px;font-weight:800;letter-spacing:.13em}
@@ -79,7 +85,7 @@
     .analytics-role-value{color:#9eb6d2;font-size:10px;text-align:right;font-variant-numeric:tabular-nums}
     .analytics-note{margin:18px 0 0;color:#8294ad;font-size:11px;line-height:1.7}
     .analytics-status{padding:22px 0;color:#9eb6d2;font-size:12px;line-height:1.7}
-    @media(max-width:650px){.analytics-role-row{grid-template-columns:92px minmax(0,1fr) 66px;gap:9px}.analytics-role-name{font-size:9px}.analytics-overview strong{font-size:25px}}
+    @media(max-width:650px){.analytics-role-row{grid-template-columns:92px minmax(0,1fr) 66px;gap:9px}.analytics-role-name{font-size:9px}.analytics-overview{grid-template-columns:1fr}.analytics-overview strong{font-size:25px}.analytics-metric-row{grid-template-columns:100px minmax(0,1fr) 76px;gap:9px}.analytics-metric-name{font-size:9px}.analytics-metric-value{font-size:9px}}
 
   </style>
 </head>
@@ -263,10 +269,19 @@
         <div class="analytics-overview">
           <div><strong id="analyticsTotalMatches">—</strong><span>TOTAL MATCHES RECORDED</span></div>
           <div><strong id="analyticsTotalSelections">—</strong><span>TOTAL ROLE SELECTIONS</span></div>
+          <div><strong id="analyticsAverageDuration">—</strong><span>AVERAGE MATCH DURATION</span></div>
         </div>
         <div class="analytics-section-title">ROLE POPULARITY <span>Share of all recorded role selections</span></div>
         <div id="analyticsRoleList" class="analytics-role-list" aria-live="polite">
           <div class="analytics-status">Loading community analytics…</div>
+        </div>
+        <div class="analytics-section-title">WIN RATE BY ROLE <span>Full-game victories / role appearances</span></div>
+        <div id="analyticsWinRateList" class="analytics-metric-list" aria-live="polite">
+          <div class="analytics-status">Loading win rates…</div>
+        </div>
+        <div class="analytics-section-title">MOST POPULAR STAGE <span>Recorded matches that reached each stage</span></div>
+        <div id="analyticsStageList" class="analytics-metric-list" aria-live="polite">
+          <div class="analytics-status">Loading stage statistics…</div>
         </div>
 
       </section>
@@ -539,7 +554,10 @@
   if(!modal)return;
   const totalMatches=document.getElementById('analyticsTotalMatches');
   const totalSelections=document.getElementById('analyticsTotalSelections');
+  const averageDuration=document.getElementById('analyticsAverageDuration');
   const roleList=document.getElementById('analyticsRoleList');
+  const winRateList=document.getElementById('analyticsWinRateList');
+  const stageList=document.getElementById('analyticsStageList');
   const labels={scout:'SCOUT',medic:'MEDIC',invisibler:'INVISIBLER',
     teleporter:'TELEPORTER',illusioner:'ILLUSIONER',rewinder:'REWINDER',
     anchor:'ANCHOR',symbiote:'SYMBIOTE'};
@@ -566,40 +584,92 @@
       if(!response.ok)throw new Error('Analytics are temporarily unavailable.');
       const data=await response.json();
       if(!data.available)throw new Error('Analytics are temporarily unavailable.');
-      totalMatches.textContent=Number(data.totalMatches||0).toLocaleString();
-      totalSelections.textContent=Number(data.totalSelections||0).toLocaleString();
-      const roles=Array.isArray(data.roles)?data.roles:[];
+      const matchCount=Number(data.totalMatches)||0;
       const total=Number(data.totalSelections)||0;
+      totalMatches.textContent=matchCount.toLocaleString();
+      totalSelections.textContent=total.toLocaleString();
+      const seconds=Math.round(Number(data.averageDurationSeconds)||0);
+      averageDuration.textContent=matchCount?Math.floor(seconds/60)+'m '+String(seconds%60).padStart(2,'0')+'s':'—';
+      const roles=Array.isArray(data.roles)?data.roles:[];
       roleList.replaceChildren();
       if(!total){
         roleList.innerHTML='<div class="analytics-status">No player role selections have been recorded yet. Check back after a few matches.</div>';
-        return;
+      }else{
+        for(const item of roles){
+          const count=Number(item.selections)||0;
+          const percent=count/total*100;
+          const row=document.createElement('div');
+          row.className='analytics-role-row';
+          const name=document.createElement('strong');
+          name.className='analytics-role-name';
+          name.textContent=labels[item.role]||String(item.role||'').toUpperCase();
+          const track=document.createElement('div');
+          track.className='analytics-role-track';
+          const fill=document.createElement('div');
+          fill.className='analytics-role-fill';
+          fill.style.width=percent.toFixed(2)+'%';
+          track.append(fill);
+          const value=document.createElement('span');
+          value.className='analytics-role-value';
+          value.textContent=count.toLocaleString()+' · '+percent.toFixed(1)+'%';
+          row.append(name,track,value);
+          roleList.append(row);
+        }
       }
-      for(const item of roles){
-        const count=Number(item.selections)||0;
-        const percent=count/total*100;
+      winRateList.replaceChildren();
+      const winRates=Array.isArray(data.roleWinRates)?data.roleWinRates:[];
+      for(const item of winRates){
+        const appearances=Number(item.matches)||0;
+        const wins=Number(item.wins)||0;
+        const rate=appearances?Number(item.winRate)||0:0;
         const row=document.createElement('div');
-        row.className='analytics-role-row';
+        row.className='analytics-metric-row';
         const name=document.createElement('strong');
-        name.className='analytics-role-name';
+        name.className='analytics-metric-name';
         name.textContent=labels[item.role]||String(item.role||'').toUpperCase();
         const track=document.createElement('div');
-        track.className='analytics-role-track';
+        track.className='analytics-metric-track';
         const fill=document.createElement('div');
-        fill.className='analytics-role-fill';
-        fill.style.width=percent.toFixed(2)+'%';
+        fill.className='analytics-metric-fill';
+        fill.style.width=Math.max(0,Math.min(100,rate))+'%';
         track.append(fill);
         const value=document.createElement('span');
-        value.className='analytics-role-value';
-        value.textContent=count.toLocaleString()+' · '+percent.toFixed(1)+'%';
+        value.className='analytics-metric-value';
+        value.textContent=appearances?rate.toFixed(1)+'% · '+wins+'/'+appearances:'—';
         row.append(name,track,value);
-        roleList.append(row);
+        winRateList.append(row);
+      }
+      stageList.replaceChildren();
+      const stages=Array.isArray(data.stages)?data.stages:[];
+      for(const item of stages){
+        const count=Number(item.matches)||0;
+        const percent=matchCount?count/matchCount*100:0;
+        const row=document.createElement('div');
+        row.className='analytics-metric-row';
+        const name=document.createElement('strong');
+        name.className='analytics-metric-name';
+        name.textContent='STAGE 0'+item.stage+' · '+item.name;
+        const track=document.createElement('div');
+        track.className='analytics-metric-track';
+        const fill=document.createElement('div');
+        fill.className='analytics-metric-fill';
+        fill.style.width=Math.max(0,Math.min(100,percent))+'%';
+        track.append(fill);
+        const value=document.createElement('span');
+        value.className='analytics-metric-value';
+        value.textContent=count.toLocaleString()+' matches';
+        row.append(name,track,value);
+        stageList.append(row);
       }
     }catch(error){
       totalMatches.textContent='—';
       totalSelections.textContent='—';
-      roleList.textContent=error.message||'Unable to load analytics right now.';
-      roleList.className='analytics-role-list analytics-status';
+      averageDuration.textContent='—';
+      const message=error.message||'Unable to load analytics right now.';
+      for(const list of [roleList,winRateList,stageList]){
+        list.textContent=message;
+        list.classList.add('analytics-status');
+      }
     }
   }
   document.addEventListener('click',event=>{
