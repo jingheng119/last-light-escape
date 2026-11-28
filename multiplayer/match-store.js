@@ -10,7 +10,7 @@ export function achievementsForResult(result){
   if(result.floorsCleared>=3)badges.push({id:'ward',title:'Ward Escape',description:'Clear Stage 1'});
   if(result.floorsCleared>=7)badges.push({id:'engine',title:'Copper Survivor',description:'Clear Stage 2'});
   if(result.outcome==='victory'&&result.floorsCleared===12)
-    badges.push({id:'signal',title:'Last Light',description:'Complete the full game'});
+    badges.push({id:'signal',title:'The Lost Signal',description:'Clear Stage 3'});
   if(result.outcome==='victory'&&result.players.length===1)
     badges.push({id:'solo',title:'Lone Survivor',description:'Complete the game alone'});
   if(result.outcome==='victory'&&result.players.length>=2)
