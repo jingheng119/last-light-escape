@@ -129,39 +129,76 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
       }
     },
     async analytics(){
-      if(!enabled)return {available:false,totalMatches:0,totalSelections:0,roles:[]};
+      const empty={available:false,totalMatches:0,totalSelections:0,
+        averageDurationSeconds:0,roles:[],roleWinRates:[],stages:[]};
+      if(!enabled)return empty;
       try{
         const db=await ensure();
         const {rows}=await db.query(`
-          WITH role_counts AS (
-            SELECT lower(player->>'role') AS role,COUNT(*)::int AS selections
-            FROM last_light_matches AS m
+          WITH recorded AS (
+            SELECT * FROM last_light_matches WHERE is_developer_run=FALSE
+          ),
+          player_rows AS (
+            SELECT lower(player->>'role') AS role,m.outcome
+            FROM recorded AS m
             CROSS JOIN LATERAL jsonb_array_elements(
               CASE WHEN jsonb_typeof(m.players)='array' THEN m.players ELSE '[]'::jsonb END
             ) AS player_entry(player)
-            WHERE m.is_developer_run=FALSE
-            GROUP BY lower(player->>'role')
+          ),
+          role_stats AS (
+            SELECT role,COUNT(*)::int AS selections,
+              COUNT(*) FILTER (WHERE outcome='victory')::int AS wins
+            FROM player_rows GROUP BY role
           ),
           role_list(role) AS (
             VALUES ('scout'),('medic'),('invisibler'),('teleporter'),
                    ('illusioner'),('rewinder'),('anchor'),('symbiote')
+          ),
+          stage_list(stage,name,min_floors) AS (
+            VALUES (1,'Hollow Ward',0),(2,'The Copper Engine',9),(3,'The Lost Signal',18)
           )
           SELECT
-            (SELECT COUNT(*)::int FROM last_light_matches WHERE is_developer_run=FALSE) AS total_matches,
-            COALESCE((SELECT SUM(selections)::int FROM role_counts),0) AS total_selections,
+            (SELECT COUNT(*)::int FROM recorded) AS total_matches,
+            (SELECT COUNT(*)::int FROM player_rows) AS total_selections,
+            COALESCE((SELECT AVG(elapsed_seconds) FROM recorded),0) AS average_duration_seconds,
             COALESCE((
               SELECT jsonb_agg(jsonb_build_object(
-                'role',role_list.role,'selections',COALESCE(role_counts.selections,0)
-              ) ORDER BY COALESCE(role_counts.selections,0) DESC,role_list.role)
-              FROM role_list LEFT JOIN role_counts USING(role)
-            ),'[]'::jsonb) AS roles
+                'role',role_list.role,'selections',COALESCE(role_stats.selections,0)
+              ) ORDER BY COALESCE(role_stats.selections,0) DESC,role_list.role)
+              FROM role_list LEFT JOIN role_stats USING(role)
+            ),'[]'::jsonb) AS roles,
+            COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'role',role_list.role,
+                'matches',COALESCE(role_stats.selections,0),
+                'wins',COALESCE(role_stats.wins,0),
+                'winRate',CASE WHEN COALESCE(role_stats.selections,0)=0 THEN 0
+                  ELSE ROUND(role_stats.wins::numeric*100/role_stats.selections,1) END
+              ) ORDER BY
+                CASE WHEN COALESCE(role_stats.selections,0)=0 THEN -1
+                  ELSE role_stats.wins::numeric/role_stats.selections END DESC,
+                role_list.role)
+              FROM role_list LEFT JOIN role_stats USING(role)
+            ),'[]'::jsonb) AS role_win_rates,
+            COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'stage',stage_list.stage,'name',stage_list.name,'matches',stage_counts.matches
+              ) ORDER BY stage_list.stage)
+              FROM stage_list
+              CROSS JOIN LATERAL (
+                SELECT COUNT(*)::int AS matches FROM recorded
+                WHERE floors_cleared>=stage_list.min_floors
+              ) AS stage_counts
+            ),'[]'::jsonb) AS stages
         `);
         const row=rows[0]||{};
         return {available:true,totalMatches:Number(row.total_matches)||0,
-          totalSelections:Number(row.total_selections)||0,roles:row.roles||[]};
+          totalSelections:Number(row.total_selections)||0,
+          averageDurationSeconds:Number(row.average_duration_seconds)||0,
+          roles:row.roles||[],roleWinRates:row.role_win_rates||[],stages:row.stages||[]};
       }catch(error){
         log.error('Analytics query failed:',error?.message||error);
-        return {available:false,totalMatches:0,totalSelections:0,roles:[]};
+        return empty;
       }
     },
     async leaderboard(category='solo'){
