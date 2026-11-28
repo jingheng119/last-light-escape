@@ -172,7 +172,7 @@
     const next=url.pathname+url.search;
     if(push&&location.pathname+location.search!==next)history.pushState({screen:page},'',next);
     if(!push&&location.pathname+location.search!==next)history.replaceState({screen:page},'',next);
-    const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Private Survivor Profile — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
+    const titles={home:'Last Light — The Hollow Ward',progression:'Progression — Last Light',leaderboard:'Leaderboard — Last Light',profile:'Match History — Last Light',lobby:'Survivor Lobby — Last Light',play:'Last Light — The Hollow Ward'};
     document.title=titles[page];
     if(page==='play'){
       $('#gameRoomName').textContent=$('#currentRoomName').textContent;
