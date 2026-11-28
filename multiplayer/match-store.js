@@ -7,9 +7,9 @@ const ROLE_ACHIEVEMENT_TITLES={scout:'First Responder',medic:'Lifeline',invisibl
 export function achievementsForResult(result){
   if(!result?.competitive)return [];
   const badges=[];
-  if(result.floorsCleared>=9)badges.push({id:'ward',title:'Ward Escape',description:'Clear Stage 1'});
-  if(result.floorsCleared>=18)badges.push({id:'engine',title:'Copper Survivor',description:'Clear Stage 2'});
-  if(result.outcome==='victory'&&result.floorsCleared===27)
+  if(result.floorsCleared>=3)badges.push({id:'ward',title:'Ward Escape',description:'Clear Stage 1'});
+  if(result.floorsCleared>=7)badges.push({id:'engine',title:'Copper Survivor',description:'Clear Stage 2'});
+  if(result.outcome==='victory'&&result.floorsCleared===12)
     badges.push({id:'signal',title:'Last Light',description:'Complete the full game'});
   if(result.outcome==='victory'&&result.players.length===1)
     badges.push({id:'solo',title:'Lone Survivor',description:'Complete the game alone'});
@@ -27,11 +27,11 @@ export function buildFloorProgress(room){
   const snapshot=room.engine.snapshot(false);
   if(snapshot.state!=='leveldone')return null;
   const floorsCleared=snapshot.levelIndex+1;
-  if(!Number.isInteger(floorsCleared)||floorsCleared<1||floorsCleared>=27)return null;
+  if(!Number.isInteger(floorsCleared)||floorsCleared<1||floorsCleared>=12)return null;
   const eligible=!room.unranked;
-  const achievements=eligible&&floorsCleared===9?
+  const achievements=eligible&&floorsCleared===3?
     [{id:'ward',title:'Ward Escape',description:'Clear Stage 1'}]:
-    eligible&&floorsCleared===18?
+    eligible&&floorsCleared===7?
     [{id:'engine',title:'Copper Survivor',description:'Clear Stage 2'}]:[];
   return {type:'floor-progress',floorsCleared,eligible,achievements};
 }
@@ -52,10 +52,10 @@ export function buildMatchResult(room,{incomplete=false}={}){
     matchId:room.matchId,
     roomName:String(room.name||'Hollow Ward').slice(0,32),
     outcome:isIncomplete?'incomplete':snapshot.state,
-    floorsCleared:Math.max(0,Math.min(26,Number(snapshot.levelIndex)||0))+
+    floorsCleared:Math.max(0,Math.min(11,Number(snapshot.levelIndex)||0))+
       (snapshot.state==='victory'?1:0),
     elapsedSeconds:Math.max(0,Number(snapshot.overallElapsed)||0),
-    competitive:!room.unranked&&snapshot.state==='victory'&&snapshot.levelIndex===26,
+    competitive:!room.unranked&&snapshot.state==='victory'&&snapshot.levelIndex===11,
     isDeveloperRun:Boolean(room.unranked),
     players
   };
@@ -195,7 +195,7 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
                    ('illusioner'),('rewinder'),('anchor'),('symbiote')
           ),
           stage_list(stage,name,min_floors) AS (
-            VALUES (1,'Hollow Ward',0),(2,'The Copper Engine',9),(3,'The Lost Signal',18)
+            VALUES (1,'Hollow Ward',0),(2,'The Copper Engine',3),(3,'The Lost Signal',7)
           )
           SELECT
             (SELECT COUNT(*)::int FROM recorded) AS total_matches,
