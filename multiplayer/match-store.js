@@ -17,7 +17,7 @@ export function achievementsForResult(result){
     badges.push({id:'team',title:'Together Through Darkness',description:'Complete the game as a team'});
   if(result.outcome==='victory'&&result.players.every(p=>p.hearts>0))
     badges.push({id:'alive',title:'Everyone Made It',description:'Finish with every teammate alive'});
-  if(result.outcome==='victory'&&result.floorsCleared===27){
+  if(result.outcome==='victory'&&result.floorsCleared===12){
     for(const role of new Set(result.players.map(p=>p.role).filter(role=>VALID_ROLES.has(role))))
       badges.push({id:ROLE_ACHIEVEMENTS[role],title:ROLE_ACHIEVEMENT_TITLES[role],description:'Complete the full game as '+role});
   }
@@ -253,7 +253,7 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
              floors_cleared,achievements,completed_at
           FROM last_light_matches
           WHERE competitive=TRUE AND is_developer_run=FALSE
-            AND outcome='victory' AND floors_cleared=27
+            AND outcome='victory' AND floors_cleared=12
             AND jsonb_typeof(players)='array'
             AND jsonb_array_length(players) ${condition}
           ORDER BY elapsed_seconds ASC,completed_at ASC LIMIT 20`);
