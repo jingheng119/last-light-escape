@@ -367,6 +367,13 @@ const server=http.createServer(async(req,res)=>{
     res.end(JSON.stringify({status:'ok',authority:'server',rooms:rooms.size,
       maxPlayers:MAX_PLAYERS,lobby:true}));return;
   }
+  if(pathname==='/api/analytics'&&req.method==='GET'){
+    const result=await matchStore.analytics();
+    res.writeHead(result.available?200:503,{
+      'content-type':'application/json; charset=utf-8',
+      'cache-control':'no-store','x-content-type-options':'nosniff'});
+    res.end(JSON.stringify(result));return;
+  }
   if(pathname==='/api/leaderboard'&&req.method==='GET'){
     const category=new URL(req.url,'http://localhost').searchParams.get('category')||'solo';
     if(!['solo','team'].includes(category)){
