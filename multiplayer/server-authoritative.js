@@ -6,7 +6,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { createRoomEngine } from './headless-engine.js';
 import { createInputGate } from './input-rate.js';
 import { makeMatchStore, buildMatchResult, buildFloorProgress } from './match-store.js';
-import { makeProfileStore,validProfileKey } from './profile-store.js';
+import { makeProfileStore,validProfileKey,profileHash } from './profile-store.js';
 
 const PORT=Number(process.env.PORT||3001);
 const HOST=process.env.HOST||'0.0.0.0';
@@ -190,6 +190,9 @@ function publishFloorProgress(room){
 function persistCompletedMatch(room,incomplete=false){
   const result=buildMatchResult(room,{incomplete});
   if(!result)return;
+  result.profileHashes=[...(room.matchParticipants||new Map()).entries()]
+    .filter(([,member])=>typeof member.profileHash==='string')
+    .map(([slot,member])=>({slot,hash:member.profileHash}));
   // Player progression stays available even without DATABASE_URL. Each
   // browser stores only its own run result; public rankings use PostgreSQL.
   if(!room.matchAnnounced){
@@ -446,6 +449,16 @@ wss.on('connection',(ws,req)=>{
           type:'profile-data',available:data.available,progress:data.progress,
           legacyProgress:data.legacyProgress||null});
       });
+      void matchStore.history(profileHash(m.key)).then(data=>{
+        if(ws.profileKey===m.key)send(ws,{type:'profile-history',...data});
+      });
+      return;
+    }
+    if(m.type==='profile-history'){
+      if(!ws.profileKey)return send(ws,{type:'profile-history',available:false,entries:[]});
+      void matchStore.history(profileHash(ws.profileKey)).then(data=>{
+        if(ws.profileKey)send(ws,{type:'profile-history',...data});
+      });
       return;
     }
     if(m.type==='profile-import-legacy'){
@@ -510,7 +523,7 @@ wss.on('connection',(ws,req)=>{
         if(room.engine.status()==='countdown'&&previous!=='countdown'){
           room.started=true;
           room.matchParticipants=new Map([...room.members.entries()].map(([slot,member])=>
-            [slot,{name:member.name}]));
+            [slot,{name:member.name,profileHash:profileHash(room.clients.get(slot)?.profileKey)}]));
           room.chatCountdown=null;
           syncCountdownChat(room);
           room.matchId=randomUUID();room.matchRecorded=false;room.matchRetryAt=0;room.matchAnnounced=false;room.progressLastFloor=0;room.unranked=false;
