@@ -117,12 +117,13 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
         const db=await ensure();
         await db.query(
           `INSERT INTO last_light_matches
-           (match_id,room_name,outcome,floors_cleared,elapsed_seconds,players,competitive,achievements,is_developer_run)
-           VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8::jsonb,$9)
+           (match_id,room_name,outcome,floors_cleared,elapsed_seconds,players,competitive,achievements,is_developer_run,profile_hashes)
+           VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7,$8::jsonb,$9,$10::jsonb)
            ON CONFLICT (match_id) DO NOTHING`,
           [result.matchId,result.roomName,result.outcome,result.floorsCleared,
             result.elapsedSeconds,JSON.stringify(result.players),result.competitive,
-            JSON.stringify(result.achievements||[]),result.isDeveloperRun===true]
+            JSON.stringify(result.achievements||[]),result.isDeveloperRun===true,
+            JSON.stringify(result.profileHashes||[])]
         );
         return true;
       }catch(error){
