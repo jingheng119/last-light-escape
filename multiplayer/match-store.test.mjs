@@ -6,14 +6,14 @@ const mockRoom={
   members:new Map([[1,{name:'Captain'}],[2,{name:'Runner'}]]),
   matchParticipants:new Map([[1,{name:'Captain'}],[2,{name:'Runner'}]]),
   engine:{snapshot:()=>({
-    state:'victory',levelIndex:26,overallElapsed:180.5,
+    state:'victory',levelIndex:11,overallElapsed:180.5,
     playerRoles:['medic','symbiote'],players:[{hp:2},{hp:1}]
   })}
 };
 const result=buildMatchResult(mockRoom);
 assert.equal(result.matchId,'match-123');
 assert.equal(result.outcome,'victory');
-assert.equal(result.floorsCleared,27);
+assert.equal(result.floorsCleared,12);
 assert.equal(result.elapsedSeconds,180.5);
 assert.equal(result.competitive,true);
 assert.equal(result.isDeveloperRun,false,'Normal victories are not developer runs');
@@ -34,14 +34,14 @@ mockRoom.engine.snapshot=()=>({
 });
 assert.equal(buildMatchResult(mockRoom),null,'Never record in-progress matches');
 mockRoom.engine.snapshot=()=>({
-  state:'dead',levelIndex:17,overallElapsed:140,
+  state:'dead',levelIndex:8,overallElapsed:140,
   playerRoles:['medic','scout'],players:[{hp:0},{hp:0}]
 });
-assert.equal(buildMatchResult(mockRoom).floorsCleared,17);
+assert.equal(buildMatchResult(mockRoom).floorsCleared,8);
 assert.equal(buildMatchResult(mockRoom).isDeveloperRun,false,'A normal loss must not be flagged as developer');
 mockRoom.unranked=true;
 mockRoom.engine.snapshot=()=>({
-  state:'victory',levelIndex:26,overallElapsed:18,
+  state:'victory',levelIndex:11,overallElapsed:18,
   playerRoles:['medic','scout'],players:[{hp:3},{hp:3}]
 });
 const skipped=buildMatchResult(mockRoom);
@@ -65,17 +65,17 @@ assert.equal(buildFloorProgress(progressRoom).eligible,false);
 assert.deepEqual(buildFloorProgress(progressRoom).achievements,[]);
 progressRoom.engine.snapshot=()=>({state:'playing',levelIndex:8});
 assert.equal(buildFloorProgress(progressRoom),null);
-progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:26});
+progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:11});
 assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a victory, not leveldone');
 // Release regression: solo and five-player records must remain distinct,
-// and only genuine 27-floor victories may earn the final achievement.
+// and only genuine 12-floor victories may earn the final achievement.
 {
   const roster=new Map([[1,{name:'Solo Pilot'}]]);
   const soloRoom={
     matchId:'solo-record',name:'Solo Run',unranked:false,
     members:roster,matchParticipants:new Map(roster),
     engine:{snapshot:()=>({
-      state:'victory',levelIndex:26,overallElapsed:432.75,
+      state:'victory',levelIndex:11,overallElapsed:432.75,
       playerRoles:['symbiote'],players:[{hp:1}]
     })}
   };
@@ -94,7 +94,7 @@ assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a v
     matchId:'five-record',name:'Five Player Run',unranked:false,
     members:teamRoster,matchParticipants:new Map(teamRoster),
     engine:{snapshot:()=>({
-      state:'victory',levelIndex:26,overallElapsed:815,
+      state:'victory',levelIndex:11,overallElapsed:815,
       playerRoles:['scout','medic','invisibler','anchor','symbiote'],
       players:[{hp:3},{hp:2},{hp:1},{hp:0},{hp:2}]
     })}
@@ -117,7 +117,7 @@ assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a v
   assert.deepEqual(unrankedFive.achievements,[]);
   fiveRoom.unranked=false;
   fiveRoom.engine.snapshot=()=>({
-    state:'dead',levelIndex:26,overallElapsed:815,
+    state:'dead',levelIndex:11,overallElapsed:815,
     playerRoles:['scout','medic','invisibler','anchor','symbiote'],
     players:[{hp:0},{hp:0},{hp:0},{hp:0},{hp:0}]
   });
@@ -136,13 +136,13 @@ assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a v
     matchId:'failed-after-stage',name:'Trial',unranked:false,
     members:roster,matchParticipants:new Map(roster),
     engine:{snapshot:()=>({
-      state:'dead',levelIndex:19,overallElapsed:509,
+      state:'dead',levelIndex:8,overallElapsed:509,
       playerRoles:['anchor'],players:[{hp:0}]
     })}
   };
   const failed=buildMatchResult(room);
   assert.equal(failed.competitive,false);
-  assert.equal(failed.floorsCleared,19);
+  assert.equal(failed.floorsCleared,8);
   assert.deepEqual(failed.achievements.map(a=>a.id),['ward','engine'],
     'Legitimate failed runs retain stage achievements, not victory awards');
   room.unranked=true;
@@ -150,7 +150,7 @@ assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a v
     'Developer skip disqualifies every achievement');
   room.unranked=false;
   room.engine.snapshot=()=>({
-    state:'victory',levelIndex:26,overallElapsed:625,
+    state:'victory',levelIndex:11,overallElapsed:625,
     playerRoles:['anchor'],players:[{hp:0}]
   });
   const finish=buildMatchResult(room);
@@ -170,19 +170,19 @@ const fakePool=class {
       assert(sql.includes("competitive=TRUE"));
       assert(sql.includes('is_developer_run=FALSE'));
       assert(sql.includes("outcome='victory'"));
-      assert(sql.includes('floors_cleared=27'));
+      assert(sql.includes('floors_cleared=12'));
       assert(sql.includes('jsonb_array_length(players)'));
       assert(sql.includes('ORDER BY elapsed_seconds ASC,completed_at ASC'));
       if(sql.includes('= 1'))return {rows:[{
         room_name:'Solo Escape',elapsed_seconds:120.5,
         players:[{slot:1,nickname:'Soloist',role:'rewinder',hearts:1}],
-        floors_cleared:27,achievements:[{id:'solo',title:'Lone Survivor'}],
+        floors_cleared:12,achievements:[{id:'solo',title:'Lone Survivor'}],
         completed_at:'2026-11-09T12:01:00Z'
       }]};
       assert(sql.includes('BETWEEN 2 AND 5'));
       return {rows:[{
         room_name:'The Ward',elapsed_seconds:180.5,players:result.players,
-        floors_cleared:27,achievements:result.achievements,
+        floors_cleared:12,achievements:result.achievements,
         completed_at:'2026-11-09T12:00:00Z'
       }]};
     }
