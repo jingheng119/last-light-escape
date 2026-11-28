@@ -3590,7 +3590,7 @@
         if(!Array.isArray(data.entries)||!data.entries.length){
           const empty=document.createElement('p');empty.className='room-empty';
           empty.textContent='No verified '+(leaderboardCategory==='solo'?'solo':'team')+
-            ' 27-floor victories yet. Be the first!';
+            ' full-game victories yet. Be the first!';
           root.appendChild(empty);return;
         }
         for(const entry of data.entries){
@@ -3683,20 +3683,20 @@
       syncProfile();
     });
     const ACHIEVEMENTS={
-      ward:{name:'Ward Escape',icon:'✦',description:'Clear Stage 1 · Floor 9'},
-      engine:{name:'Copper Survivor',icon:'⚙',description:'Clear Stage 2 · Floor 9'},
-      signal:{name:'Last Light',icon:'★',description:'Complete all 27 floors'},
+      ward:{name:'Ward Escape',icon:'✦',description:'Clear Stage 1'},
+      engine:{name:'Copper Survivor',icon:'⚙',description:'Clear Stage 2'},
+      signal:{name:'Last Light',icon:'★',description:'Complete the full game'},
       solo:{name:'Lone Survivor',icon:'♟',description:'Complete the full game alone'},
       team:{name:'Together Through Darkness',icon:'✧',description:'Complete the full game with a team'},
       alive:{name:'Everyone Made It',icon:'♥',description:'Finish with every teammate alive'},
-      role_scout:{name:'First Responder',icon:'◎',description:'Complete all 27 floors as Scout'},
-      role_medic:{name:'Lifeline',icon:'✚',description:'Complete all 27 floors as Medic'},
-      role_invisibler:{name:'Unseen Survivor',icon:'◌',description:'Complete all 27 floors as Invisibler'},
-      role_teleporter:{name:'Beyond the Walls',icon:'✧',description:'Complete all 27 floors as Teleporter'},
-      role_illusioner:{name:'Master of Deception',icon:'◈',description:'Complete all 27 floors as Illusioner'},
-      role_rewinder:{name:'Timekeeper',icon:'↶',description:'Complete all 27 floors as Rewinder'},
-      role_anchor:{name:'Unbreakable',icon:'⌖',description:'Complete all 27 floors as Anchor'},
-      role_symbiote:{name:'One With the Team',icon:'✿',description:'Complete all 27 floors as Symbiote'}
+      role_scout:{name:'First Responder',icon:'◎',description:'Complete the full game as Scout'},
+      role_medic:{name:'Lifeline',icon:'✚',description:'Complete the full game as Medic'},
+      role_invisibler:{name:'Unseen Survivor',icon:'◌',description:'Complete the full game as Invisibler'},
+      role_teleporter:{name:'Beyond the Walls',icon:'✧',description:'Complete the full game as Teleporter'},
+      role_illusioner:{name:'Master of Deception',icon:'◈',description:'Complete the full game as Illusioner'},
+      role_rewinder:{name:'Timekeeper',icon:'↶',description:'Complete the full game as Rewinder'},
+      role_anchor:{name:'Unbreakable',icon:'⌖',description:'Complete the full game as Anchor'},
+      role_symbiote:{name:'One With the Team',icon:'✿',description:'Complete the full game as Symbiote'}
     };
     const unlockQueue=[];
     let unlockTimer=null;
@@ -3736,7 +3736,7 @@
         ' · Best full-run time '+Math.floor(progress.bestTime/60)+'m '+
         String(Math.floor(progress.bestTime%60)).padStart(2,'0')+'s');
       $('#myProgress').textContent=count?
-        'YOUR RECORD · '+count+' completed attempts · '+best+' / 27 floors cleared'+detail:
+        'YOUR RECORD · '+count+' completed attempts · '+best+' floors cleared'+detail:
         'YOUR RECORD · No completed runs on this browser yet.';
       const gallery=$('#myAchievements');
       gallery.replaceChildren();
