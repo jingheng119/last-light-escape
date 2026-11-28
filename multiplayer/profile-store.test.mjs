@@ -39,13 +39,13 @@ assert.equal(await store.importLegacy(key,{runs:999,bestFloors:27,bestTime:1,bad
   'Legacy import must not overwrite an existing historical record');
 assert.deepEqual((await store.read(key)).legacyProgress,
   {runs:2,bestFloors:5,bestTime:null,badges:['ward']});
-assert.equal(await store.award(key,{eventId:'match-1:1:floor:9',floorsCleared:9,
+assert.equal(await store.award(key,{eventId:'match-1:1:floor:3',floorsCleared:3,
   achievements:[{id:'ward'},{id:'unknown'}]}),true);
 assert(queries.at(-1).sql.includes('ON CONFLICT DO NOTHING RETURNING event_id'));
 assert(!queries.at(-1).sql.includes('legacy_progress'), 'Verified event ledger is independent of browser import');
 assert.deepEqual(JSON.parse(queries.at(-1).params[5]),['ward']);
 assert.equal(queries.at(-1).params[2],0);
-assert.equal(await store.award(key,{eventId:'match-1:1:final',floorsCleared:27,
+assert.equal(await store.award(key,{eventId:'match-1:1:final',floorsCleared:12,
   finished:true,winTime:384,achievements:[{id:'signal'}]}),true);
 assert.equal(queries.at(-1).params[2],1);
 assert.equal(queries.at(-1).params[4],384);
