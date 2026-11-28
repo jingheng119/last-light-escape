@@ -13,8 +13,8 @@
   const STAGE_ONE_FLOORS=3,STAGE_TWO_FLOORS=4,STAGE_THREE_FLOORS=5,STAGE_TWO_SIZE={cols:41,rows:31},STAGE_THREE_SIZE={cols:51,rows:41};
   const CONFIGS = [
     // Retained original floors: Stage 1 (3, 6, 9), Stage 2 (3, 6, 7, 9), Stage 3 (3, 4, 6, 7, 9).
-    { name: 'THE BROKEN WARD', seed: 4207, cores: 3, enemies: 5, loops: 0.21, speed: 1.34,stage:1,stageFloor:1,sourceFloor:3,note: 'The final normally lit floor. Learn to use cover and your class ability.' },
-    { name: 'THE SHADOW ENGINE', seed: 7313, cores: 4, enemies: 6, loops: 0.20, speed: 1.43,stage:1,stageFloor:2,sourceFloor:6,note: 'Darkness deepens. Do not dash blindly into corridors.' },
+    { name: 'THE BROKEN WARD', seed: 4207, cores: 2, enemies: 5, loops: 0.21, speed: 1.34,stage:1,stageFloor:1,sourceFloor:3,note: 'The final normally lit floor. Learn to use cover and your class ability.' },
+    { name: 'THE SHADOW ENGINE', seed: 7313, cores: 3, enemies: 6, loops: 0.20, speed: 1.43,stage:1,stageFloor:2,sourceFloor:6,note: 'Darkness deepens. Do not dash blindly into corridors.' },
     { name: 'THE FINAL ASCENT', seed: 10867, cores: 4, enemies: 7, loops: 0.22, speed: 1.49,stage:1,stageFloor:3,sourceFloor:9,note: 'Find the last elevator and bring everyone into the light.' },
     { name:'THE COPPER ENGINE',seed:15131,cores:5,enemies:8,loops:0.26,speed:1.54,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},stageFloor:1,sourceFloor:3,note:'STAGE II · Copper Engine · Sector 03 / 09.' },
     { name:'THE COPPER ENGINE',seed:19937,cores:6,enemies:9,loops:0.26,speed:1.60,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},stageFloor:2,sourceFloor:6,note:'STAGE II · Copper Engine · Sector 06 / 09.' },
