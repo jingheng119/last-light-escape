@@ -2587,7 +2587,7 @@
       W/CAMERA_ZOOM,H/CAMERA_ZOOM);
   }
   function drawMarker(x,y,clr,label){const a=clock*2;ctx.save();ctx.translate(x,y);ctx.strokeStyle=clr;ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,12+Math.sin(a)*2,0,Math.PI*2);ctx.stroke();ctx.fillStyle=clr;ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText(label,0,-19);ctx.restore();}
-  function objectiveDirection(){const candidates=[...cores.filter(c=>!c.collected),...(!survivor.rescued?[survivor]:[]),...(technician&&!technician.rescued?[technician]:[]),...(echoAlly&&!echoAlly.rescued?[echoAlly]:[]),...(!relay.active?[relay]:[])];return candidates.reduce((nearest,target)=>!nearest||dist(player,target)<dist(player,nearest)?target:nearest,exit);}
+  function objectiveDirection(){const candidates=[...cores.filter(c=>!c.collected),...(!survivor.rescued?[survivor]:[]),...(technician&&!technician.rescued?[technician]:[]),...(echoAlly&&!echoAlly.rescued?[echoAlly]:[]),...(!relay.active?[relay]:[])];return candidates.length?candidates.reduce((nearest,target)=>!nearest||dist(player,target)<dist(player,nearest)?target:nearest, null):exit;}
   function directionLabel(){
     const target=objectiveDirection();
     if(cores.includes(target))return 'FIND THE CORES';
