@@ -128,6 +128,42 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
         return false;
       }
     },
+    async analytics(){
+      if(!enabled)return {available:false,totalMatches:0,totalSelections:0,roles:[]};
+      try{
+        const db=await ensure();
+        const {rows}=await db.query(`
+          WITH role_counts AS (
+            SELECT lower(player->>'role') AS role,COUNT(*)::int AS selections
+            FROM last_light_matches AS match
+            CROSS JOIN LATERAL jsonb_array_elements(
+              CASE WHEN jsonb_typeof(match.players)='array' THEN match.players ELSE '[]'::jsonb END
+            ) AS player
+            WHERE match.is_developer_run=FALSE
+            GROUP BY lower(player->>'role')
+          ),
+          role_list(role) AS (
+            VALUES ('scout'),('medic'),('invisibler'),('teleporter'),
+                   ('illusioner'),('rewinder'),('anchor'),('symbiote')
+          )
+          SELECT
+            (SELECT COUNT(*)::int FROM last_light_matches WHERE is_developer_run=FALSE) AS total_matches,
+            COALESCE((SELECT SUM(selections)::int FROM role_counts),0) AS total_selections,
+            COALESCE((
+              SELECT jsonb_agg(jsonb_build_object(
+                'role',role_list.role,'selections',COALESCE(role_counts.selections,0)
+              ) ORDER BY COALESCE(role_counts.selections,0) DESC,role_list.role)
+              FROM role_list LEFT JOIN role_counts USING(role)
+            ),'[]'::jsonb) AS roles
+        `);
+        const row=rows[0]||{};
+        return {available:true,totalMatches:Number(row.total_matches)||0,
+          totalSelections:Number(row.total_selections)||0,roles:row.roles||[]};
+      }catch(error){
+        log.error('Analytics query failed:',error?.message||error);
+        return {available:false,totalMatches:0,totalSelections:0,roles:[]};
+      }
+    },
     async leaderboard(category='solo'){
       // Always filter by the party that STARTED the run. This is enforced
       // against the stored original roster; clients cannot supply scores.
