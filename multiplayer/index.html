@@ -8,7 +8,7 @@
   <title>Last Light — The Hollow Ward</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="/style.css?v=entrance-transition-2" />
-  <script src="/game.js?v=analytics-1" defer></script>
+  <script src="/game.js?v=match-history-1" defer></script>
   <style>
     .home-screen{position:relative;min-height:calc(100vh - 110px);display:grid;grid-template-columns:minmax(0,1.1fr) minmax(260px,.9fr);align-items:center;gap:clamp(28px,7vw,90px);padding:clamp(38px,7vh,78px) clamp(8px,3vw,34px)}
     .home-copy{max-width:650px}.home-eyebrow{display:flex;align-items:center;gap:10px;color:#a9c6e6;font-size:10px;font-weight:800;letter-spacing:.22em}.home-eyebrow i{width:7px;height:7px;border-radius:50%;background:#9cc8c0;box-shadow:0 0 13px #9cc8c0}
@@ -65,6 +65,20 @@
 
 
     .analytics-panel{max-width:900px}
+    .profile-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 22px;border-bottom:1px solid #8fa9c329}
+    .profile-tabs button{padding:12px 15px;border:0;border-bottom:2px solid transparent;background:transparent;color:#8299b5;font-size:10px;font-weight:850;letter-spacing:.13em;cursor:pointer}
+    .profile-tabs button.active{color:#dce7f5;border-bottom-color:#9cc8c0}
+    .profile-history-summary{display:flex;justify-content:space-between;gap:12px;color:#dce7f5;font-size:10px;font-weight:850;letter-spacing:.15em}
+    .profile-history-summary span{color:#8299b5;font-size:9px}
+    .profile-history-status{padding:22px 0;color:#9eb6d2;font-size:12px;line-height:1.7}
+    .profile-history-list{display:grid;gap:9px;margin-top:14px}
+    .profile-history-entry{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 18px;align-items:center;padding:15px 16px;border:1px solid #8fa9c329;border-radius:9px;background:#101b2b55}
+    .profile-history-entry strong{display:block;color:#e1ebf8;font-size:12px;letter-spacing:.06em}
+    .profile-history-entry small{display:block;margin-top:5px;color:#8299b5;font-size:10px;line-height:1.6}
+    .profile-history-result{font-size:10px;font-weight:850;letter-spacing:.12em;text-align:right}
+    .profile-history-result.victory{color:#9cc8c0}.profile-history-result.dead{color:#e49b9b}.profile-history-result.incomplete{color:#d6b77e}
+    @media(max-width:550px){.profile-history-entry{grid-template-columns:1fr}.profile-history-result{text-align:left}}
+
     .analytics-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:26px 0 30px}
     .analytics-metric-list{display:grid;gap:13px;padding:18px;border:1px solid #8fa9c329;border-radius:9px;background:#101b2b45}
     .analytics-metric-row{display:grid;grid-template-columns:145px minmax(0,1fr) 110px;align-items:center;gap:14px}
@@ -125,7 +139,7 @@
     <nav class="home-record-nav" aria-label="Survivor records">
         <button type="button" data-open-page="progression"><span>01</span><strong>PROGRESSION</strong><small>Your records &amp; achievements</small></button>
         <button type="button" data-open-page="leaderboard"><span>02</span><strong>LEADERBOARD</strong><small>Fastest verified runs</small></button>
-        <button type="button" data-open-page="profile"><span>03</span><strong>PRIVATE SURVIVOR PROFILE</strong><small>Restore your profile securely</small></button>
+        <button type="button" data-open-page="profile"><span>03</span><strong>MATCH HISTORY</strong><small>Your latest 20 recorded runs</small></button>
       </nav>
     </div>
           <div id="newsBulletin" class="news-bulletin" hidden role="dialog" aria-modal="true" aria-labelledby="newsBulletinTitle">
@@ -304,18 +318,29 @@
         </div>
       </section>
     </section>
-    <section id="profilePage" class="records-page" hidden aria-label="Private survivor profile">
+    <section id="profilePage" class="records-page" hidden aria-label="Match history and private survivor profile">
       <div class="records-page-nav"><button type="button" class="records-back" data-back-home>← ENTRANCE</button></div>
-      <section class="progression-panel" aria-label="Private survivor profile">
-        <div class="progression-heading"><div><span class="lobby-eyebrow">ACCOUNT &amp; DATA</span><h2>PRIVATE SURVIVOR PROFILE</h2><p>Your recovery key restores progress on another device. Keep it private; anyone with the key can access this profile.</p></div></div>
-        <div class="profile-recovery">
-          <div><strong>PROFILE RECOVERY KEY</strong><p>Use this 64-character key to restore your progress on another device. Keep it private; anyone with the key can access this profile.</p></div>
-          <div class="profile-recovery-controls">
-            <input id="profileRecoveryKey" type="password" maxlength="64" autocomplete="off" spellcheck="false" aria-label="Private 64-character recovery key" placeholder="Private recovery key" />
-            <button type="button" id="copyProfileKey">Copy key</button>
-            <button type="button" id="restoreProfileKey">Restore key</button>
+      <section class="progression-panel" aria-label="Survivor match history">
+        <div class="progression-heading"><div><span class="lobby-eyebrow">SURVIVOR RECORDS</span><h2>MATCH HISTORY</h2><p>Review your 20 most recent recorded runs, including victories, deaths and abandoned matches.</p></div></div>
+        <div class="profile-tabs" role="tablist" aria-label="Survivor profile sections">
+          <button type="button" class="active" data-profile-view="history" role="tab" aria-selected="true">03 MATCH HISTORY</button>
+          <button type="button" data-profile-view="account" role="tab" aria-selected="false">PRIVATE SURVIVOR PROFILE</button>
+        </div>
+        <div id="profileHistoryView" class="profile-view" role="tabpanel">
+          <div class="profile-history-summary">LATEST 20 RUNS <span>NEWEST FIRST</span></div>
+          <p id="profileHistoryStatus" class="profile-history-status" role="status">Connecting to your survivor profile…</p>
+          <div id="profileHistoryEntries" class="profile-history-list" aria-live="polite"></div>
+        </div>
+        <div id="profileAccountView" class="profile-view" role="tabpanel" hidden>
+          <div class="profile-recovery">
+            <div><strong>PROFILE RECOVERY KEY</strong><p>Use this 64-character key to restore your progress on another device. Keep it private; anyone with the key can access this profile.</p></div>
+            <div class="profile-recovery-controls">
+              <input id="profileRecoveryKey" type="password" maxlength="64" autocomplete="off" spellcheck="false" aria-label="Private 64-character recovery key" placeholder="Private recovery key" />
+              <button type="button" id="copyProfileKey">Copy key</button>
+              <button type="button" id="restoreProfileKey">Restore key</button>
+            </div>
+            <p id="profileSyncStatus" role="status">Browser-only progress; connecting to cloud profile…</p>
           </div>
-          <p id="profileSyncStatus" role="status">Browser-only progress; connecting to cloud profile…</p>
         </div>
       </section>
     </section>
