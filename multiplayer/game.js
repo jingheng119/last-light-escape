@@ -615,12 +615,7 @@
     decoys=[];illusions=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
-    const stageFloorCount=cfg.stage===1?STAGE_ONE_FLOORS:cfg.stage===2?STAGE_TWO_FLOORS:STAGE_THREE_FLOORS;
-    ui.level.textContent=`BROWSER GAME V4.19 · STAGE ${String(cfg.stage||1).padStart(2,'0')} · FLOOR ${String(cfg.stageFloor).padStart(2,'0')} / ${String(stageFloorCount).padStart(2,'0')}`;
-    ui.stageCard.textContent=ui.level.textContent;
-    $('#desktopStageInfo').textContent=ui.level.textContent;
-    ui.mobileStage.children[0].textContent='BROWSER GAME V4.19';
-    ui.mobileStage.children[1].textContent=`STAGE ${String(cfg.stage||1).padStart(2,'0')} · FLOOR ${String(cfg.stageFloor).padStart(2,'0')} / ${String(stageFloorCount).padStart(2,'0')}`;
+    // Stage and floor labels were removed from the HTML; do not update absent UI nodes.
     ui.allyLabel.textContent=cfg.stage>=2?'ALLIES':'SURVIVOR';
     ui.rescueObjective.textContent=cfg.stage>=2?'✚ Rescue both allies':'✚ Rescue the survivor';
     const gameShell=$('.game-shell');
