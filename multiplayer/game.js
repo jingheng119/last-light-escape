@@ -3720,7 +3720,7 @@
     const ACHIEVEMENTS={
       ward:{name:'Ward Escape',icon:'✦',description:'Clear Stage 1'},
       engine:{name:'Copper Survivor',icon:'⚙',description:'Clear Stage 2'},
-      signal:{name:'Last Light',icon:'★',description:'Complete the full game'},
+      signal:{name:'The Lost Signal',icon:'★',description:'Clear Stage 3'},
       solo:{name:'Lone Survivor',icon:'♟',description:'Complete the full game alone'},
       team:{name:'Together Through Darkness',icon:'✧',description:'Complete the full game with a team'},
       alive:{name:'Everyone Made It',icon:'♥',description:'Finish with every teammate alive'},
