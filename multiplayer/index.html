@@ -140,6 +140,7 @@
         <button type="button" data-open-page="progression"><span>01</span><strong>PROGRESSION</strong><small>Your records &amp; achievements</small></button>
         <button type="button" data-open-page="leaderboard"><span>02</span><strong>LEADERBOARD</strong><small>Fastest verified runs</small></button>
         <button type="button" data-open-page="profile"><span>03</span><strong>MATCH HISTORY</strong><small>Your latest 20 recorded runs</small></button>
+        <button type="button" data-open-page="account"><span>04</span><strong>PRIVATE SURVIVOR PROFILE</strong><small>Manage your recovery key</small></button>
       </nav>
     </div>
           <div id="newsBulletin" class="news-bulletin" hidden role="dialog" aria-modal="true" aria-labelledby="newsBulletinTitle">
@@ -322,25 +323,25 @@
       <div class="records-page-nav"><button type="button" class="records-back" data-back-home>← ENTRANCE</button></div>
       <section class="progression-panel" aria-label="Survivor match history">
         <div class="progression-heading"><div><span class="lobby-eyebrow">SURVIVOR RECORDS</span><h2>MATCH HISTORY</h2><p>Review your 20 most recent recorded runs, including victories, deaths and abandoned matches.</p></div></div>
-        <div class="profile-tabs" role="tablist" aria-label="Survivor profile sections">
-          <button type="button" class="active" data-profile-view="history" role="tab" aria-selected="true">03 MATCH HISTORY</button>
-          <button type="button" data-profile-view="account" role="tab" aria-selected="false">PRIVATE SURVIVOR PROFILE</button>
-        </div>
         <div id="profileHistoryView" class="profile-view" role="tabpanel">
           <div class="profile-history-summary">LATEST 20 RUNS <span>NEWEST FIRST</span></div>
           <p id="profileHistoryStatus" class="profile-history-status" role="status">Connecting to your survivor profile…</p>
           <div id="profileHistoryEntries" class="profile-history-list" aria-live="polite"></div>
         </div>
-        <div id="profileAccountView" class="profile-view" role="tabpanel" hidden>
-          <div class="profile-recovery">
-            <div><strong>PROFILE RECOVERY KEY</strong><p>Use this 64-character key to restore your progress on another device. Keep it private; anyone with the key can access this profile.</p></div>
-            <div class="profile-recovery-controls">
-              <input id="profileRecoveryKey" type="password" maxlength="64" autocomplete="off" spellcheck="false" aria-label="Private 64-character recovery key" placeholder="Private recovery key" />
-              <button type="button" id="copyProfileKey">Copy key</button>
-              <button type="button" id="restoreProfileKey">Restore key</button>
-            </div>
-            <p id="profileSyncStatus" role="status">Browser-only progress; connecting to cloud profile…</p>
+      </section>
+    </section>
+    <section id="accountPage" class="records-page" hidden aria-label="Private survivor profile">
+      <div class="records-page-nav"><button type="button" class="records-back" data-back-home>← ENTRANCE</button></div>
+      <section class="progression-panel" aria-label="Private survivor profile">
+        <div class="progression-heading"><div><span class="lobby-eyebrow">ACCOUNT &amp; DATA</span><h2>PRIVATE SURVIVOR PROFILE</h2><p>Your recovery key restores your survivor progress and match history on another device. Keep it private; anyone with the key can access this profile.</p></div></div>
+        <div class="profile-recovery">
+          <div><strong>PROFILE RECOVERY KEY</strong><p>Use this 64-character key to restore your progress on another device. Keep it private; anyone with the key can access this profile.</p></div>
+          <div class="profile-recovery-controls">
+            <input id="profileRecoveryKey" type="password" maxlength="64" autocomplete="off" spellcheck="false" aria-label="Private 64-character recovery key" placeholder="Private recovery key" />
+            <button type="button" id="copyProfileKey">Copy key</button>
+            <button type="button" id="restoreProfileKey">Restore key</button>
           </div>
+          <p id="profileSyncStatus" role="status">Browser-only progress; connecting to cloud profile…</p>
         </div>
       </section>
     </section>
