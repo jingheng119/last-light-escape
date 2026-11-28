@@ -2587,13 +2587,14 @@
       W/CAMERA_ZOOM,H/CAMERA_ZOOM);
   }
   function drawMarker(x,y,clr,label){const a=clock*2;ctx.save();ctx.translate(x,y);ctx.strokeStyle=clr;ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,12+Math.sin(a)*2,0,Math.PI*2);ctx.stroke();ctx.fillStyle=clr;ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText(label,0,-19);ctx.restore();}
-  function objectiveDirection(){const core=cores.filter(c=>!c.collected).reduce((nearest,c)=>!nearest||dist(player,c)<dist(player,nearest)?c:nearest,null);return core||(!survivor.rescued?survivor:technician&&!technician.rescued?technician:echoAlly&&!echoAlly.rescued?echoAlly:!relay.active?relay:exit);}
+  function objectiveDirection(){const candidates=[...cores.filter(c=>!c.collected),...(!survivor.rescued?[survivor]:[]),...(technician&&!technician.rescued?[technician]:[]),...(echoAlly&&!echoAlly.rescued?[echoAlly]:[]),...(!relay.active?[relay]:[])];return candidates.reduce((nearest,target)=>!nearest||dist(player,target)<dist(player,nearest)?target:nearest,exit);}
   function directionLabel(){
-    return cores.some(c=>!c.collected)?'FIND THE CORES':
-      !survivor.rescued?'RESCUE THE ALLY':
-      technician&&!technician.rescued?'FIND TECHNICIAN':
-      echoAlly&&!echoAlly.rescued?'RESCUE ECHO':
-      !relay.active?'ACTIVATE RELAY':'REACH THE EXIT';
+    const target=objectiveDirection();
+    if(cores.includes(target))return 'FIND THE CORES';
+    if(target===survivor)return 'RESCUE THE ALLY';
+    if(target===technician)return 'FIND TECHNICIAN';
+    if(target===echoAlly)return 'RESCUE ECHO';
+    return target===relay?'ACTIVATE RELAY':'REACH THE EXIT';
   }
   function drawDirectionalHUD(){
     if(!player)return;
