@@ -1,6 +1,6 @@
 // Optional PostgreSQL-backed public trial records. No account is required.
 // Rankings are team runs, not verified identities. Developer skips are unranked.
-export const MATCH_OUTCOMES=new Set(['victory','dead']);
+export const MATCH_OUTCOMES=new Set(['victory','dead','incomplete']);
 const VALID_ROLES=new Set(['scout','medic','invisibler','teleporter','illusioner','rewinder','anchor','symbiote']);
 const ROLE_ACHIEVEMENTS={scout:'role_scout',medic:'role_medic',invisibler:'role_invisibler',teleporter:'role_teleporter',illusioner:'role_illusioner',rewinder:'role_rewinder',anchor:'role_anchor',symbiote:'role_symbiote'};
 const ROLE_ACHIEVEMENT_TITLES={scout:'First Responder',medic:'Lifeline',invisibler:'Unseen Survivor',teleporter:'Beyond the Walls',illusioner:'Master of Deception',rewinder:'Timekeeper',anchor:'Unbreakable',symbiote:'One With the Team'};
@@ -35,9 +35,10 @@ export function buildFloorProgress(room){
     [{id:'engine',title:'Copper Survivor',description:'Clear Stage 2'}]:[];
   return {type:'floor-progress',floorsCleared,eligible,achievements};
 }
-export function buildMatchResult(room){
+export function buildMatchResult(room,{incomplete=false}={}){
   const snapshot=room.engine.snapshot(false);
-  if(!MATCH_OUTCOMES.has(snapshot.state))return null;
+  if(!MATCH_OUTCOMES.has(snapshot.state)&&!incomplete)return null;
+  if(incomplete&&(!room.started||MATCH_OUTCOMES.has(snapshot.state)))return null;
   // Preserve the original party size even if a teammate disconnects later.
   const players=[...(room.matchParticipants||room.members).entries()].map(([slot,member])=>{
     const role=snapshot.playerRoles?.[slot-1];
@@ -50,7 +51,7 @@ export function buildMatchResult(room){
   const result={
     matchId:room.matchId,
     roomName:String(room.name||'Hollow Ward').slice(0,32),
-    outcome:snapshot.state,
+    outcome:incomplete?'incomplete':snapshot.state,
     floorsCleared:Math.max(0,Math.min(26,Number(snapshot.levelIndex)||0))+
       (snapshot.state==='victory'?1:0),
     elapsedSeconds:Math.max(0,Number(snapshot.overallElapsed)||0),
@@ -75,13 +76,18 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
         await created.query(`CREATE TABLE IF NOT EXISTS last_light_matches (
           match_id TEXT PRIMARY KEY,
           room_name VARCHAR(32) NOT NULL,
-          outcome VARCHAR(12) NOT NULL CHECK (outcome IN ('victory','dead')),
+          outcome VARCHAR(12) NOT NULL CHECK (outcome IN ('victory','dead','incomplete')),
           floors_cleared SMALLINT NOT NULL CHECK (floors_cleared BETWEEN 0 AND 27),
           elapsed_seconds DOUBLE PRECISION NOT NULL CHECK (elapsed_seconds >= 0),
           players JSONB NOT NULL,
           completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )`);
         // Upgrade installations created when the game had only 18 floors.
+        await created.query(`ALTER TABLE last_light_matches
+          DROP CONSTRAINT IF EXISTS last_light_matches_outcome_check`);
+        await created.query(`ALTER TABLE last_light_matches ADD CONSTRAINT
+          last_light_matches_outcome_check
+          CHECK (outcome IN ('victory','dead','incomplete'))`);
         await created.query(`ALTER TABLE last_light_matches
           DROP CONSTRAINT IF EXISTS last_light_matches_floors_cleared_check`);
         await created.query(`ALTER TABLE last_light_matches ADD CONSTRAINT
