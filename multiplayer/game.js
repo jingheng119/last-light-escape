@@ -3535,7 +3535,7 @@
       myRoomCard=$('#myRoomCard'),roomCountLabel=$('#roomCount'),
       nicknameInput=$('#playerNickname'),lobbyClass=$('#lobbyClass'),
       rosterCountLabel=$('#rosterCount');
-    nicknameInput.value=sessionStorage.getItem('lastLightNickname')||'';
+    nicknameInput.value=localStorage.getItem('lastLightNickname')||'';
     let savedPlayers=[];
     const SESSION_KEY='lastLightPlayerSession';
     let reconnectAttempts=0,reconnectTimer=null;
@@ -3823,7 +3823,7 @@
     };
     nicknameInput.addEventListener('change',()=>{
       nicknameInput.value=nameForServer();
-      sessionStorage.setItem('lastLightNickname',nicknameInput.value);
+      localStorage.setItem('lastLightNickname',nicknameInput.value);
       if(roomRole!=='none')sendRoom({type:'profile',nickname:nicknameInput.value});
     });
     nicknameInput.addEventListener('blur',()=>{
