@@ -52,18 +52,18 @@ assert.deepEqual(achievementsForResult({...result,competitive:false}),[]);
 // Floor-by-floor progression survives runs that never reach the ending.
 const progressRoom={
   unranked:false,
-  engine:{snapshot:()=>({state:'leveldone',levelIndex:8})}
+  engine:{snapshot:()=>({state:'leveldone',levelIndex:2})}
 };
 assert.deepEqual(buildFloorProgress(progressRoom).achievements.map(a=>a.id),['ward']);
-progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:17});
+progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:6});
 assert.deepEqual(buildFloorProgress(progressRoom).achievements.map(a=>a.id),['engine']);
 progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:10});
 assert.deepEqual(buildFloorProgress(progressRoom).achievements,[]);
 progressRoom.unranked=true;
-progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:8});
+progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:2});
 assert.equal(buildFloorProgress(progressRoom).eligible,false);
 assert.deepEqual(buildFloorProgress(progressRoom).achievements,[]);
-progressRoom.engine.snapshot=()=>({state:'playing',levelIndex:8});
+progressRoom.engine.snapshot=()=>({state:'playing',levelIndex:2});
 assert.equal(buildFloorProgress(progressRoom),null);
 progressRoom.engine.snapshot=()=>({state:'leveldone',levelIndex:11});
 assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a victory, not leveldone');
