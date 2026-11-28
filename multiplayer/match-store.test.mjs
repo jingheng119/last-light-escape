@@ -22,7 +22,7 @@ assert.deepEqual(result.players,[
   {slot:2,nickname:'Runner',role:'symbiote',hearts:1}
 ]);
 assert.deepEqual(result.achievements.map(a=>a.id),
-  ['ward','engine','signal','team','alive']);
+  ['ward','engine','signal','team','alive','role_medic','role_symbiote']);
 mockRoom.members.delete(2);
 const disconnected=buildMatchResult(mockRoom);
 assert.equal(disconnected.players.length,2,
@@ -84,7 +84,7 @@ assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a v
   assert.equal(soloResult.players.length,1);
   assert.equal(soloResult.players[0].role,'symbiote');
   assert.deepEqual(soloResult.achievements.map(a=>a.id),
-    ['ward','engine','signal','solo','alive']);
+    ['ward','engine','signal','solo','alive','role_symbiote']);
   assert(!soloResult.achievements.some(a=>a.id==='team'),
     'Solo victory must never receive the team achievement');
 
@@ -106,7 +106,7 @@ assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a v
     ['scout','medic','invisibler','anchor','symbiote']);
   assert.deepEqual(fiveResult.players.map(p=>p.hearts),[3,2,1,0,2]);
   assert.deepEqual(fiveResult.achievements.map(a=>a.id),
-    ['ward','engine','signal','team'],
+    ['ward','engine','signal','team','role_scout','role_medic','role_invisibler','role_anchor','role_symbiote'],
     'Everyone Made It requires all five teammates alive');
 
   // Ranking eligibility is determined by the server's level and skip
@@ -156,7 +156,7 @@ assert.equal(buildFloorProgress(progressRoom),null,'Final floor completes as a v
   const finish=buildMatchResult(room);
   assert.equal(finish.competitive,true);
   assert.deepEqual(finish.achievements.map(a=>a.id),
-    ['ward','engine','signal','solo'],
+    ['ward','engine','signal','solo','role_anchor'],
     'Finishing with zero hearts must not grant Everyone Made It');
 }
 
