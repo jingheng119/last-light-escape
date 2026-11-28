@@ -37,8 +37,8 @@ export function buildFloorProgress(room){
 }
 export function buildMatchResult(room,{incomplete=false}={}){
   const snapshot=room.engine.snapshot(false);
-  if(!MATCH_OUTCOMES.has(snapshot.state)&&!incomplete)return null;
-  if(incomplete&&(!room.started||MATCH_OUTCOMES.has(snapshot.state)))return null;
+  if(!MATCH_OUTCOMES.has(snapshot.state)&&(!incomplete||!room.started))return null;
+  const isIncomplete=incomplete&&!MATCH_OUTCOMES.has(snapshot.state);
   // Preserve the original party size even if a teammate disconnects later.
   const players=[...(room.matchParticipants||room.members).entries()].map(([slot,member])=>{
     const role=snapshot.playerRoles?.[slot-1];
@@ -51,7 +51,7 @@ export function buildMatchResult(room,{incomplete=false}={}){
   const result={
     matchId:room.matchId,
     roomName:String(room.name||'Hollow Ward').slice(0,32),
-    outcome:incomplete?'incomplete':snapshot.state,
+    outcome:isIncomplete?'incomplete':snapshot.state,
     floorsCleared:Math.max(0,Math.min(26,Number(snapshot.levelIndex)||0))+
       (snapshot.state==='victory'?1:0),
     elapsedSeconds:Math.max(0,Number(snapshot.overallElapsed)||0),
