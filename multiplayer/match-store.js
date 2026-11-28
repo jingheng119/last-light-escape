@@ -135,11 +135,11 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
         const {rows}=await db.query(`
           WITH role_counts AS (
             SELECT lower(player->>'role') AS role,COUNT(*)::int AS selections
-            FROM last_light_matches AS match
+            FROM last_light_matches AS m
             CROSS JOIN LATERAL jsonb_array_elements(
-              CASE WHEN jsonb_typeof(match.players)='array' THEN match.players ELSE '[]'::jsonb END
+              CASE WHEN jsonb_typeof(m.players)='array' THEN m.players ELSE '[]'::jsonb END
             ) AS player_entry(player)
-            WHERE match.is_developer_run=FALSE
+            WHERE m.is_developer_run=FALSE
             GROUP BY lower(player->>'role')
           ),
           role_list(role) AS (
