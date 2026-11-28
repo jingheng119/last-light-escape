@@ -10,38 +10,21 @@
   const MAX_HEARTS=9;
   let W=992,H=672;
   let COLS=31,ROWS=21;
-  const STAGE_ONE_FLOORS=9,STAGE_TWO_SIZE={cols:41,rows:31},STAGE_THREE_SIZE={cols:51,rows:41};
+  const STAGE_ONE_FLOORS=3,STAGE_TWO_FLOORS=4,STAGE_THREE_FLOORS=5,STAGE_TWO_SIZE={cols:41,rows:31},STAGE_THREE_SIZE={cols:51,rows:41};
   const CONFIGS = [
-    { name: 'THE FIRST DESCENT', seed: 1709, cores: 2, enemies: 3, loops: 0.16, speed: 1.12, note: 'Hollows can see along corridors. Break line of sight to escape a pursuit.' },
-    { name: 'THE DARK CIRCUIT', seed: 2911, cores: 3, enemies: 4, loops: 0.19, speed: 1.23, note: 'Tap Q to throw a sound decoy. Nearby Hollows will investigate the noise.' },
-    { name: 'THE BROKEN WARD', seed: 4207, cores: 3, enemies: 5, loops: 0.21, speed: 1.34, note: 'The final normally lit floor. Learn to use cover and your class ability.' },
-    { name: 'THE LOWER PASSAGES', seed: 5849, cores: 3, enemies: 5, loops: 0.19, speed: 1.37, note: 'The lights are fading. Stay close to your survivor.' },
-    { name: 'THE SILENT BLOCK', seed: 6691, cores: 3, enemies: 6, loops: 0.18, speed: 1.40, note: 'Dim corridors hide moving Hollows. Use decoys strategically.' },
-    { name: 'THE SHADOW ENGINE', seed: 7313, cores: 4, enemies: 6, loops: 0.20, speed: 1.43, note: 'Darkness deepens. Do not dash blindly into corridors.' },
-    { name: 'THE BLACK ARCHIVE', seed: 8269, cores: 3, enemies: 6, loops: 0.18, speed: 1.43, note: 'Emergency lighting at 10%. Watch for enemies at close range.' },
-    { name: 'THE LOST DEPTHS', seed: 9539, cores: 4, enemies: 7, loops: 0.20, speed: 1.46, note: 'Only your immediate surroundings are visible. Protect the survivor.' },
-    { name: 'THE FINAL ASCENT', seed: 10867, cores: 4, enemies: 7, loops: 0.22, speed: 1.49, note: 'Find the last elevator and bring everyone into the light.' },
-    // Stage II is ready for future Hollow and ally variants via metadata.
-    { name:'THE COPPER ENGINE',seed:12419,cores:5,enemies:7,loops:0.24,speed:1.50,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 01 / 09.' },
-    { name:'THE COPPER ENGINE',seed:13773,cores:5,enemies:7,loops:0.25,speed:1.52,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 02 / 09.' },
-    { name:'THE COPPER ENGINE',seed:15131,cores:5,enemies:8,loops:0.26,speed:1.54,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 03 / 09.' },
-    { name:'THE COPPER ENGINE',seed:16807,cores:5,enemies:8,loops:0.27,speed:1.56,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 04 / 09.' },
-    { name:'THE COPPER ENGINE',seed:18061,cores:6,enemies:9,loops:0.23,speed:1.58,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 05 / 09.' },
-    { name:'THE COPPER ENGINE',seed:19937,cores:6,enemies:9,loops:0.26,speed:1.60,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 06 / 09.' },
-    { name:'THE COPPER ENGINE',seed:21401,cores:6,enemies:10,loops:0.25,speed:1.61,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 07 / 09.' },
-    { name:'THE COPPER ENGINE',seed:23549,cores:6,enemies:10,loops:0.29,speed:1.63,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 08 / 09.' },
-    { name:'THE COPPER ENGINE',seed:25717,cores:7,enemies:11,loops:0.28,speed:1.65,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},note:'STAGE II · Copper Engine · Sector 09 / 09.' },
-    // Stage III — nine larger Lost Signal sectors.
-    // Reuse existing enemy variants pending Stage III-specific designs.
-    { name:'THE FROZEN SIGNAL',seed:27011,cores:6,enemies:15,loops:0.240,speed:1.65,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 01 / 09.' },
-    { name:'THE MIRROR CORRIDORS',seed:28522,cores:6,enemies:15,loops:0.246,speed:1.67,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 02 / 09.' },
-    { name:'THE SILENT TRANSMISSION',seed:30033,cores:6,enemies:16,loops:0.252,speed:1.69,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 03 / 09.' },
-    { name:'THE ECHO CHAMBER',seed:31544,cores:6,enemies:16,loops:0.258,speed:1.71,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 04 / 09.' },
-    { name:'THE ABANDONED ARRAY',seed:33055,cores:7,enemies:17,loops:0.264,speed:1.73,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 05 / 09.' },
-    { name:'THE FRACTURED CORE',seed:34566,cores:7,enemies:17,loops:0.270,speed:1.75,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 06 / 09.' },
-    { name:'THE LOST FREQUENCY',seed:36077,cores:7,enemies:18,loops:0.276,speed:1.77,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 07 / 09.' },
-    { name:'THE PALE HORIZON',seed:37588,cores:7,enemies:18,loops:0.282,speed:1.79,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 08 / 09.' },
-    { name:'THE LAST SIGNAL',seed:39099,cores:8,enemies:19,loops:0.288,speed:1.81,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},note:'STAGE III · The Lost Signal · Sector 09 / 09.' },
+    // Retained original floors: Stage 1 (3, 6, 9), Stage 2 (3, 6, 7, 9), Stage 3 (3, 4, 6, 7, 9).
+    { name: 'THE BROKEN WARD', seed: 4207, cores: 3, enemies: 5, loops: 0.21, speed: 1.34,stage:1,stageFloor:3,note: 'The final normally lit floor. Learn to use cover and your class ability.' },
+    { name: 'THE SHADOW ENGINE', seed: 7313, cores: 4, enemies: 6, loops: 0.20, speed: 1.43,stage:1,stageFloor:6,note: 'Darkness deepens. Do not dash blindly into corridors.' },
+    { name: 'THE FINAL ASCENT', seed: 10867, cores: 4, enemies: 7, loops: 0.22, speed: 1.49,stage:1,stageFloor:9,note: 'Find the last elevator and bring everyone into the light.' },
+    { name:'THE COPPER ENGINE',seed:15131,cores:5,enemies:8,loops:0.26,speed:1.54,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},stage:2,stageFloor:3,note:'STAGE II · Copper Engine · Sector 03 / 09.' },
+    { name:'THE COPPER ENGINE',seed:19937,cores:6,enemies:9,loops:0.26,speed:1.60,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},stage:2,stageFloor:6,note:'STAGE II · Copper Engine · Sector 06 / 09.' },
+    { name:'THE COPPER ENGINE',seed:21401,cores:6,enemies:10,loops:0.25,speed:1.61,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},stage:2,stageFloor:7,note:'STAGE II · Copper Engine · Sector 07 / 09.' },
+    { name:'THE COPPER ENGINE',seed:25717,cores:7,enemies:11,loops:0.28,speed:1.65,stage:2,architecture:'engine',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#231b18',wall:'#130f10',trim:'#684a36',line:'#735845',glow:'#6f5641'},stage:2,stageFloor:9,note:'STAGE II · Copper Engine · Sector 09 / 09.' },
+    { name:'THE SILENT TRANSMISSION',seed:30033,cores:6,enemies:16,loops:0.252,speed:1.69,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},stage:3,stageFloor:3,note:'STAGE III · The Lost Signal · Sector 03 / 09.' },
+    { name:'THE ECHO CHAMBER',seed:31544,cores:6,enemies:16,loops:0.258,speed:1.71,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},stage:3,stageFloor:4,note:'STAGE III · The Lost Signal · Sector 04 / 09.' },
+    { name:'THE FRACTURED CORE',seed:34566,cores:7,enemies:17,loops:0.270,speed:1.75,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},stage:3,stageFloor:6,note:'STAGE III · The Lost Signal · Sector 06 / 09.' },
+    { name:'THE LOST FREQUENCY',seed:36077,cores:7,enemies:18,loops:0.276,speed:1.77,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},stage:3,stageFloor:7,note:'STAGE III · The Lost Signal · Sector 07 / 09.' },
+    { name:'THE LAST SIGNAL',seed:39099,cores:8,enemies:19,loops:0.288,speed:1.81,stage:3,architecture:'signal',enemyVariant:'standard',allyVariant:'survivor',theme:{floor:'#17232b',wall:'#0c151f',trim:'#36586b',line:'#4f798a',glow:'#6ca9bd'},stage:3,stageFloor:9,note:'STAGE III · The Lost Signal · Sector 09 / 09.' },
   ];
   const $ = s => document.querySelector(s);
   const canvas = $('#game'), ctx = canvas.getContext('2d');
@@ -615,7 +598,7 @@
     const baseGhostCount=cfg.stage===3?Math.max(0,cfg.enemies-baseStandardCount-baseInvisibleCount):0;
     const standardCount=cfg.stage===3?baseStandardCount:baseStandardCount;
     const stageThreeInvisibleCounts=[6,6,6,6,7,7,7,7,7];
-    const invisibleCount=cfg.stage===3?stageThreeInvisibleCounts[index%STAGE_ONE_FLOORS]:baseInvisibleCount;
+    const invisibleCount=cfg.stage===3?stageThreeInvisibleCounts[cfg.stageFloor-1]:baseInvisibleCount;
     const ghostCount=cfg.stage===3?baseGhostCount*2:0;
     const totalEnemies=cfg.stage===3?standardCount+invisibleCount+ghostCount:cfg.enemies;
     for(let i=0;i<totalEnemies;i++) {
@@ -632,11 +615,12 @@
     decoys=[];illusions=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
-    ui.level.textContent=`BROWSER GAME V4.19 · STAGE ${String(cfg.stage||1).padStart(2,'0')} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
+    const stageFloorCount=cfg.stage===1?STAGE_ONE_FLOORS:cfg.stage===2?STAGE_TWO_FLOORS:STAGE_THREE_FLOORS;
+    ui.level.textContent=`BROWSER GAME V4.19 · STAGE ${String(cfg.stage||1).padStart(2,'0')} · FLOOR ${String(cfg.stageFloor).padStart(2,'0')} / ${String(stageFloorCount).padStart(2,'0')}`;
     ui.stageCard.textContent=ui.level.textContent;
     $('#desktopStageInfo').textContent=ui.level.textContent;
     ui.mobileStage.children[0].textContent='BROWSER GAME V4.19';
-    ui.mobileStage.children[1].textContent=`STAGE ${String(cfg.stage||1).padStart(2,'0')} · FLOOR ${String(index%STAGE_ONE_FLOORS+1).padStart(2,'0')} / 09`;
+    ui.mobileStage.children[1].textContent=`STAGE ${String(cfg.stage||1).padStart(2,'0')} · FLOOR ${String(cfg.stageFloor).padStart(2,'0')} / ${String(stageFloorCount).padStart(2,'0')}`;
     ui.allyLabel.textContent=cfg.stage>=2?'ALLIES':'SURVIVOR';
     ui.rescueObjective.textContent=cfg.stage>=2?'✚ Rescue both allies':'✚ Rescue the survivor';
     const gameShell=$('.game-shell');
@@ -1135,7 +1119,9 @@
     developerSkipped=true;
     // M advances one floor; Shift+M jumps to the next stage,
     // or the final floor from Stage III for endgame testing.
-    const target=fullStage?(levelIndex<STAGE_ONE_FLOORS?STAGE_ONE_FLOORS:levelIndex<STAGE_ONE_FLOORS*2?STAGE_ONE_FLOORS*2:CONFIGS.length-1):levelIndex+1;
+    const stageTwoStart=STAGE_ONE_FLOORS;
+    const stageThreeStart=STAGE_ONE_FLOORS+STAGE_TWO_FLOORS;
+    const target=fullStage?(levelIndex<stageTwoStart?stageTwoStart:levelIndex<stageThreeStart?stageThreeStart:CONFIGS.length-1):levelIndex+1;
     if(target>=CONFIGS.length){
       state='victory';
       setOverlay('DEVELOPER TEST COMPLETE','You reached the end using the test shortcut. This run will not record a best time.','PLAY AGAIN','TEST MODE · PROGRESSION CHECK');
@@ -1542,9 +1528,9 @@
     if(levelIndex===CONFIGS.length-1){state='victory';if(!developerSkipped&&(best===0||overallElapsed<best)){best=overallElapsed;try{localStorage.setItem('last-light-best',String(best));}catch(e){}}setOverlay('YOU FOUND THE LIGHT',`All ${CONFIGS.length} floors escaped in ${formatTime(overallElapsed)}. The elevator doors close behind you. Best escape: ${formatTime(best)}.`,'PLAY AGAIN','THE WARD WILL BE WAITING');}
     else {state='leveldone';
       if(levelIndex===STAGE_ONE_FLOORS-1){
-        setOverlay('STAGE ONE COMPLETE',`You survived all nine floors of the Hollow Ward. Your ${player.hp} remaining ${player.hp===1?'heart carries':'hearts carry'} into a much larger outer complex.`,'ENTER STAGE TWO','NINE EXPANDED FLOORS AWAIT');
-      }else if(levelIndex===STAGE_ONE_FLOORS*2-1){
-        setOverlay('STAGE TWO COMPLETE','You escaped all nine sectors of The Copper Engine. Your remaining hearts carry into the Lost Signal.','ENTER STAGE THREE','NINE NEW FLOORS AWAIT');
+        setOverlay('STAGE ONE COMPLETE',`You survived all three floors of the Hollow Ward. Your ${player.hp} remaining ${player.hp===1?'heart carries':'hearts carry'} into a much larger outer complex.`,'ENTER STAGE TWO','FOUR EXPANDED SECTORS AWAIT');
+      }else if(levelIndex===STAGE_ONE_FLOORS+STAGE_TWO_FLOORS-1){
+        setOverlay('STAGE TWO COMPLETE','You escaped all four sectors of The Copper Engine. Your remaining hearts carry into the Lost Signal.','ENTER STAGE THREE','FIVE NEW FLOORS AWAIT');
       }else setOverlay('FLOOR CLEARED',`You restored the relay, collected every core, and escaped ${CONFIGS[levelIndex].name.toLowerCase()} in ${formatTime(elapsed)}.`,'DESCEND DEEPER','THE NEXT FLOOR IS MORE DANGEROUS');
     }
   }
@@ -2552,7 +2538,7 @@
     const c=darkCtx;
     c.clearRect(0,0,W,H);
     // Apply the same three-tier darkness curve independently in both stages.
-    const floorWithinStage=levelIndex%STAGE_ONE_FLOORS;
+    const floorWithinStage=(CONFIGS[levelIndex]?.stageFloor||1)-1;
     const darkness=floorWithinStage<3?.63:floorWithinStage<6?.76:.90;
     c.fillStyle=`rgba(0,8,13,${darkness})`;c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
@@ -3297,7 +3283,7 @@
       let button='WAIT FOR HOST';
       if(host){
         if(state==='leveldone')
-          button=levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO':levelIndex===STAGE_ONE_FLOORS*2-1?'ENTER STAGE THREE':'ENTER NEXT FLOOR';
+          button=levelIndex===STAGE_ONE_FLOORS-1?'ENTER STAGE TWO':levelIndex===STAGE_ONE_FLOORS+STAGE_TWO_FLOORS-1?'ENTER STAGE THREE':'ENTER NEXT FLOOR';
         else if(state==='paused')button='RESUME GAME';
         else if(state==='dead'||state==='victory')button='PLAY AGAIN';
       }
@@ -3682,7 +3668,7 @@
         date.textContent=(Number.isNaN(stamp.getTime())?'Recorded match':stamp.toLocaleString())+
           ' · '+(entry.partySize>1?'TEAM':'SOLO')+' · '+String(entry.role||'scout').toUpperCase();
         const floors=Math.max(0,Number(entry.floorsCleared)||0);
-        const stage=floors>=18?'STAGE 3 · THE LOST SIGNAL':floors>=9?'STAGE 2 · THE COPPER ENGINE':'STAGE 1 · HOLLOW WARD';
+        const stage=floors>=7?'STAGE 3 · THE LOST SIGNAL':floors>=3?'STAGE 2 · THE COPPER ENGINE':'STAGE 1 · HOLLOW WARD';
         const duration=Math.max(0,Math.floor(Number(entry.elapsedSeconds)||0));
         const time=Math.floor(duration/60)+'m '+String(duration%60).padStart(2,'0')+'s';
         const progress=document.createElement('small');
@@ -3802,7 +3788,7 @@
     const recordFloorProgress=result=>{
       if(!result||result.eligible!==true||
          !Number.isInteger(result.floorsCleared)||
-         result.floorsCleared<1||result.floorsCleared>27)return;
+         result.floorsCleared<1||result.floorsCleared>12)return;
       const current=readProgress();
       const badgeIds=(Array.isArray(result.achievements)?result.achievements:[])
         .map(b=>b.id).filter(id=>ACHIEVEMENTS[id]);
@@ -3820,7 +3806,7 @@
     const recordProgress=result=>{
       if(!result||!Number.isFinite(result.floorsCleared))return;
       if(result.eligible!==true)return;
-      const current=readProgress(),won=result.outcome==='victory'&&result.floorsCleared===27;
+      const current=readProgress(),won=result.outcome==='victory'&&result.floorsCleared===12;
       const seconds=Number(result.elapsedSeconds);
       const bestTime=won&&Number.isFinite(seconds)&&seconds>0?
         (current.bestTime==null?seconds:Math.min(current.bestTime,seconds)):
