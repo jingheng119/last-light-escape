@@ -187,8 +187,8 @@ function publishFloorProgress(room){
         floorsCleared:progress.floorsCleared,achievements:progress.achievements});
   }
 }
-function persistCompletedMatch(room){
-  const result=buildMatchResult(room);
+function persistCompletedMatch(room,incomplete=false){
+  const result=buildMatchResult(room,{incomplete});
   if(!result)return;
   // Player progression stays available even without DATABASE_URL. Each
   // browser stores only its own run result; public rankings use PostgreSQL.
@@ -250,6 +250,8 @@ function createRoom(name){
   return room;
 }
 function destroyRoom(room){
+  // If every player abandons an active run, save its partial result once the room ends.
+  persistCompletedMatch(room,true);
   for(const member of room.members.values())clearTimeout(member.timer);
   for(const ws of room.spectators){
     send(ws,{type:'left',message:'The room has closed.'});
