@@ -2587,7 +2587,7 @@
       W/CAMERA_ZOOM,H/CAMERA_ZOOM);
   }
   function drawMarker(x,y,clr,label){const a=clock*2;ctx.save();ctx.translate(x,y);ctx.strokeStyle=clr;ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,12+Math.sin(a)*2,0,Math.PI*2);ctx.stroke();ctx.fillStyle=clr;ctx.font='bold 10px monospace';ctx.textAlign='center';ctx.fillText(label,0,-19);ctx.restore();}
-  function objectiveDirection(){return cores.find(c=>!c.collected)||(!survivor.rescued?survivor:technician&&!technician.rescued?technician:echoAlly&&!echoAlly.rescued?echoAlly:!relay.active?relay:exit);}
+  function objectiveDirection(){const core=cores.filter(c=>!c.collected).reduce((nearest,c)=>!nearest||dist(player,c)<dist(player,nearest)?c:nearest,null);return core||(!survivor.rescued?survivor:technician&&!technician.rescued?technician:echoAlly&&!echoAlly.rescued?echoAlly:!relay.active?relay:exit);}
   function directionLabel(){
     return cores.some(c=>!c.collected)?'FIND THE CORES':
       !survivor.rescued?'RESCUE THE ALLY':
