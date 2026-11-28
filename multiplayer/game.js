@@ -2934,7 +2934,7 @@
     if(rewindTargeting&&k==='tab'){rewindTargetIndex++;return;}
     if(rewindTargeting&&k==='enter'){commitRewindTarget(chosenRewindTarget());return;}
     if(k==='m'){if(roomRole==='host')developerSkip(e.shiftKey);return;}
-    if(k===' ')dash();else if(k==='q')triggerDecoy();else if(k==='e')interact();else if(k==='f')requestAbility();else if(k==='p'||k==='escape')pause();else if(k==='enter'&&state!=='playing')advance();else if(k==='r'&&state==='playing'&&roomRole==='host'){sendRoom({type:'restart'});}
+    if(k===' ')dash();else if(k==='q')triggerDecoy();else if(k==='e')interact();else if(k==='f')requestAbility();else if(k==='p'||k==='escape')pause();else if(k==='enter'&&state!=='playing')advance();
   });
   document.addEventListener('keyup', e => {const dir=keyMap[e.key.toLowerCase()];if(dir){moveHeld[dir]=false;if(roomRole!=='none')sendRoom(guestInputPacket());}});
   window.addEventListener('blur',()=>{moveHeld={up:false,down:false,left:false,right:false};if(state==='playing'&&roomRole==='none')pause();});
