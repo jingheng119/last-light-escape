@@ -2535,9 +2535,15 @@
   function drawDarkness(){
     const c=darkCtx;
     c.clearRect(0,0,W,H);
-    // Apply the same three-tier darkness curve independently in both stages.
-    const floorWithinStage=(CONFIGS[levelIndex]?.sourceFloor||1)-1;
-    const darkness=floorWithinStage<3?.63:floorWithinStage<6?.76:.90;
+    // Stage 1 keeps its original three-tier curve; Stages 2 and 3
+    // progress darkness evenly across their retained floor counts.
+    const cfg=CONFIGS[levelIndex]||CONFIGS[0];
+    const floorWithinStage=(cfg.sourceFloor||1)-1;
+    const darkness=cfg.stage===2
+      ?[.63,.72,.81,.90][cfg.stageFloor-1]
+      :cfg.stage===3
+        ?[.63,.70,.77,.84,.90][cfg.stageFloor-1]
+        :floorWithinStage<3?.63:floorWithinStage<6?.76:.90;
     c.fillStyle=`rgba(0,8,13,${darkness})`;c.fillRect(0,0,W,H);
     c.globalCompositeOperation='destination-out';
     const lights=[
