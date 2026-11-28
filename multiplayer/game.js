@@ -3777,12 +3777,6 @@
     const renderProgress=()=>{
       const progress=readProgress();
       const count=Number(progress.runs)||0,best=Number(progress.bestFloors)||0;
-      const detail=progress.bestTime==null?'':(
-        ' · Best full-run time '+Math.floor(progress.bestTime/60)+'m '+
-        String(Math.floor(progress.bestTime%60)).padStart(2,'0')+'s');
-      $('#myProgress').textContent=count?
-        'YOUR RECORD · '+count+' completed attempts · '+best+' floors cleared'+detail:
-        'YOUR RECORD · No completed runs on this browser yet.';
       const gallery=$('#myAchievements');
       gallery.replaceChildren();
       const earned=new Set(Array.isArray(progress.badges)?progress.badges:[]);
