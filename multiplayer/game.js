@@ -33,7 +33,7 @@
   const darkCtx = darknessCanvas.getContext('2d');
   const ui = {
     health: $('#health'), cores: $('#cores'), relay: $('#relay'), timer: $('#timer'), threat: $('#threat'),
-    dash: $('#dashStatus'), decoys: $('#decoys'), skillCD: $('#skillCD'), dashCD: $('#dashCD'), decoyCD: $('#decoyCD'), level: $('#missionLevel'), stageCard: $('#stageInfoCard'), mobileStage: $('#mobileStageInfo'),
+    dash: $('#dashStatus'), decoys: $('#decoys'), skillCD: $('#skillCD'), dashCD: $('#dashCD'), decoyCD: $('#decoyCD'), level: $('#missionLevel'), stageCard: $('#stageInfoCard'), mobileStage: $('#mobileStageInfo'), desktopStage: $('#desktopStageInfo'),
     overlay: $('#overlay'), title: $('#overlayTitle'), text: $('#overlayText'),
     classSelect: $('#classSelect'), classStatus: $('#classStatus'), survivorStatus: $('#survivorStatus'), abilityStatus: $('#abilityStatus'),
     allyLabel: $('#allyStatusLabel'), rescueObjective: $('#rescueObjective'),
@@ -615,7 +615,10 @@
     decoys=[];illusions=[];noiseEvents=[];skillWaves=[];elapsed=0;alertLevel=0;hitFlash=0;particles=[];
     nextAmbientAt=clock+2;nextWarningAt=clock;previousThreat=0;
     updateCamera(0,true);
-    // Stage and floor labels were removed from the HTML; do not update absent UI nodes.
+    // Keep the current stage and floor visible on desktop and mobile.
+    const stageFloorLabel=`STAGE ${String(cfg.stage).padStart(2,'0')} · FLOOR ${String(cfg.stageFloor).padStart(2,'0')} / ${String(cfg.stage===1?STAGE_ONE_FLOORS:cfg.stage===2?STAGE_TWO_FLOORS:STAGE_THREE_FLOORS).padStart(2,'0')}`;
+    if(ui.mobileStage)ui.mobileStage.textContent=stageFloorLabel;
+    if(ui.desktopStage)ui.desktopStage.textContent=stageFloorLabel;
     ui.allyLabel.textContent=cfg.stage>=2?'ALLIES':'SURVIVOR';
     ui.rescueObjective.textContent=cfg.stage>=2?'✚ Rescue both allies':'✚ Rescue the survivor';
     const gameShell=$('.game-shell');
