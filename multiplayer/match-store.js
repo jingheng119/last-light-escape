@@ -10,7 +10,7 @@ export function achievementsForResult(result){
   if(result.floorsCleared>=9)badges.push({id:'ward',title:'Ward Escape',description:'Clear Stage 1'});
   if(result.floorsCleared>=18)badges.push({id:'engine',title:'Copper Survivor',description:'Clear Stage 2'});
   if(result.outcome==='victory'&&result.floorsCleared===27)
-    badges.push({id:'signal',title:'Last Light',description:'Complete all 27 floors'});
+    badges.push({id:'signal',title:'Last Light',description:'Complete the full game'});
   if(result.outcome==='victory'&&result.players.length===1)
     badges.push({id:'solo',title:'Lone Survivor',description:'Complete the game alone'});
   if(result.outcome==='victory'&&result.players.length>=2)
@@ -19,7 +19,7 @@ export function achievementsForResult(result){
     badges.push({id:'alive',title:'Everyone Made It',description:'Finish with every teammate alive'});
   if(result.outcome==='victory'&&result.floorsCleared===27){
     for(const role of new Set(result.players.map(p=>p.role).filter(role=>VALID_ROLES.has(role))))
-      badges.push({id:ROLE_ACHIEVEMENTS[role],title:ROLE_ACHIEVEMENT_TITLES[role],description:'Complete all 27 floors as '+role});
+      badges.push({id:ROLE_ACHIEVEMENTS[role],title:ROLE_ACHIEVEMENT_TITLES[role],description:'Complete the full game as '+role});
   }
   return badges;
 }
