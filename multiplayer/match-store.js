@@ -100,6 +100,8 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
         // Past records cannot be classified retroactively from competitive alone.
         await created.query(`ALTER TABLE last_light_matches
           ADD COLUMN IF NOT EXISTS is_developer_run BOOLEAN NOT NULL DEFAULT FALSE`);
+        await created.query(`ALTER TABLE last_light_matches
+          ADD COLUMN IF NOT EXISTS profile_hashes JSONB NOT NULL DEFAULT '[]'::jsonb`);
         pool=created;
         return pool;
       }catch(error){await created.end();throw error;}
@@ -126,6 +128,43 @@ export function makeMatchStore({databaseUrl=process.env.DATABASE_URL,loadDriver=
       }catch(error){
         log.error('Match database save failed:',error?.message||error);
         return false;
+      }
+    },
+    async history(profileHash){
+      const empty={available:false,entries:[]};
+      if(!enabled||typeof profileHash!=='string'||!/^[a-f0-9]{64}$/.test(profileHash))return empty;
+      try{
+        const db=await ensure();
+        const {rows}=await db.query(`
+          SELECT m.room_name,m.outcome,m.floors_cleared,m.elapsed_seconds,
+            m.completed_at,jsonb_array_length(m.players) AS party_size,
+            COALESCE((
+              SELECT p.player FROM jsonb_array_elements(m.players) AS p(player)
+              WHERE (p.player->>'slot')::int=(
+                SELECT (entry.item->>'slot')::int
+                FROM jsonb_array_elements(m.profile_hashes) AS entry(item)
+                WHERE entry.item->>'hash'=$1 LIMIT 1
+              ) LIMIT 1
+            ),'{}'::jsonb) AS survivor
+          FROM last_light_matches AS m
+          WHERE EXISTS (
+            SELECT 1 FROM jsonb_array_elements(m.profile_hashes) AS entry(item)
+            WHERE entry.item->>'hash'=$1
+          )
+          ORDER BY m.completed_at DESC LIMIT 20
+        `,[profileHash]);
+        return {available:true,entries:rows.map(row=>({
+          roomName:row.room_name,outcome:row.outcome,
+          floorsCleared:Number(row.floors_cleared)||0,
+          elapsedSeconds:Number(row.elapsed_seconds)||0,
+          completedAt:row.completed_at,
+          partySize:Number(row.party_size)||1,
+          role:row.survivor?.role||'scout',
+          nickname:row.survivor?.nickname||'Survivor'
+        }))};
+      }catch(error){
+        log.error('Match history query failed:',error?.message||error);
+        return empty;
       }
     },
     async analytics(){
